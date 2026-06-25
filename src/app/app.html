@@ -147,7 +147,14 @@
             [fOutputId]="edge.outputId"
             [fInputId]="edge.inputId"
             [fType]="EFConnectionType.BEZIER">
-            <f-connection-marker-arrow [type]="EFMarkerType.END_ALL_STATES" />
+            @if (edge.directed) {
+              <f-connection-marker-arrow [type]="EFMarkerType.END_ALL_STATES" />
+            }
+            <div fConnectionContent [position]="0.5" class="ag-edge-badge f-drag-blocker">
+              <button class="ag-edge-weight" type="button"
+                (mousedown)="$event.stopPropagation()"
+                (click)="openEdgeEditor($event, edge.id)">{{ edge.weight }}</button>
+            </div>
           </f-connection>
         }
 
@@ -245,6 +252,32 @@
           (click)="deleteNode(nodeCtxTarget()!); closeNodeContextMenu()">
           <span class="ae-ctx-icon ae-ctx-icon-danger"><app-icon name="trash" /></span>
           <span>Delete node</span>
+        </button>
+      </div>
+    }
+
+    <!-- Edge editor (weight + direction) -->
+    @if (editEdgeId(); as eid) {
+      <div class="ae-ctx-backdrop"
+        (click)="closeEdgeEditor()"
+        (contextmenu)="closeEdgeEditor(); $event.preventDefault()"></div>
+      <div class="ag-edge-editor" [style.left.px]="editPos().x" [style.top.px]="editPos().y">
+        <div class="ag-edit-row">
+          <label>Weight</label>
+          <input type="number" class="ag-weight-input" [value]="editingEdge()?.weight ?? 1"
+            (input)="setEdgeWeight(eid, $any($event.target).valueAsNumber)" />
+        </div>
+        <div class="ag-edit-row">
+          <label>Direction</label>
+          <div class="ag-seg">
+            <button type="button" [class.active]="editingEdge()?.directed"
+              (click)="setEdgeDirected(eid, true)">Directed →</button>
+            <button type="button" [class.active]="!editingEdge()?.directed"
+              (click)="setEdgeDirected(eid, false)">Undirected —</button>
+          </div>
+        </div>
+        <button class="ag-edit-delete" type="button" (click)="deleteEdge(eid)">
+          <app-icon name="trash" /> Delete edge
         </button>
       </div>
     }

@@ -38,6 +38,9 @@ interface GEdge {
   id: string;
   outputId: string;
   inputId: string;
+  weight: number;
+  /** true = directed (single arrow at the target); false = undirected (plain line, no arrows). */
+  directed: boolean;
 }
 
 interface PaletteItem {
@@ -107,12 +110,12 @@ export class App implements AfterViewInit, OnDestroy {
   ]);
 
   protected readonly edges = signal<GEdge[]>([
-    { id: 'e1', outputId: 'A-out', inputId: 'B-in' },
-    { id: 'e2', outputId: 'A-out', inputId: 'C-in' },
-    { id: 'e3', outputId: 'C-out', inputId: 'B-in' },
-    { id: 'e4', outputId: 'B-out', inputId: 'D-in' },
-    { id: 'e5', outputId: 'C-out', inputId: 'D-in' },
-    { id: 'e6', outputId: 'D-out', inputId: 'E-in' },
+    { id: 'e1', outputId: 'A-out', inputId: 'B-in', weight: 4, directed: true },
+    { id: 'e2', outputId: 'A-out', inputId: 'C-in', weight: 2, directed: true },
+    { id: 'e3', outputId: 'C-out', inputId: 'B-in', weight: 1, directed: true },
+    { id: 'e4', outputId: 'B-out', inputId: 'D-in', weight: 5, directed: true },
+    { id: 'e5', outputId: 'C-out', inputId: 'D-in', weight: 8, directed: true },
+    { id: 'e6', outputId: 'D-out', inputId: 'E-in', weight: 3, directed: true },
   ]);
 
   protected readonly zoomLevel = signal(100);
@@ -129,6 +132,11 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly nodeCtxMenuOpen = signal(false);
   protected readonly nodeCtxMenuPos = signal<{ x: number; y: number }>({ x: 0, y: 0 });
   protected readonly nodeCtxTarget = signal<string | null>(null);
+
+  // Edge editor (weight + direction)
+  protected readonly editEdgeId = signal<string | null>(null);
+  protected readonly editPos = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+  protected readonly editingEdge = computed(() => this.edges().find((e) => e.id === this.editEdgeId()) ?? null);
 
   private nextNodeId = 1;
   private currentCanvasPos = { x: 0, y: 0 };
@@ -222,8 +230,36 @@ export class App implements AfterViewInit, OnDestroy {
     if (!event.targetId) return;
     this.edges.update((list) => [
       ...list,
-      { id: `e${Date.now()}`, outputId: event.sourceId, inputId: event.targetId! },
+      { id: `e${Date.now()}`, outputId: event.sourceId, inputId: event.targetId!, weight: 1, directed: true },
     ]);
+  }
+
+  // ── Edge editor (weight + direction) ──────────────────────
+  openEdgeEditor(event: MouseEvent, edgeId: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.ctxMenuOpen.set(false);
+    this.nodeCtxMenuOpen.set(false);
+    this.editPos.set({ x: event.clientX, y: event.clientY });
+    this.editEdgeId.set(edgeId);
+  }
+
+  closeEdgeEditor(): void {
+    this.editEdgeId.set(null);
+  }
+
+  setEdgeWeight(edgeId: string, weight: number): void {
+    if (Number.isNaN(weight)) return;
+    this.edges.update((list) => list.map((e) => (e.id === edgeId ? { ...e, weight } : e)));
+  }
+
+  setEdgeDirected(edgeId: string, directed: boolean): void {
+    this.edges.update((list) => list.map((e) => (e.id === edgeId ? { ...e, directed } : e)));
+  }
+
+  deleteEdge(edgeId: string): void {
+    this.edges.update((list) => list.filter((e) => e.id !== edgeId));
+    if (this.editEdgeId() === edgeId) this.closeEdgeEditor();
   }
 
   onSelectionChanged(event: FSelectionChangeEvent): void {
@@ -301,6 +337,7 @@ export class App implements AfterViewInit, OnDestroy {
     if (event.key === 'Escape') {
       this.ctxMenuOpen.set(false);
       this.closeNodeContextMenu();
+      this.closeEdgeEditor();
       this.tipsOpen.set(false);
       return;
     }
