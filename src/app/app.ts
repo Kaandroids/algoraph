@@ -19,6 +19,8 @@ import {
   FSelectionChangeEvent,
 } from '@foblex/flow';
 import { IconComponent } from './shared/icon.component';
+import { CodeEditorComponent } from './editor/code-editor.component';
+import { type EditorGlobal } from './editor/dsl';
 import { ApiGroup, DATA_STRUCTURE_API, GRAPH_NODE_API, GLOBAL_REFERENCE } from './node-api';
 
 type NodeKind = 'NODE' | 'START' | 'GOAL';
@@ -91,6 +93,13 @@ interface DataPaletteItem {
   icon: string;
   color: string;
   description: string;
+}
+
+/** One editable source file in the algorithm workspace (entry `main` + module files). */
+interface AlgoFile {
+  id: string;
+  name: string;
+  content: string;
 }
 
 /** View model for the info modal — shared by graph nodes and data structures. */
@@ -230,11 +239,53 @@ function makeDataNode(
   return node;
 }
 
+/** Entry algorithm — the file the Run workspace steps through. */
+const MAIN_SRC = `// Dijkstra — shortest paths from the Start vertex
+s ← source()
+for each vertex u in nodes() do
+  dist[u] ← INFINITY
+end
+dist[s] ← 0
+pq.push(s, 0)
+
+while not pq.isEmpty() do
+  u ← pq.popMin()
+  if u in visited then continue end
+  visited.add(u)
+
+  for each vertex v in neighbors(u) do
+    relax(u, v)
+  end
+end
+`;
+
+/** A module file — exports a helper the entry calls. */
+const HELPERS_SRC = `// Edge relaxation — shared helper
+export function relax(u, v) do
+  alt ← dist[u] + weight(u, v)
+  if alt < dist[v] then
+    dist[v] ← alt
+    pq.push(v, alt)
+  end
+end
+`;
+
+/** Method / property name from an API signature (`pq.push(…)` → `push`, `size()` → `size`). */
+function memberName(sig: string): string | null {
+  const dot = /^[A-Za-z_]\w*\.(\w+)/.exec(sig);
+  if (dot) return dot[1];
+  const call = /^([A-Za-z_]\w*)\s*\(/.exec(sig);
+  if (call) return call[1];
+  const prop = /^([A-Za-z_]\w*)$/.exec(sig);
+  if (prop) return prop[1];
+  return null;
+}
+
 @Component({
   selector: 'app-root',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FFlowModule, IconComponent],
+  imports: [FFlowModule, IconComponent, CodeEditorComponent],
   templateUrl: './app.html',
   styleUrls: ['./app.scss', './editor-chrome.scss', './editor-nodes.scss', './data-nodes.scss'],
 })
@@ -257,33 +308,31 @@ export class App {
   /** Run workspace — pseudocode line currently being executed (static placeholder for now). */
   protected readonly runCurrentLine = signal(9);
 
-  /**
-   * Sample pseudocode shown in the algorithm editor. Static for now — the live
-   * CodeMirror editor and the interpreter come later; this is the design shell.
-   */
-  protected readonly pseudocodeLines: string[] = [
-    '// Dijkstra — shortest paths from the Start vertex',
-    's ← source()',
-    'for each vertex u in nodes() do',
-    '  dist[u] ← INFINITY',
-    'end',
-    'dist[s] ← 0',
-    'pq.push(s, 0)',
-    '',
-    'while not pq.isEmpty() do',
-    '  u ← pq.popMin()',
-    '  if u in visited then continue end',
-    '  visited.add(u)',
-    '',
-    '  for each vertex v in neighbors(u) do',
-    '    alt ← dist[u] + weight(u, v)',
-    '    if alt < dist[v] then',
-    '      dist[v] ← alt',
-    '      pq.push(v, alt)',
-    '    end',
-    '  end',
-    'end',
-  ];
+  // ── Algorithm source files (entry `main` + module files) ──
+  protected readonly files = signal<AlgoFile[]>([
+    { id: 'main', name: 'main.algo', content: MAIN_SRC },
+    { id: 'helpers', name: 'helpers.algo', content: HELPERS_SRC },
+  ]);
+  protected readonly activeFileId = signal('main');
+  protected readonly activeFile = computed(
+    () => this.files().find((f) => f.id === this.activeFileId()) ?? this.files()[0],
+  );
+  /** Line count of the file open in the editor. */
+  protected readonly activeLineCount = computed(() => this.activeFile().content.split('\n').length);
+  /** main.algo split into lines — what the Run workspace steps through. */
+  protected readonly mainLines = computed(
+    () => (this.files().find((f) => f.id === 'main')?.content ?? '').split('\n'),
+  );
+  /** Names in scope for the editor's autocomplete — the graph + canvas data structures. */
+  protected readonly editorGlobals = computed<EditorGlobal[]>(() => {
+    const structures = this.dataNodes().map((d) => ({
+      name: d.label,
+      type: DATA_STRUCTURES[d.kind].tag,
+      members: this.dataMembers(d.kind),
+    }));
+    return [{ name: 'graph', type: 'Graph' }, ...structures];
+  });
+  private nextFileId = 1;
 
   // ── Node palette (tool library rail) ──────────────────────
   protected readonly palette: PaletteItem[] = [
@@ -451,6 +500,38 @@ export class App {
   }
   dataTypeLabel(kind: DataStructureKind): string {
     return DATA_STRUCTURES[kind].tag;
+  }
+  /** Autocomplete entries for a data structure's methods (from the API catalog). */
+  private dataMembers(kind: DataStructureKind): { label: string; detail?: string; info?: string }[] {
+    const out: { label: string; detail?: string; info?: string }[] = [];
+    const seen = new Set<string>();
+    for (const group of DATA_STRUCTURE_API[kind]) {
+      for (const m of group.members) {
+        const label = memberName(m.sig);
+        if (!label || seen.has(label)) continue;
+        seen.add(label);
+        out.push({
+          label,
+          detail: m.returns ? `: ${m.returns}` : undefined,
+          info: m.cost ? `${m.desc} · ${m.cost}` : m.desc,
+        });
+      }
+    }
+    return out;
+  }
+
+  /** Current element count, shown next to a data structure in the globals list. */
+  dataSizeLabel(dn: DataNode): string {
+    switch (dn.kind) {
+      case 'MAP':
+        return `${dn.entries.length}`;
+      case 'PQUEUE':
+        return `${dn.heap.length}`;
+      case 'MATRIX':
+        return dn.matrix.length ? `${dn.matrix.length}×${dn.matrix[0].length}` : '0';
+      default:
+        return `${dn.items.length}`;
+    }
   }
   /** Stacks grow upward, so render the top (last pushed) element first. */
   reversed(items: (string | number)[]): (string | number)[] {
@@ -964,6 +1045,31 @@ export class App {
   onDataLibClick(_event: Event, kind: DataStructureKind): void {
     if (this.activeView() === 'algorithm') this.toggleLibCard('data:' + kind);
     else this.addDataNode(kind);
+  }
+
+  // ── Algorithm files (entry `main` + modules) ──────────────
+  setActiveFile(id: string): void {
+    this.activeFileId.set(id);
+  }
+  /** Persist the editor's content back to the active file. */
+  onEditorContent(text: string): void {
+    const id = this.activeFileId();
+    this.files.update((list) => list.map((f) => (f.id === id ? { ...f, content: text } : f)));
+  }
+  addFile(): void {
+    const id = `f${this.nextFileId++}`;
+    const used = new Set(this.files().map((f) => f.name));
+    let name = 'module.algo';
+    for (let i = 2; used.has(name); i++) name = `module${i}.algo`;
+    this.files.update((list) => [...list, { id, name, content: '// new module\n' }]);
+    this.activeFileId.set(id);
+  }
+  /** Close a module file; the entry `main` can't be closed. */
+  closeFile(event: Event, id: string): void {
+    event.stopPropagation();
+    if (id === 'main') return;
+    this.files.update((list) => list.filter((f) => f.id !== id));
+    if (this.activeFileId() === id) this.activeFileId.set('main');
   }
 
   // ── Canvas overview + import / export ─────────────────────

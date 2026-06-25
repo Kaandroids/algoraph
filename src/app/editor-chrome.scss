@@ -505,26 +505,6 @@
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
-.ae-btn-vars {
-  background: var(--bg);
-  color: var(--fg);
-  border: 0.5px solid var(--border);
-}
-
-.ae-btn-vars:hover:not(:disabled) {
-  border-color: var(--border-strong);
-  background: var(--bg-2);
-}
-
-.ae-btn-run {
-  background: oklch(0.55 0.14 150);
-  color: #fff;
-}
-
-.ae-btn-run:hover:not(:disabled) {
-  background: oklch(0.50 0.14 150);
-}
-
 /* ── Main area ────────────────────────────────────────────── */
 .ae-main {
   flex: 1;

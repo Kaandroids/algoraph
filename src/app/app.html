@@ -697,26 +697,32 @@
   @if (activeView() === 'algorithm') {
     <!-- ── Algorithm editor (center) ───────────────────────── -->
     <div class="ag-editor">
-      <div class="ag-editor-bar">
-        <span class="ag-editor-file"><app-icon name="code" /> dijkstra.algo</span>
-        <span class="ag-editor-lang">Pseudocode</span>
+      <div class="ag-editor-tabs">
+        @for (f of files(); track f.id) {
+          <button class="ag-ftab" type="button" [class.active]="f.id === activeFileId()"
+            (click)="setActiveFile(f.id)">
+            <app-icon name="code" />
+            <span class="ag-ftab-name">{{ f.name }}</span>
+            @if (f.id !== 'main') {
+              <span class="ag-ftab-x" role="button" tabindex="0" aria-label="Close file"
+                (click)="closeFile($event, f.id)"><app-icon name="x" /></span>
+            }
+          </button>
+        }
+        <button class="ag-ftab-add" type="button" (click)="addFile()" aria-label="New file">
+          <app-icon name="plus" />
+        </button>
       </div>
 
-      <div class="ag-editor-scroll">
-        <div class="ag-code">
-          @for (line of pseudocodeLines; track $index) {
-            <div class="ag-code-line" [class.is-comment]="line.trimStart().startsWith('//')">
-              <span class="ag-code-gutter">{{ $index + 1 }}</span>
-              <span class="ag-code-text">{{ line }}</span>
-            </div>
-          }
-        </div>
-      </div>
+      <app-code-editor class="ag-editor-cm"
+        [content]="activeFile().content"
+        (contentChange)="onEditorContent($event)"
+        [globals]="editorGlobals()" />
 
       <div class="ag-editor-foot">
-        <span class="grp"><app-icon name="code" /> {{ pseudocodeLines.length }} lines</span>
+        <span class="grp"><app-icon name="code" /> {{ activeLineCount() }} lines</span>
         <span class="sep"></span>
-        <span class="grp">Ln 1, Col 1</span>
+        <span class="grp">{{ activeFile().name }}</span>
         <span class="grow"></span>
         <span class="ag-editor-badge">Pseudocode DSL</span>
       </div>
@@ -750,7 +756,7 @@
           <div class="ag-insp-line" style="--nc: var(--accent)">
             <span class="ag-insp-ic"><app-icon name="code" /></span>
             <span class="ag-insp-key">Lines</span>
-            <span class="ag-insp-val">{{ pseudocodeLines.length }}</span>
+            <span class="ag-insp-val">{{ activeLineCount() }}</span>
           </div>
           <div class="ag-insp-line" style="--nc: var(--tone-violet)">
             <span class="ag-insp-ic"><app-icon name="stepForward" /></span>
@@ -779,17 +785,22 @@
           </div>
         </div>
 
-        <!-- State — the data structures the algorithm keeps -->
+        <!-- Globals — the graph and data structures in scope -->
         <div class="ag-insp-section">
-          <div class="ag-insp-title">State</div>
+          <div class="ag-insp-title">Globals</div>
+          <div class="ag-insp-row" style="--nc: var(--accent)">
+            <span class="ag-insp-dot"></span>
+            <span class="ag-insp-name">graph</span>
+            <span class="ag-insp-size">{{ nodes().length }} · {{ edges().length }}</span>
+            <span class="ag-insp-tag">Graph</span>
+          </div>
           @for (dn of dataNodes(); track dn.id) {
             <div class="ag-insp-row" [style.--nc]="dataColor(dn.kind)">
               <span class="ag-insp-dot"></span>
               <span class="ag-insp-name">{{ dn.label }}</span>
+              <span class="ag-insp-size">{{ dataSizeLabel(dn) }}</span>
               <span class="ag-insp-tag">{{ dataTypeLabel(dn.kind) }}</span>
             </div>
-          } @empty {
-            <div class="ag-insp-empty">No state structures referenced yet.</div>
           }
         </div>
       </div>
@@ -809,11 +820,11 @@
     <!-- ── Run: code follow-along (left) ─────────────────────── -->
     <aside class="ag-runcode">
       <div class="ag-runcode-head">
-        <span class="ag-editor-file"><app-icon name="code" /> dijkstra.algo</span>
+        <span class="ag-editor-file"><app-icon name="code" /> main.algo</span>
       </div>
       <div class="ag-runcode-scroll">
         <div class="ag-code">
-          @for (line of pseudocodeLines; track $index) {
+          @for (line of mainLines(); track $index) {
             <div class="ag-code-line"
               [class.is-comment]="line.trimStart().startsWith('//')"
               [class.is-current]="$index === runCurrentLine()">
