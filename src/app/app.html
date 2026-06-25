@@ -16,19 +16,17 @@
       <button class="ae-tab" [class.active]="activeView() === 'algorithm'" (click)="setView('algorithm')">
         <app-icon name="code" /><span>Algorithm</span>
       </button>
+      <button class="ae-tab" [class.active]="activeView() === 'run'" (click)="setView('run')">
+        <app-icon name="play" /><span>Run</span>
+      </button>
     </div>
-    <button class="ae-toolbar-btn ae-btn-vars" disabled>
-      <app-icon name="code" /> Pseudocode
-    </button>
-    <button class="ae-toolbar-btn ae-btn-run" disabled>
-      <app-icon name="play" /> Run
-    </button>
   </div>
   <div class="ae-toolbar-accent" aria-hidden="true"></div>
 </div>
 
 <!-- ── Main area ────────────────────────────────────────────── -->
 <div class="ae-main">
+  @if (activeView() !== 'run') {
   <!-- ── Tool library rail ─────────────────────────────────── -->
   <aside class="ae-toolrail" [class.collapsed]="railCollapsed()">
     <div class="ae-toolrail-head">
@@ -187,6 +185,7 @@
       </div>
     }
   </aside>
+  }
 
   @if (activeView() === 'canvas') {
   <!-- ── Canvas ────────────────────────────────────────────── -->
@@ -802,6 +801,136 @@
         <button class="ag-io-btn primary" type="button" (click)="exportCanvas()">
           <app-icon name="download" /> Export
         </button>
+      </div>
+    </aside>
+  }
+
+  @if (activeView() === 'run') {
+    <!-- ── Run: code follow-along (left) ─────────────────────── -->
+    <aside class="ag-runcode">
+      <div class="ag-runcode-head">
+        <span class="ag-editor-file"><app-icon name="code" /> dijkstra.algo</span>
+      </div>
+      <div class="ag-runcode-scroll">
+        <div class="ag-code">
+          @for (line of pseudocodeLines; track $index) {
+            <div class="ag-code-line"
+              [class.is-comment]="line.trimStart().startsWith('//')"
+              [class.is-current]="$index === runCurrentLine()">
+              <span class="ag-code-gutter">{{ $index + 1 }}</span>
+              <span class="ag-code-text">{{ line }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Run: visualization stage + transport (center) ─────── -->
+    <div class="ag-runstage">
+      <div class="ag-runviz">
+        <div class="ag-runviz-empty">
+          <span class="ag-runviz-icon"><app-icon name="play" /></span>
+          <p class="ag-runviz-title">Step-by-step run</p>
+          <p class="ag-runviz-sub">
+            Press play to watch the algorithm execute on your graph — one
+            operation at a time, with each step counted.
+          </p>
+        </div>
+      </div>
+
+      <div class="ag-transport">
+        <div class="ag-transport-controls">
+          <button class="ag-tp-btn" type="button" disabled aria-label="Restart">
+            <app-icon name="reset" />
+          </button>
+          <button class="ag-tp-btn" type="button" disabled aria-label="Step back">
+            <app-icon name="stepBack" />
+          </button>
+          <button class="ag-tp-btn ag-tp-play" type="button" disabled aria-label="Play">
+            <app-icon name="play" />
+          </button>
+          <button class="ag-tp-btn" type="button" disabled aria-label="Step forward">
+            <app-icon name="stepForward" />
+          </button>
+        </div>
+        <div class="ag-transport-track">
+          <span class="ag-transport-step">Step 0 / —</span>
+          <div class="ag-transport-bar"><div class="ag-transport-fill" style="width: 0%"></div></div>
+          <span class="ag-transport-speed">1×</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Run trace (right, collapsible) ────────────────────── -->
+    <aside class="ag-coderail ag-inspector" [class.collapsed]="codeRailCollapsed()">
+      <div class="ag-coderail-head">
+        <button class="ae-toolrail-toggle ag-coderail-toggle" (click)="toggleCodeRail()"
+          aria-label="Collapse trace">
+          <app-icon name="chevronRight" />
+        </button>
+        <div class="ae-toolrail-titles">
+          <span class="ae-toolrail-eyebrow">Run</span>
+          <span class="ae-toolrail-title">Trace</span>
+        </div>
+        <button class="ae-toolrail-help" type="button" (click)="openGlobalInfo($event)"
+          aria-label="Pseudocode reference">
+          <app-icon name="help" />
+        </button>
+      </div>
+
+      <button class="ag-coderail-vlabel" (click)="toggleCodeRail()" aria-label="Expand trace">
+        <span>Trace</span>
+      </button>
+
+      <div class="ag-coderail-body ag-inspector-body">
+        <!-- Progress -->
+        <div class="ag-insp-section">
+          <div class="ag-insp-title">Progress</div>
+          <div class="ag-insp-line" style="--nc: var(--accent)">
+            <span class="ag-insp-ic"><app-icon name="stepForward" /></span>
+            <span class="ag-insp-key">Step</span>
+            <span class="ag-insp-val">0 / —</span>
+          </div>
+          <div class="ag-insp-line" style="--nc: var(--tone-violet)">
+            <span class="ag-insp-ic"><app-icon name="reset" /></span>
+            <span class="ag-insp-key">Operations</span>
+            <span class="ag-insp-val">—</span>
+          </div>
+          <div class="ag-insp-line" style="--nc: var(--success)">
+            <span class="ag-insp-ic"><app-icon name="code" /></span>
+            <span class="ag-insp-key">Current line</span>
+            <span class="ag-insp-val">{{ runCurrentLine() + 1 }}</span>
+          </div>
+        </div>
+
+        <!-- Complexity (counted live during the run) -->
+        <div class="ag-insp-section">
+          <div class="ag-insp-title">Complexity</div>
+          <div class="ag-insp-line ag-insp-line-muted">
+            <span class="ag-insp-ic"><app-icon name="reset" /></span>
+            <span class="ag-insp-key">Time</span>
+            <span class="ag-insp-val ag-insp-val-mono">O(?)</span>
+          </div>
+          <div class="ag-insp-line ag-insp-line-muted">
+            <span class="ag-insp-ic"><app-icon name="layers" /></span>
+            <span class="ag-insp-key">Space</span>
+            <span class="ag-insp-val ag-insp-val-mono">O(?)</span>
+          </div>
+        </div>
+
+        <!-- State — the data structures as they evolve -->
+        <div class="ag-insp-section">
+          <div class="ag-insp-title">State</div>
+          @for (dn of dataNodes(); track dn.id) {
+            <div class="ag-insp-row" [style.--nc]="dataColor(dn.kind)">
+              <span class="ag-insp-dot"></span>
+              <span class="ag-insp-name">{{ dn.label }}</span>
+              <span class="ag-insp-tag">{{ dataTypeLabel(dn.kind) }}</span>
+            </div>
+          } @empty {
+            <div class="ag-insp-empty">No state structures yet.</div>
+          }
+        </div>
       </div>
     </aside>
   }

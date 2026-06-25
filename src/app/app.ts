@@ -248,11 +248,14 @@ export class App {
 
   protected readonly title = signal('Algoraph');
 
-  /** Which workspace is showing — the graph builder or the algorithm editor. */
-  protected readonly activeView = signal<'canvas' | 'algorithm'>('canvas');
+  /** Which workspace is showing — graph builder, algorithm editor, or step-by-step run. */
+  protected readonly activeView = signal<'canvas' | 'algorithm' | 'run'>('canvas');
 
   /** In algorithm mode, which library item's inline reference card is open (`graph:KIND` / `data:KIND`). */
   protected readonly expandedLib = signal<string | null>(null);
+
+  /** Run workspace — pseudocode line currently being executed (static placeholder for now). */
+  protected readonly runCurrentLine = signal(9);
 
   /**
    * Sample pseudocode shown in the algorithm editor. Static for now — the live
@@ -937,7 +940,7 @@ export class App {
   }
 
   // ── View switch (graph builder ↔ algorithm editor) ────────
-  setView(view: 'canvas' | 'algorithm'): void {
+  setView(view: 'canvas' | 'algorithm' | 'run'): void {
     this.activeView.set(view);
     this.expandedLib.set(null);
   }

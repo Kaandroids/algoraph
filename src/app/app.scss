@@ -879,6 +879,175 @@
 .ae-libcard .ds-api-cost { font-size: 10px; }
 .ae-libcard .ds-api-desc { margin-top: 2px; font-size: 11px; }
 
+/* ════════════════════════════════════════════════════════════
+   Run workspace — code follow-along, visualization stage,
+   transport controls and trace rail. Design shell for now.
+   ════════════════════════════════════════════════════════════ */
+.ag-runcode {
+  flex-shrink: 0;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg);
+  border-right: 0.5px solid var(--border);
+  overflow: hidden;
+}
+
+.ag-runcode-head {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 14px;
+  border-bottom: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.ag-runcode-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 0;
+}
+
+/* Highlight the line under execution (shares .ag-code base styling). */
+.ag-code-line.is-current {
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.ag-code-line.is-current .ag-code-text { color: var(--fg); font-style: normal; }
+
+.ag-runstage {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-2);
+  overflow: hidden;
+}
+
+.ag-runviz {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background-image: radial-gradient(rgba(128, 128, 128, 0.22) 1.4px, transparent 1.4px);
+  background-size: 22px 22px;
+}
+
+.ag-runviz-empty {
+  max-width: 330px;
+  text-align: center;
+}
+
+.ag-runviz-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+  border: 0.5px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+
+  app-icon { width: 20px; height: 20px; }
+}
+
+.ag-runviz-title {
+  margin: 0 0 6px;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  color: var(--fg);
+}
+
+.ag-runviz-sub {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--fg-muted);
+}
+
+.ag-transport {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 56px;
+  padding: 0 18px;
+  border-top: 0.5px solid var(--border);
+  background: var(--bg);
+}
+
+.ag-transport-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ag-tp-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 0.5px solid var(--border-strong);
+  background: var(--field-bg);
+  color: var(--fg);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+
+  app-icon { width: 15px; height: 15px; }
+
+  &:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+}
+
+.ag-tp-play {
+  width: 40px;
+  color: var(--bg-panel-fg);
+  background: var(--bg-panel);
+  border-color: transparent;
+
+  app-icon { color: #fff; }
+}
+
+.ag-transport-track {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ag-transport-step {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+}
+
+.ag-transport-bar {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  border: 0.5px solid var(--border);
+  overflow: hidden;
+}
+
+.ag-transport-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.ag-transport-speed {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--fg-subtle);
+}
+
 /* ── Edge weight badge (on the connection) ────────────────── */
 .ag-edge-weight {
   appearance: none;
