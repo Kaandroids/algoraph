@@ -595,30 +595,55 @@
     </button>
 
     <div class="ag-coderail-body ag-inspector-body">
-      <!-- Stat tiles -->
-      <div class="ag-stat-grid">
-        <div class="ag-stat">
-          <span class="ag-stat-num">{{ nodes().length }}</span>
-          <span class="ag-stat-label">Nodes</span>
+      <!-- Summary -->
+      <div class="ag-insp-section">
+        <div class="ag-insp-title">Summary</div>
+        <div class="ag-insp-line" style="--nc: var(--accent)">
+          <span class="ag-insp-ic"><app-icon name="grid" /></span>
+          <span class="ag-insp-key">Nodes</span>
+          <span class="ag-insp-val">{{ nodes().length }}</span>
         </div>
-        <div class="ag-stat">
-          <span class="ag-stat-num">{{ edges().length }}</span>
-          <span class="ag-stat-label">Edges</span>
+        <div class="ag-insp-line" style="--nc: var(--tone-violet)">
+          <span class="ag-insp-ic"><app-icon name="link" /></span>
+          <span class="ag-insp-key">Edges</span>
+          <span class="ag-insp-val">{{ edges().length }}</span>
         </div>
-        <div class="ag-stat">
-          <span class="ag-stat-num">{{ dataNodes().length }}</span>
-          <span class="ag-stat-label">Structures</span>
+        <div class="ag-insp-line" style="--nc: var(--success)">
+          <span class="ag-insp-ic"><app-icon name="layers" /></span>
+          <span class="ag-insp-key">Structures</span>
+          <span class="ag-insp-val">{{ dataNodes().length }}</span>
         </div>
       </div>
 
       <!-- Graph breakdown -->
       <div class="ag-insp-section">
         <div class="ag-insp-title">Graph</div>
-        <div class="ag-insp-line"><span>Start</span><span class="ag-insp-val">{{ canvasSummary().starts }}</span></div>
-        <div class="ag-insp-line"><span>Goal</span><span class="ag-insp-val">{{ canvasSummary().goals }}</span></div>
-        <div class="ag-insp-line"><span>Plain vertices</span><span class="ag-insp-val">{{ canvasSummary().plain }}</span></div>
-        <div class="ag-insp-line"><span>Directed edges</span><span class="ag-insp-val">{{ canvasSummary().directed }}</span></div>
-        <div class="ag-insp-line"><span>Undirected edges</span><span class="ag-insp-val">{{ canvasSummary().undirected }}</span></div>
+        <div class="ag-insp-line" [style.--nc]="nodeColor('START')">
+          <span class="ag-insp-ic"><app-icon name="play" /></span>
+          <span class="ag-insp-key">Start</span>
+          <span class="ag-insp-val">{{ canvasSummary().starts }}</span>
+        </div>
+        <div class="ag-insp-line" [style.--nc]="nodeColor('GOAL')">
+          <span class="ag-insp-ic"><app-icon name="target" /></span>
+          <span class="ag-insp-key">Goal</span>
+          <span class="ag-insp-val">{{ canvasSummary().goals }}</span>
+        </div>
+        <div class="ag-insp-line" [style.--nc]="nodeColor('NODE')">
+          <span class="ag-insp-ic"><app-icon name="circle" /></span>
+          <span class="ag-insp-key">Plain vertices</span>
+          <span class="ag-insp-val">{{ canvasSummary().plain }}</span>
+        </div>
+        <div class="ag-insp-divider"></div>
+        <div class="ag-insp-line ag-insp-line-muted">
+          <span class="ag-insp-ic"><app-icon name="arrowRight" /></span>
+          <span class="ag-insp-key">Directed edges</span>
+          <span class="ag-insp-val">{{ canvasSummary().directed }}</span>
+        </div>
+        <div class="ag-insp-line ag-insp-line-muted">
+          <span class="ag-insp-ic"><app-icon name="minus" /></span>
+          <span class="ag-insp-key">Undirected edges</span>
+          <span class="ag-insp-val">{{ canvasSummary().undirected }}</span>
+        </div>
       </div>
 
       <!-- Data structures present -->

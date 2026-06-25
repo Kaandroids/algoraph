@@ -544,39 +544,6 @@
   overflow-y: auto;
 }
 
-/* Stat tiles */
-.ag-stat-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.ag-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 12px 12px 11px;
-  background: var(--field-bg);
-  border: 0.5px solid var(--border);
-  border-radius: 12px;
-}
-
-.ag-stat-num {
-  font-size: 23px;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--fg);
-  font-variant-numeric: tabular-nums;
-}
-
-.ag-stat-label {
-  font-size: 9.5px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--fg-subtle);
-}
-
 /* Grouped sections, each a soft card */
 .ag-insp-section {
   display: flex;
@@ -599,23 +566,49 @@
 .ag-insp-line {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 9px;
   padding: 4px 0;
   font-size: 12.5px;
   color: var(--fg-muted);
 }
 
-.ag-insp-val {
-  min-width: 22px;
-  padding: 1px 7px;
-  text-align: center;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--fg);
+.ag-insp-ic {
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  color: var(--nc);
+  background: color-mix(in srgb, var(--nc) 12%, transparent);
+
+  app-icon { width: 12px; height: 12px; }
+}
+
+.ag-insp-line-muted .ag-insp-ic {
+  color: var(--fg-subtle);
   background: var(--field-bg);
   border: 0.5px solid var(--border);
-  border-radius: 6px;
+}
+
+.ag-insp-key {
+  flex: 1;
+  min-width: 0;
+}
+
+.ag-insp-val {
+  flex-shrink: 0;
+  min-width: 18px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
   font-variant-numeric: tabular-nums;
+}
+
+.ag-insp-divider {
+  margin: 7px 0;
+  border-top: 0.5px solid var(--border);
 }
 
 .ag-insp-row {
@@ -692,14 +685,17 @@
   }
 
   &.primary {
-    color: var(--accent-fg);
-    background: var(--accent);
+    color: var(--bg-panel-fg);
+    background: var(--bg-panel);
     border-color: transparent;
 
+    /* Crisp white download glyph — a touch brighter than the paper label, clean on the dark ink button. */
+    app-icon { color: #fff; }
+
     &:hover {
-      color: var(--accent-fg);
-      background: color-mix(in srgb, var(--accent) 90%, #000);
-      box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--accent) 50%, transparent);
+      color: var(--bg-panel-fg);
+      background: color-mix(in srgb, var(--bg-panel) 88%, #000);
+      box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.25);
     }
   }
 }
