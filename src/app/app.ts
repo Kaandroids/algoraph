@@ -51,6 +51,48 @@ interface PaletteItem {
   color: string;
 }
 
+/** The data structures a learner can drop on the canvas to watch an algorithm's state. */
+type DataStructureKind = 'LIST' | 'STACK' | 'QUEUE' | 'SET' | 'MAP' | 'PQUEUE' | 'MATRIX';
+
+interface MapEntry {
+  key: string;
+  value: string | number;
+}
+
+interface HeapEntry {
+  value: string;
+  priority: number;
+}
+
+/**
+ * A data-structure node — pure display. It holds contents and renders them on the
+ * canvas, but has no ports and no input/output mechanism: it exists only to make the
+ * state an algorithm keeps (visited set, distance map, frontier queue, …) visible.
+ */
+interface DataNode {
+  id: string;
+  kind: DataStructureKind;
+  /** Variable-style name shown in the header, e.g. `dist`, `pq`, `visited`. */
+  label: string;
+  position: { x: number; y: number };
+  /** LIST · STACK · QUEUE · SET — linear contents. */
+  items: (string | number)[];
+  /** MAP — key → value rows. */
+  entries: MapEntry[];
+  /** PQUEUE — values with priority, kept sorted (lowest priority first). */
+  heap: HeapEntry[];
+  /** MATRIX — row-major numeric grid. */
+  matrix: number[][];
+}
+
+interface DataPaletteItem {
+  kind: DataStructureKind;
+  label: string;
+  sub: string;
+  icon: string;
+  color: string;
+}
+
 const SAMPLE_PSEUDOCODE = `// Dijkstra — shortest path
 algorithm Dijkstra(source):
     for each v in nodes() do
@@ -74,13 +116,84 @@ algorithm Dijkstra(source):
 end algorithm
 `;
 
+/** Static metadata (label, header tag, icon, accent colour) for each data-structure kind. */
+const DATA_STRUCTURES: Record<
+  DataStructureKind,
+  { label: string; tag: string; sub: string; icon: string; color: string }
+> = {
+  LIST: { label: 'List / Array', tag: 'Array', sub: 'Indexed, ordered values', icon: 'list', color: 'oklch(0.6 0.13 230)' },
+  STACK: { label: 'Stack', tag: 'Stack', sub: 'LIFO — push / pop on top', icon: 'layers', color: 'oklch(0.58 0.14 300)' },
+  QUEUE: { label: 'Queue', tag: 'Queue', sub: 'FIFO — front to back', icon: 'arrowRightLeft', color: 'oklch(0.6 0.13 200)' },
+  SET: { label: 'Set', tag: 'Set', sub: 'Unique membership', icon: 'braces', color: 'oklch(0.58 0.15 350)' },
+  MAP: { label: 'Map', tag: 'Map', sub: 'Key → value lookup', icon: 'arrowRight', color: 'oklch(0.58 0.14 162)' },
+  PQUEUE: { label: 'Priority Queue', tag: 'Priority Q', sub: 'Min-heap by priority', icon: 'gitBranch', color: 'oklch(0.64 0.15 50)' },
+  MATRIX: { label: '2D Matrix', tag: 'Matrix', sub: 'Row × column grid', icon: 'grid', color: 'oklch(0.56 0.13 20)' },
+};
+
+/** Default variable name used when a structure is dropped from the library. */
+const DEFAULT_DATA_LABEL: Record<DataStructureKind, string> = {
+  LIST: 'list',
+  STACK: 'stack',
+  QUEUE: 'queue',
+  SET: 'set',
+  MAP: 'map',
+  PQUEUE: 'pq',
+  MATRIX: 'matrix',
+};
+
+/** Build a data-structure node seeded with small sample contents so the card isn't empty. */
+function makeDataNode(
+  kind: DataStructureKind,
+  id: string,
+  position: { x: number; y: number },
+  label: string = DEFAULT_DATA_LABEL[kind],
+): DataNode {
+  const node: DataNode = { id, kind, label, position, items: [], entries: [], heap: [], matrix: [] };
+  switch (kind) {
+    case 'LIST':
+      node.items = [5, 3, 8, 1, 4];
+      break;
+    case 'STACK':
+      node.items = [4, 2, 7];
+      break;
+    case 'QUEUE':
+      node.items = ['A', 'B', 'C', 'D'];
+      break;
+    case 'SET':
+      node.items = ['A', 'C', 'F'];
+      break;
+    case 'MAP':
+      node.entries = [
+        { key: 'A', value: 0 },
+        { key: 'B', value: 4 },
+        { key: 'C', value: 2 },
+      ];
+      break;
+    case 'PQUEUE':
+      node.heap = [
+        { value: 'A', priority: 0 },
+        { value: 'C', priority: 2 },
+        { value: 'B', priority: 4 },
+      ];
+      break;
+    case 'MATRIX':
+      node.matrix = [
+        [0, 4, 2],
+        [4, 0, 1],
+        [2, 1, 0],
+      ];
+      break;
+  }
+  return node;
+}
+
 @Component({
   selector: 'app-root',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FFlowModule, IconComponent],
   templateUrl: './app.html',
-  styleUrls: ['./app.scss', './editor-chrome.scss', './editor-nodes.scss'],
+  styleUrls: ['./app.scss', './editor-chrome.scss', './editor-nodes.scss', './data-nodes.scss'],
 })
 export class App implements AfterViewInit, OnDestroy {
   private readonly elRef = inject(ElementRef);
@@ -100,6 +213,11 @@ export class App implements AfterViewInit, OnDestroy {
     { kind: 'GOAL', label: 'Goal', sub: 'Target / destination', icon: 'target', color: 'oklch(0.6 0.17 290)' },
   ];
 
+  // ── Data-structure palette (display-only state nodes) ─────
+  protected readonly dataPalette: DataPaletteItem[] = (
+    ['LIST', 'STACK', 'QUEUE', 'SET', 'MAP', 'PQUEUE', 'MATRIX'] as DataStructureKind[]
+  ).map((kind) => ({ kind, ...DATA_STRUCTURES[kind] }));
+
   // ── Canvas state ──────────────────────────────────────────
   protected readonly nodes = signal<GNode[]>([
     { id: 'A', kind: 'START', label: 'A', position: { x: 60, y: 140 } },
@@ -118,6 +236,13 @@ export class App implements AfterViewInit, OnDestroy {
     { id: 'e6', outputId: 'D-out', inputId: 'E-in', weight: 3, directed: true },
   ]);
 
+  // Data-structure nodes — seeded to mirror the Dijkstra sample in the code rail.
+  protected readonly dataNodes = signal<DataNode[]>([
+    makeDataNode('SET', 'ds-visited', { x: 60, y: 470 }, 'visited'),
+    makeDataNode('MAP', 'ds-dist', { x: 320, y: 470 }, 'dist'),
+    makeDataNode('PQUEUE', 'ds-pq', { x: 600, y: 470 }, 'pq'),
+  ]);
+
   protected readonly zoomLevel = signal(100);
   protected readonly panning = signal(false);
   protected readonly railCollapsed = signal(false);
@@ -133,13 +258,37 @@ export class App implements AfterViewInit, OnDestroy {
   protected readonly nodeCtxMenuOpen = signal(false);
   protected readonly nodeCtxMenuPos = signal<{ x: number; y: number }>({ x: 0, y: 0 });
   protected readonly nodeCtxTarget = signal<string | null>(null);
+  /** Whether the open node context menu targets a graph vertex or a data-structure node. */
+  protected readonly nodeCtxKind = signal<'graph' | 'data'>('graph');
 
   // Edge editor (weight + direction)
   protected readonly editEdgeId = signal<string | null>(null);
   protected readonly editPos = signal<{ x: number; y: number }>({ x: 0, y: 0 });
   protected readonly editingEdge = computed(() => this.edges().find((e) => e.id === this.editEdgeId()) ?? null);
 
+  // Node editor (rename for every node + contents for data-structure nodes)
+  protected readonly editNodeId = signal<string | null>(null);
+  protected readonly editNodeKind = signal<'graph' | 'data'>('graph');
+  protected readonly editNodePos = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+  /** Live text of the name field — kept separate from the model so an invalid draft isn't reset. */
+  protected readonly nameDraft = signal('');
+  /** Live text of the comma-separated values field (LIST · STACK · QUEUE · SET). */
+  protected readonly itemsDraft = signal('');
+  protected readonly editingDataNode = computed(
+    () => this.dataNodes().find((n) => n.id === this.editNodeId()) ?? null,
+  );
+  /** Empty when the drafted name is valid; otherwise the reason it can't be applied. */
+  protected readonly nameError = computed(() => {
+    const id = this.editNodeId();
+    if (!id) return '';
+    const name = this.nameDraft().trim();
+    if (!name) return 'Name is required';
+    if (this.usedNames(id).has(name.toLowerCase())) return 'Name already in use';
+    return '';
+  });
+
   private nextNodeId = 1;
+  private nextDataId = 1;
   private currentCanvasPos = { x: 0, y: 0 };
   private ctxCanvasPos = { x: 0, y: 0 };
   private panStart = { x: 0, y: 0 };
@@ -158,6 +307,12 @@ export class App implements AfterViewInit, OnDestroy {
     const q = this.librarySearch().trim().toLowerCase();
     if (!q) return this.palette;
     return this.palette.filter((i) => i.label.toLowerCase().includes(q) || i.sub.toLowerCase().includes(q));
+  });
+
+  protected readonly dataLibraryItems = computed(() => {
+    const q = this.librarySearch().trim().toLowerCase();
+    if (!q) return this.dataPalette;
+    return this.dataPalette.filter((i) => i.label.toLowerCase().includes(q) || i.sub.toLowerCase().includes(q));
   });
 
   // ── Lifecycle ─────────────────────────────────────────────
@@ -212,10 +367,51 @@ export class App implements AfterViewInit, OnDestroy {
     return kind;
   }
 
+  // ── Data-structure node helpers ───────────────────────────
+  dataIcon(kind: DataStructureKind): string {
+    return DATA_STRUCTURES[kind].icon;
+  }
+  dataColor(kind: DataStructureKind): string {
+    return DATA_STRUCTURES[kind].color;
+  }
+  dataTypeLabel(kind: DataStructureKind): string {
+    return DATA_STRUCTURES[kind].tag;
+  }
+  /** Stacks grow upward, so render the top (last pushed) element first. */
+  reversed(items: (string | number)[]): (string | number)[] {
+    return [...items].reverse();
+  }
+  /** Priority queues are displayed lowest-priority-first regardless of edit order. */
+  sortedHeap(node: DataNode): HeapEntry[] {
+    return [...node.heap].sort((a, b) => a.priority - b.priority);
+  }
+  /** `[0, 1, …, n-1]` — used to render matrix index headers. */
+  range(n: number): number[] {
+    return Array.from({ length: n }, (_, i) => i);
+  }
+
+  // ── Unique names (graph vertices + data structures share one namespace) ──
+  /** Lower-cased names currently taken by any node, optionally excluding one id. */
+  private usedNames(exceptId?: string): Set<string> {
+    const names = new Set<string>();
+    for (const n of this.nodes()) if (n.id !== exceptId) names.add(n.label.toLowerCase());
+    for (const d of this.dataNodes()) if (d.id !== exceptId) names.add(d.label.toLowerCase());
+    return names;
+  }
+  /** `base`, or `base2`, `base3`, … — the first variant not already in use. */
+  private uniqueName(base: string, exceptId?: string): string {
+    const used = this.usedNames(exceptId);
+    if (!used.has(base.toLowerCase())) return base;
+    let i = 2;
+    while (used.has(`${base}${i}`.toLowerCase())) i++;
+    return `${base}${i}`;
+  }
+
   // ── Node operations ───────────────────────────────────────
   private createNodeAt(kind: NodeKind, position: { x: number; y: number }): void {
     const id = `n${this.nextNodeId++}`;
-    this.nodes.update((list) => [...list, { id, kind, label: id.toUpperCase(), position }]);
+    const label = this.uniqueName(id.toUpperCase());
+    this.nodes.update((list) => [...list, { id, kind, label, position }]);
   }
 
   addNode(kind: NodeKind): void {
@@ -227,6 +423,175 @@ export class App implements AfterViewInit, OnDestroy {
     this.edges.update((list) =>
       list.filter((e) => !e.outputId.startsWith(`${nodeId}-`) && !e.inputId.startsWith(`${nodeId}-`)),
     );
+  }
+
+  // ── Data-structure node operations ────────────────────────
+  private createDataNodeAt(kind: DataStructureKind, position: { x: number; y: number }): void {
+    const id = `ds${this.nextDataId++}`;
+    const label = this.uniqueName(DEFAULT_DATA_LABEL[kind]);
+    this.dataNodes.update((list) => [...list, makeDataNode(kind, id, position, label)]);
+  }
+
+  addDataNode(kind: DataStructureKind): void {
+    this.createDataNodeAt(kind, { x: 240 + Math.random() * 220, y: 460 + Math.random() * 160 });
+  }
+
+  addDataNodeAt(kind: DataStructureKind): void {
+    this.ctxMenuOpen.set(false);
+    this.createDataNodeAt(kind, { x: this.ctxCanvasPos.x, y: this.ctxCanvasPos.y });
+  }
+
+  deleteDataNode(nodeId: string): void {
+    this.dataNodes.update((list) => list.filter((n) => n.id !== nodeId));
+  }
+
+  copyDataNode(nodeId: string): void {
+    const node = this.dataNodes().find((n) => n.id === nodeId);
+    if (!node) return;
+    const id = `ds${this.nextDataId++}`;
+    const label = this.uniqueName(node.label);
+    this.dataNodes.update((list) => [
+      ...list,
+      {
+        ...node,
+        id,
+        label,
+        position: { x: node.position.x + 40, y: node.position.y + 40 },
+        items: [...node.items],
+        entries: node.entries.map((e) => ({ ...e })),
+        heap: node.heap.map((h) => ({ ...h })),
+        matrix: node.matrix.map((row) => [...row]),
+      },
+    ]);
+    this.closeNodeContextMenu();
+  }
+
+  // ── Node editor (rename + data-structure contents) ────────
+  private openNodeEditorAt(id: string, kind: 'graph' | 'data', pos: { x: number; y: number }): void {
+    this.ctxMenuOpen.set(false);
+    this.nodeCtxMenuOpen.set(false);
+    this.closeEdgeEditor();
+    const node =
+      kind === 'data' ? this.dataNodes().find((n) => n.id === id) : this.nodes().find((n) => n.id === id);
+    if (!node) return;
+    this.editNodeKind.set(kind);
+    this.editNodePos.set(pos);
+    this.nameDraft.set(node.label);
+    this.itemsDraft.set('items' in node ? node.items.join(', ') : '');
+    this.editNodeId.set(id);
+  }
+
+  onNodeDblClick(event: MouseEvent, id: string, kind: 'graph' | 'data'): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.openNodeEditorAt(id, kind, { x: event.clientX, y: event.clientY });
+  }
+
+  /** Open the editor from the node context menu's Edit / Rename item. */
+  ctxEdit(): void {
+    const id = this.nodeCtxTarget();
+    if (!id) return;
+    this.openNodeEditorAt(id, this.nodeCtxKind(), this.nodeCtxMenuPos());
+  }
+
+  closeNodeEditor(): void {
+    this.editNodeId.set(null);
+  }
+
+  /** Delete the node currently open in the editor (graph vertex or data structure). */
+  deleteEditingNode(): void {
+    const id = this.editNodeId();
+    if (!id) return;
+    if (this.editNodeKind() === 'data') this.deleteDataNode(id);
+    else this.deleteNode(id);
+    this.closeNodeEditor();
+  }
+
+  /** Rename live; an empty or duplicate draft surfaces an error and leaves the model untouched. */
+  onNameInput(value: string): void {
+    this.nameDraft.set(value);
+    if (this.nameError()) return;
+    const id = this.editNodeId();
+    if (!id) return;
+    const name = value.trim();
+    const rename = <T extends { id: string; label: string }>(list: T[]): T[] =>
+      list.map((n) => (n.id === id ? { ...n, label: name } : n));
+    if (this.editNodeKind() === 'data') this.dataNodes.update(rename);
+    else this.nodes.update(rename);
+  }
+
+  private updateEditingData(change: (node: DataNode) => DataNode): void {
+    const id = this.editNodeId();
+    if (!id) return;
+    this.dataNodes.update((list) => list.map((n) => (n.id === id ? change(n) : n)));
+  }
+
+  /** LIST · STACK · QUEUE · SET — parse the comma-separated field into items. */
+  onItemsInput(value: string): void {
+    this.itemsDraft.set(value);
+    const node = this.editingDataNode();
+    if (!node) return;
+    let items: (string | number)[] = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+      .map((s) => (!Number.isNaN(Number(s)) ? Number(s) : s));
+    if (node.kind === 'SET') items = [...new Set(items)];
+    this.updateEditingData((n) => ({ ...n, items }));
+  }
+
+  // MAP entries
+  addMapEntry(): void {
+    this.updateEditingData((n) => ({ ...n, entries: [...n.entries, { key: '', value: '' }] }));
+  }
+  setMapKey(index: number, key: string): void {
+    this.updateEditingData((n) => ({ ...n, entries: n.entries.map((e, i) => (i === index ? { ...e, key } : e)) }));
+  }
+  setMapValue(index: number, value: string): void {
+    this.updateEditingData((n) => ({ ...n, entries: n.entries.map((e, i) => (i === index ? { ...e, value } : e)) }));
+  }
+  removeMapEntry(index: number): void {
+    this.updateEditingData((n) => ({ ...n, entries: n.entries.filter((_, i) => i !== index) }));
+  }
+
+  // Priority-queue items
+  addHeapEntry(): void {
+    this.updateEditingData((n) => ({ ...n, heap: [...n.heap, { value: '', priority: 0 }] }));
+  }
+  setHeapValue(index: number, value: string): void {
+    this.updateEditingData((n) => ({ ...n, heap: n.heap.map((h, i) => (i === index ? { ...h, value } : h)) }));
+  }
+  setHeapPriority(index: number, priority: number): void {
+    if (Number.isNaN(priority)) return;
+    this.updateEditingData((n) => ({ ...n, heap: n.heap.map((h, i) => (i === index ? { ...h, priority } : h)) }));
+  }
+  removeHeapEntry(index: number): void {
+    this.updateEditingData((n) => ({ ...n, heap: n.heap.filter((_, i) => i !== index) }));
+  }
+
+  // Matrix size + cells
+  private resizeMatrix(rows: number, cols: number): void {
+    const R = Math.max(1, Math.min(8, Math.round(rows || 1)));
+    const C = Math.max(1, Math.min(8, Math.round(cols || 1)));
+    this.updateEditingData((n) => ({
+      ...n,
+      matrix: Array.from({ length: R }, (_, r) => Array.from({ length: C }, (_, c) => n.matrix[r]?.[c] ?? 0)),
+    }));
+  }
+  setMatrixRows(rows: number): void {
+    const node = this.editingDataNode();
+    if (node) this.resizeMatrix(rows, node.matrix[0]?.length ?? 1);
+  }
+  setMatrixCols(cols: number): void {
+    const node = this.editingDataNode();
+    if (node) this.resizeMatrix(node.matrix.length, cols);
+  }
+  setMatrixCell(r: number, c: number, value: number): void {
+    if (Number.isNaN(value)) return;
+    this.updateEditingData((n) => ({
+      ...n,
+      matrix: n.matrix.map((row, i) => (i === r ? row.map((cell, j) => (j === c ? value : cell)) : row)),
+    }));
   }
 
   // ── Foblex events ─────────────────────────────────────────
@@ -272,12 +637,12 @@ export class App implements AfterViewInit, OnDestroy {
 
   onNodeMoved(event: FMoveNodesEvent): void {
     const updates = event.nodes;
-    this.nodes.update((list) =>
-      list.map((n) => {
-        const moved = updates.find((u) => u.id === n.id);
-        return moved ? { ...n, position: moved.position } : n;
-      }),
-    );
+    const reposition = <T extends { id: string; position: { x: number; y: number } }>(n: T): T => {
+      const moved = updates.find((u) => u.id === n.id);
+      return moved ? { ...n, position: moved.position } : n;
+    };
+    this.nodes.update((list) => list.map(reposition));
+    this.dataNodes.update((list) => list.map(reposition));
   }
 
   onCanvasChange(event: FCanvasChangeEvent): void {
@@ -319,7 +684,7 @@ export class App implements AfterViewInit, OnDestroy {
   // ── Context menus ─────────────────────────────────────────
   onCanvasContextMenu(event: MouseEvent): void {
     const target = event.target as HTMLElement;
-    if (target.closest('.ae-node')) return;
+    if (target.closest('.ae-node, .ds-node')) return;
     event.preventDefault();
     this.ctxMenuPos.set({ x: event.clientX, y: event.clientY });
     const wrap = (event.currentTarget as HTMLElement).getBoundingClientRect();
@@ -347,6 +712,17 @@ export class App implements AfterViewInit, OnDestroy {
     this.ctxMenuOpen.set(false);
     this.nodeCtxMenuPos.set({ x: event.clientX, y: event.clientY });
     this.nodeCtxTarget.set(nodeId);
+    this.nodeCtxKind.set('graph');
+    this.nodeCtxMenuOpen.set(true);
+  }
+
+  onDataNodeContextMenu(event: MouseEvent, nodeId: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.ctxMenuOpen.set(false);
+    this.nodeCtxMenuPos.set({ x: event.clientX, y: event.clientY });
+    this.nodeCtxTarget.set(nodeId);
+    this.nodeCtxKind.set('data');
     this.nodeCtxMenuOpen.set(true);
   }
 
@@ -355,13 +731,30 @@ export class App implements AfterViewInit, OnDestroy {
     this.nodeCtxTarget.set(null);
   }
 
+  /** Duplicate / delete from the node context menu, routed to the right collection. */
+  ctxDuplicate(): void {
+    const id = this.nodeCtxTarget();
+    if (!id) return;
+    if (this.nodeCtxKind() === 'data') this.copyDataNode(id);
+    else this.copyNode(id);
+  }
+
+  ctxDelete(): void {
+    const id = this.nodeCtxTarget();
+    if (!id) return;
+    if (this.nodeCtxKind() === 'data') this.deleteDataNode(id);
+    else this.deleteNode(id);
+    this.closeNodeContextMenu();
+  }
+
   copyNode(nodeId: string): void {
     const node = this.nodes().find((n) => n.id === nodeId);
     if (!node) return;
     const id = `n${this.nextNodeId++}`;
+    const label = this.uniqueName(node.label);
     this.nodes.update((list) => [
       ...list,
-      { id, kind: node.kind, label: id.toUpperCase(), position: { x: node.position.x + 40, y: node.position.y + 40 } },
+      { id, kind: node.kind, label, position: { x: node.position.x + 40, y: node.position.y + 40 } },
     ]);
     this.closeNodeContextMenu();
   }
@@ -373,6 +766,7 @@ export class App implements AfterViewInit, OnDestroy {
       this.ctxMenuOpen.set(false);
       this.closeNodeContextMenu();
       this.closeEdgeEditor();
+      this.closeNodeEditor();
       this.tipsOpen.set(false);
       return;
     }

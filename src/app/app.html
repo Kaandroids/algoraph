@@ -82,12 +82,39 @@
           }
         </div>
       </div>
+
+      <div class="ae-toolgroup">
+        @if (!railCollapsed()) {
+          <div class="ae-toolgroup-h">
+            <span class="lbl">Data structures</span>
+            <span class="cnt">{{ dataLibraryItems().length }}</span>
+          </div>
+        }
+        <div class="ae-toolgroup-items">
+          @for (item of dataLibraryItems(); track item.kind) {
+            <div class="ae-toolitem" role="button" tabindex="0" [style.--nc]="item.color"
+              (click)="addDataNode(item.kind)"
+              (keydown.enter)="addDataNode(item.kind)"
+              (keydown.space)="$event.preventDefault(); addDataNode(item.kind)">
+              <span class="ae-toolitem-rail"></span>
+              <span class="ae-glyph"><app-icon [name]="item.icon" /></span>
+              @if (!railCollapsed()) {
+                <span class="ae-toolitem-text">
+                  <span class="n">{{ item.label }}</span>
+                  <span class="s">{{ item.sub }}</span>
+                </span>
+                <span class="ae-toolitem-add" aria-hidden="true"><app-icon name="plus" /></span>
+              }
+            </div>
+          }
+        </div>
+      </div>
     </div>
 
     @if (!railCollapsed()) {
       <div class="ae-toolrail-foot">
         <app-icon name="grid" />
-        <span>{{ palette.length }} node types</span>
+        <span>{{ palette.length + dataPalette.length }} block types</span>
         <span class="hint">click to add</span>
       </div>
     }
@@ -117,27 +144,131 @@
             class="ae-node"
             [attr.data-type]="node.kind"
             [style.--nc]="nodeColor(node.kind)"
-            (contextmenu)="onNodeContextMenu($event, node.id)">
+            (contextmenu)="onNodeContextMenu($event, node.id)"
+            (dblclick)="onNodeDblClick($event, node.id, 'graph')">
 
             <div class="ae-node-header" fDragHandle>
               <span class="ae-node-icon"><app-icon [name]="nodeIcon(node.kind)" /></span>
               <div class="ae-node-header-text">
                 <span class="ae-node-type-label">{{ nodeTypeLabel(node.kind) }}</span>
-                <span class="ae-node-label">Node {{ node.label }}</span>
+                <span class="ae-node-label">{{ node.label }}</span>
               </div>
             </div>
 
             <div class="ae-node-ports">
-              <div class="ae-port-row ae-port-in-row">
+              <span class="ae-port-end ae-port-in-end">
                 <div fNodeInput [fInputId]="inputId(node)" [fInputMultiple]="true"
                   class="ae-port-dot ae-port-circle ae-port-hollow ae-port-nc"></div>
                 <span class="ae-port-label">in</span>
-              </div>
-              <div class="ae-port-row ae-port-out-row">
+              </span>
+              <span class="ae-port-end ae-port-out-end">
                 <span class="ae-port-label">out</span>
                 <div fNodeOutput [fOutputId]="outputId(node)" [fOutputMultiple]="true"
                   class="ae-port-dot ae-port-circle ae-port-filled ae-port-nc"></div>
+              </span>
+            </div>
+          </div>
+        }
+
+        <!-- Data-structure nodes (display only — no ports, no connections) -->
+        @for (dn of dataNodes(); track dn.id) {
+          <div fNode
+            [fNodeId]="dn.id"
+            [fNodePosition]="dn.position"
+            class="ds-node"
+            [attr.data-ds]="dn.kind"
+            [style.--nc]="dataColor(dn.kind)"
+            (contextmenu)="onDataNodeContextMenu($event, dn.id)"
+            (dblclick)="onNodeDblClick($event, dn.id, 'data')">
+
+            <div class="ae-node-header" fDragHandle>
+              <span class="ae-node-icon"><app-icon [name]="dataIcon(dn.kind)" /></span>
+              <div class="ae-node-header-text">
+                <span class="ae-node-type-label">{{ dataTypeLabel(dn.kind) }}</span>
+                <span class="ae-node-label">{{ dn.label }}</span>
               </div>
+            </div>
+
+            <div class="ds-body">
+              @switch (dn.kind) {
+                @case ('LIST') {
+                  <div class="ds-array">
+                    @for (v of dn.items; track $index) {
+                      <div class="ds-array-cell">
+                        <span class="ds-cell">{{ v }}</span>
+                        <span class="ds-index">{{ $index }}</span>
+                      </div>
+                    }
+                  </div>
+                }
+                @case ('STACK') {
+                  <div class="ds-stack">
+                    @for (v of reversed(dn.items); track $index; let first = $first) {
+                      <div class="ds-stack-row">
+                        <span class="ds-tag">{{ first ? 'top' : '' }}</span>
+                        <span class="ds-cell">{{ v }}</span>
+                      </div>
+                    }
+                  </div>
+                }
+                @case ('QUEUE') {
+                  <div class="ds-queue">
+                    <div class="ds-ends"><span>front</span><span>back</span></div>
+                    <div class="ds-queue-cells">
+                      @for (v of dn.items; track $index) {
+                        <span class="ds-cell">{{ v }}</span>
+                      }
+                    </div>
+                  </div>
+                }
+                @case ('SET') {
+                  <div class="ds-set">
+                    <span class="ds-brace">&#123;</span>
+                    @for (v of dn.items; track $index) {
+                      <span class="ds-chip">{{ v }}</span>
+                    }
+                    <span class="ds-brace">&#125;</span>
+                  </div>
+                }
+                @case ('MAP') {
+                  <div class="ds-map">
+                    @for (e of dn.entries; track $index) {
+                      <div class="ds-map-row">
+                        <span class="ds-key">{{ e.key }}</span>
+                        <span class="ds-arrow"><app-icon name="arrowRight" /></span>
+                        <span class="ds-val">{{ e.value }}</span>
+                      </div>
+                    }
+                  </div>
+                }
+                @case ('PQUEUE') {
+                  <div class="ds-heap">
+                    @for (h of sortedHeap(dn); track $index) {
+                      <div class="ds-heap-row">
+                        <span class="ds-prio">{{ h.priority }}</span>
+                        <span class="ds-val">{{ h.value }}</span>
+                      </div>
+                    }
+                  </div>
+                }
+                @case ('MATRIX') {
+                  @if (dn.matrix.length) {
+                    <div class="ds-matrix"
+                      [style.grid-template-columns]="'auto repeat(' + dn.matrix[0].length + ', minmax(22px, 1fr))'">
+                      <span class="ds-mcorner"></span>
+                      @for (c of range(dn.matrix[0].length); track c) {
+                        <span class="ds-mindex">{{ c }}</span>
+                      }
+                      @for (row of dn.matrix; track $index; let r = $index) {
+                        <span class="ds-mindex">{{ r }}</span>
+                        @for (cell of row; track $index) {
+                          <span class="ds-cell">{{ cell }}</span>
+                        }
+                      }
+                    </div>
+                  }
+                }
+              }
             </div>
           </div>
         }
@@ -222,6 +353,8 @@
       <span class="grp"><app-icon name="grid" /> {{ nodes().length }} nodes</span>
       <span class="sep"></span>
       <span class="grp"><app-icon name="link" /> {{ edges().length }} edges</span>
+      <span class="sep"></span>
+      <span class="grp"><app-icon name="layers" /> {{ dataNodes().length }} structures</span>
     </div>
 
     <!-- Canvas context menu (right-click empty canvas) -->
@@ -236,6 +369,13 @@
             <span>Add {{ item.label }}</span>
           </button>
         }
+        <div class="ae-ctx-sep"></div>
+        @for (item of dataPalette; track item.kind) {
+          <button class="ae-ctx-item" (click)="addDataNodeAt(item.kind)">
+            <span class="ae-ctx-icon" [style.--pc]="item.color"><app-icon [name]="item.icon" /></span>
+            <span>Add {{ item.label }}</span>
+          </button>
+        }
       </div>
     }
 
@@ -245,14 +385,17 @@
         (click)="closeNodeContextMenu()"
         (contextmenu)="closeNodeContextMenu(); $event.preventDefault()"></div>
       <div class="ae-ctx-menu" [style.left.px]="nodeCtxMenuPos().x" [style.top.px]="nodeCtxMenuPos().y">
-        <button class="ae-ctx-item" (click)="copyNode(nodeCtxTarget()!)">
-          <span class="ae-ctx-icon" style="--pc: var(--fg-muted)"><app-icon name="copy" /></span>
-          <span>Duplicate node</span>
+        <button class="ae-ctx-item" (click)="ctxEdit()">
+          <span class="ae-ctx-icon" style="--pc: var(--fg-muted)"><app-icon name="edit" /></span>
+          <span>{{ nodeCtxKind() === 'data' ? 'Edit contents' : 'Rename' }}</span>
         </button>
-        <button class="ae-ctx-item ae-ctx-item-danger"
-          (click)="deleteNode(nodeCtxTarget()!); closeNodeContextMenu()">
+        <button class="ae-ctx-item" (click)="ctxDuplicate()">
+          <span class="ae-ctx-icon" style="--pc: var(--fg-muted)"><app-icon name="copy" /></span>
+          <span>Duplicate {{ nodeCtxKind() === 'data' ? 'structure' : 'node' }}</span>
+        </button>
+        <button class="ae-ctx-item ae-ctx-item-danger" (click)="ctxDelete()">
           <span class="ae-ctx-icon ae-ctx-icon-danger"><app-icon name="trash" /></span>
-          <span>Delete node</span>
+          <span>Delete {{ nodeCtxKind() === 'data' ? 'structure' : 'node' }}</span>
         </button>
       </div>
     }
@@ -279,6 +422,105 @@
         </div>
         <button class="ag-edit-delete" type="button" (click)="deleteEdge(eid)">
           <app-icon name="trash" /> Delete edge
+        </button>
+      </div>
+    }
+
+    <!-- Node editor (rename for every node + contents for data-structure nodes) -->
+    @if (editNodeId()) {
+      <div class="ae-ctx-backdrop"
+        (click)="closeNodeEditor()"
+        (contextmenu)="closeNodeEditor(); $event.preventDefault()"></div>
+      <div class="ds-editor" [style.left.px]="editNodePos().x" [style.top.px]="editNodePos().y">
+        <div class="ds-editor-row">
+          <label>Name</label>
+          <input class="ds-text-input" type="text" autocomplete="off" spellcheck="false"
+            [value]="nameDraft()" [class.invalid]="nameError()"
+            (input)="onNameInput($any($event.target).value)"
+            (keydown.enter)="nameError() || closeNodeEditor()" />
+        </div>
+        @if (nameError()) {
+          <div class="ds-editor-err">{{ nameError() }}</div>
+        }
+
+        @if (editNodeKind() === 'data' && editingDataNode(); as dn) {
+          <div class="ds-editor-sep"></div>
+
+          @switch (dn.kind) {
+            @case ('MAP') {
+              <div class="ds-editor-label">Entries (key → value)</div>
+              <div class="ds-kv-list">
+                @for (e of dn.entries; track $index; let i = $index) {
+                  <div class="ds-kv-row">
+                    <input class="ds-text-input" type="text" placeholder="key" [value]="e.key"
+                      (input)="setMapKey(i, $any($event.target).value)" />
+                    <span class="ds-kv-arrow"><app-icon name="arrowRight" /></span>
+                    <input class="ds-text-input" type="text" placeholder="value" [value]="e.value"
+                      (input)="setMapValue(i, $any($event.target).value)" />
+                    <button class="ds-row-del" type="button" (click)="removeMapEntry(i)" aria-label="Remove">
+                      <app-icon name="x" />
+                    </button>
+                  </div>
+                }
+              </div>
+              <button class="ds-add-btn" type="button" (click)="addMapEntry()">
+                <app-icon name="plus" /> Add entry
+              </button>
+            }
+            @case ('PQUEUE') {
+              <div class="ds-editor-label">Items (value · priority)</div>
+              <div class="ds-kv-list">
+                @for (h of dn.heap; track $index; let i = $index) {
+                  <div class="ds-kv-row">
+                    <input class="ds-text-input" type="text" placeholder="value" [value]="h.value"
+                      (input)="setHeapValue(i, $any($event.target).value)" />
+                    <input class="ds-num-input" type="number" placeholder="prio" [value]="h.priority"
+                      (input)="setHeapPriority(i, $any($event.target).valueAsNumber)" />
+                    <button class="ds-row-del" type="button" (click)="removeHeapEntry(i)" aria-label="Remove">
+                      <app-icon name="x" />
+                    </button>
+                  </div>
+                }
+              </div>
+              <button class="ds-add-btn" type="button" (click)="addHeapEntry()">
+                <app-icon name="plus" /> Add item
+              </button>
+            }
+            @case ('MATRIX') {
+              <div class="ds-editor-row">
+                <label>Size</label>
+                <div class="ds-dim">
+                  <input class="ds-num-input" type="number" min="1" max="8" [value]="dn.matrix.length"
+                    (input)="setMatrixRows($any($event.target).valueAsNumber)" />
+                  <span class="ds-dim-x">×</span>
+                  <input class="ds-num-input" type="number" min="1" max="8" [value]="dn.matrix[0].length"
+                    (input)="setMatrixCols($any($event.target).valueAsNumber)" />
+                </div>
+              </div>
+              <div class="ds-medit" [style.grid-template-columns]="'repeat(' + dn.matrix[0].length + ', 40px)'">
+                @for (row of dn.matrix; track $index; let r = $index) {
+                  @for (cell of row; track $index; let c = $index) {
+                    <input class="ds-num-input ds-mcell" type="number" [value]="cell"
+                      (input)="setMatrixCell(r, c, $any($event.target).valueAsNumber)" />
+                  }
+                }
+              </div>
+            }
+            @default {
+              <div class="ds-editor-row">
+                <label>Values</label>
+                <input class="ds-text-input" type="text" placeholder="comma, separated, values"
+                  [value]="itemsDraft()" (input)="onItemsInput($any($event.target).value)" />
+              </div>
+              <div class="ds-editor-hint">
+                Comma-separated.{{ dn.kind === 'SET' ? ' Duplicates are dropped.' : '' }}
+              </div>
+            }
+          }
+        }
+
+        <button class="ag-edit-delete" type="button" (click)="deleteEditingNode()">
+          <app-icon name="trash" /> Delete {{ editNodeKind() === 'data' ? 'structure' : 'node' }}
         </button>
       </div>
     }
