@@ -714,6 +714,171 @@
   .hint { margin-left: auto; color: var(--fg-subtle); font-size: 10.5px; }
 }
 
+.ag-insp-val-mono { font-family: var(--font-mono); font-size: 12px; }
+
+/* ════════════════════════════════════════════════════════════
+   Algorithm editor — center pane in the Algorithm workspace.
+   Static design shell for now; CodeMirror is wired in later.
+   ════════════════════════════════════════════════════════════ */
+.ag-editor {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.ag-editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 14px;
+  border-bottom: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.ag-editor-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--fg);
+
+  app-icon { width: 14px; height: 14px; color: var(--fg-muted); }
+}
+
+.ag-editor-lang {
+  margin-left: auto;
+  padding: 3px 9px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  background: var(--bg-2);
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+}
+
+.ag-editor-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 0;
+}
+
+.ag-code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.ag-code-line {
+  display: flex;
+  gap: 16px;
+  padding: 0 16px;
+
+  &:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+}
+
+.ag-code-gutter {
+  flex-shrink: 0;
+  width: 24px;
+  text-align: right;
+  color: var(--fg-subtle);
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.ag-code-text {
+  white-space: pre;
+  color: var(--fg);
+  tab-size: 2;
+}
+
+.ag-code-line.is-comment .ag-code-text {
+  color: var(--fg-subtle);
+  font-style: italic;
+}
+
+.ag-editor-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  padding: 0 14px;
+  border-top: 0.5px solid var(--border);
+  font-size: 11px;
+  color: var(--fg-muted);
+  flex-shrink: 0;
+
+  .grp { display: inline-flex; align-items: center; gap: 6px; }
+  app-icon { width: 13px; height: 13px; color: var(--fg-subtle); }
+  .sep { width: 0.5px; height: 12px; background: var(--border-strong); }
+  .grow { flex: 1; }
+}
+
+.ag-editor-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+
+/* ── Library inline reference card (algorithm mode) ───────── */
+.ae-toolitem.expanded {
+  background: var(--bg-2);
+  border-color: color-mix(in srgb, var(--nc) 32%, var(--border));
+}
+
+.ae-toolitem-caret {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  color: var(--fg-subtle);
+  transition: transform 0.18s ease, color 0.12s;
+
+  app-icon { width: 13px; height: 13px; }
+
+  &.open { transform: rotate(180deg); color: var(--accent); }
+}
+
+.ae-libcard {
+  --nc: var(--accent);
+  margin-top: -1px;
+  padding: 11px 12px 12px;
+  background: var(--bg-2);
+  border: 0.5px solid color-mix(in srgb, var(--nc) 24%, var(--border));
+  border-radius: 11px;
+  animation: ae-libcard-open 0.16s ease;
+}
+
+@keyframes ae-libcard-open {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: none; }
+}
+
+.ae-libcard-desc {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+
+/* Compact the shared API list for the narrow rail. */
+.ae-libcard .ds-api-group { margin-top: 11px; }
+.ae-libcard .ds-api-group-title { margin-bottom: 6px; font-size: 9.5px; }
+.ae-libcard .ds-api-row { padding: 7px 0; }
+.ae-libcard .ds-api-sig { font-size: 11.5px; }
+.ae-libcard .ds-api-cost { font-size: 10px; }
+.ae-libcard .ds-api-desc { margin-top: 2px; font-size: 11px; }
+
 /* ── Edge weight badge (on the connection) ────────────────── */
 .ag-edge-weight {
   appearance: none;

@@ -90,6 +90,7 @@ interface DataPaletteItem {
   sub: string;
   icon: string;
   color: string;
+  description: string;
 }
 
 /** View model for the info modal — shared by graph nodes and data structures. */
@@ -246,6 +247,40 @@ export class App {
   readonly EFMarkerType = EFMarkerType;
 
   protected readonly title = signal('Algoraph');
+
+  /** Which workspace is showing — the graph builder or the algorithm editor. */
+  protected readonly activeView = signal<'canvas' | 'algorithm'>('canvas');
+
+  /** In algorithm mode, which library item's inline reference card is open (`graph:KIND` / `data:KIND`). */
+  protected readonly expandedLib = signal<string | null>(null);
+
+  /**
+   * Sample pseudocode shown in the algorithm editor. Static for now — the live
+   * CodeMirror editor and the interpreter come later; this is the design shell.
+   */
+  protected readonly pseudocodeLines: string[] = [
+    '// Dijkstra — shortest paths from the Start vertex',
+    's ← source()',
+    'for each vertex u in nodes() do',
+    '  dist[u] ← INFINITY',
+    'end',
+    'dist[s] ← 0',
+    'pq.push(s, 0)',
+    '',
+    'while not pq.isEmpty() do',
+    '  u ← pq.popMin()',
+    '  if u in visited then continue end',
+    '  visited.add(u)',
+    '',
+    '  for each vertex v in neighbors(u) do',
+    '    alt ← dist[u] + weight(u, v)',
+    '    if alt < dist[v] then',
+    '      dist[v] ← alt',
+    '      pq.push(v, alt)',
+    '    end',
+    '  end',
+    'end',
+  ];
 
   // ── Node palette (tool library rail) ──────────────────────
   protected readonly palette: PaletteItem[] = [
@@ -545,7 +580,7 @@ export class App {
   }
 
   // ── Info modal (graph node / data-structure reference) ────
-  openGraphInfo(event: MouseEvent, kind: NodeKind): void {
+  openGraphInfo(event: Event, kind: NodeKind): void {
     const item = this.palette.find((p) => p.kind === kind);
     if (!item) return;
     this.showInfo(event, {
@@ -558,7 +593,7 @@ export class App {
     });
   }
 
-  openDataInfo(event: MouseEvent, kind: DataStructureKind): void {
+  openDataInfo(event: Event, kind: DataStructureKind): void {
     const m = DATA_STRUCTURES[kind];
     this.showInfo(event, {
       eyebrow: 'Data structure',
@@ -570,11 +605,11 @@ export class App {
     });
   }
 
-  openGlobalInfo(event: MouseEvent): void {
+  openGlobalInfo(event: Event): void {
     this.showInfo(event, { ...GLOBAL_REFERENCE });
   }
 
-  private showInfo(event: MouseEvent, info: NodeInfo): void {
+  private showInfo(event: Event, info: NodeInfo): void {
     event.preventDefault();
     event.stopPropagation();
     this.ctxMenuOpen.set(false);
@@ -899,6 +934,33 @@ export class App {
   }
   toggleCodeRail(): void {
     this.codeRailCollapsed.update((v) => !v);
+  }
+
+  // ── View switch (graph builder ↔ algorithm editor) ────────
+  setView(view: 'canvas' | 'algorithm'): void {
+    this.activeView.set(view);
+    this.expandedLib.set(null);
+  }
+
+  /** Toggle the inline reference card under a library item (algorithm mode). */
+  toggleLibCard(key: string): void {
+    this.expandedLib.update((cur) => (cur === key ? null : key));
+  }
+  graphGroups(kind: NodeKind): ApiGroup[] {
+    return GRAPH_NODE_API[kind];
+  }
+  dataGroups(kind: DataStructureKind): ApiGroup[] {
+    return DATA_STRUCTURE_API[kind];
+  }
+
+  /** Library click — drops a node in builder mode, expands its inline reference card in algorithm mode. */
+  onGraphLibClick(_event: Event, kind: NodeKind): void {
+    if (this.activeView() === 'algorithm') this.toggleLibCard('graph:' + kind);
+    else this.addNode(kind);
+  }
+  onDataLibClick(_event: Event, kind: DataStructureKind): void {
+    if (this.activeView() === 'algorithm') this.toggleLibCard('data:' + kind);
+    else this.addDataNode(kind);
   }
 
   // ── Canvas overview + import / export ─────────────────────

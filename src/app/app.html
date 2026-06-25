@@ -10,10 +10,10 @@
   </div>
   <div class="ae-toolbar-right">
     <div class="ae-tabs">
-      <button class="ae-tab active">
+      <button class="ae-tab" [class.active]="activeView() === 'canvas'" (click)="setView('canvas')">
         <app-icon name="workflow" /><span>Canvas</span>
       </button>
-      <button class="ae-tab" disabled>
+      <button class="ae-tab" [class.active]="activeView() === 'algorithm'" (click)="setView('algorithm')">
         <app-icon name="code" /><span>Algorithm</span>
       </button>
     </div>
@@ -66,9 +66,10 @@
         <div class="ae-toolgroup-items">
           @for (item of libraryItems(); track item.kind) {
             <div class="ae-toolitem" role="button" tabindex="0" [style.--nc]="item.color"
-              (click)="addNode(item.kind)"
-              (keydown.enter)="addNode(item.kind)"
-              (keydown.space)="$event.preventDefault(); addNode(item.kind)">
+              [class.expanded]="expandedLib() === 'graph:' + item.kind"
+              (click)="onGraphLibClick($event, item.kind)"
+              (keydown.enter)="onGraphLibClick($event, item.kind)"
+              (keydown.space)="$event.preventDefault(); onGraphLibClick($event, item.kind)">
               <span class="ae-toolitem-rail"></span>
               <span class="ae-glyph"><app-icon [name]="item.icon" /></span>
               @if (!railCollapsed()) {
@@ -76,13 +77,42 @@
                   <span class="n">{{ item.label }}</span>
                   <span class="s">{{ item.sub }}</span>
                 </span>
-                <button class="ae-toolitem-info" type="button"
-                  (click)="openGraphInfo($event, item.kind)"
-                  aria-label="About this node">
-                  <app-icon name="help" />
-                </button>
+                @if (activeView() === 'algorithm') {
+                  <span class="ae-toolitem-caret" [class.open]="expandedLib() === 'graph:' + item.kind">
+                    <app-icon name="chevronDown" />
+                  </span>
+                } @else {
+                  <button class="ae-toolitem-info" type="button"
+                    (click)="openGraphInfo($event, item.kind)"
+                    aria-label="About this node">
+                    <app-icon name="help" />
+                  </button>
+                }
               }
             </div>
+            @if (activeView() === 'algorithm' && !railCollapsed() && expandedLib() === 'graph:' + item.kind) {
+              <div class="ae-libcard" [style.--nc]="item.color">
+                <p class="ae-libcard-desc">{{ item.description }}</p>
+                @for (group of graphGroups(item.kind); track group.title) {
+                  <div class="ds-api-group">
+                    <div class="ds-api-group-title">{{ group.title }}</div>
+                    <div class="ds-api-list">
+                      @for (member of group.members; track member.sig) {
+                        <div class="ds-api-row">
+                          <div class="ds-api-head">
+                            <code class="ds-api-sig">{{ member.sig }}@if (member.returns) {<span class="ds-api-ret">: {{ member.returns }}</span>}</code>
+                            @if (member.cost) {
+                              <span class="ds-api-cost">{{ member.cost }}</span>
+                            }
+                          </div>
+                          <div class="ds-api-desc">{{ member.desc }}</div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
           }
         </div>
       </div>
@@ -97,9 +127,10 @@
         <div class="ae-toolgroup-items">
           @for (item of dataLibraryItems(); track item.kind) {
             <div class="ae-toolitem" role="button" tabindex="0" [style.--nc]="item.color"
-              (click)="addDataNode(item.kind)"
-              (keydown.enter)="addDataNode(item.kind)"
-              (keydown.space)="$event.preventDefault(); addDataNode(item.kind)">
+              [class.expanded]="expandedLib() === 'data:' + item.kind"
+              (click)="onDataLibClick($event, item.kind)"
+              (keydown.enter)="onDataLibClick($event, item.kind)"
+              (keydown.space)="$event.preventDefault(); onDataLibClick($event, item.kind)">
               <span class="ae-toolitem-rail"></span>
               <span class="ae-glyph"><app-icon [name]="item.icon" /></span>
               @if (!railCollapsed()) {
@@ -107,13 +138,42 @@
                   <span class="n">{{ item.label }}</span>
                   <span class="s">{{ item.sub }}</span>
                 </span>
-                <button class="ae-toolitem-info" type="button"
-                  (click)="openDataInfo($event, item.kind)"
-                  aria-label="About this data structure">
-                  <app-icon name="help" />
-                </button>
+                @if (activeView() === 'algorithm') {
+                  <span class="ae-toolitem-caret" [class.open]="expandedLib() === 'data:' + item.kind">
+                    <app-icon name="chevronDown" />
+                  </span>
+                } @else {
+                  <button class="ae-toolitem-info" type="button"
+                    (click)="openDataInfo($event, item.kind)"
+                    aria-label="About this data structure">
+                    <app-icon name="help" />
+                  </button>
+                }
               }
             </div>
+            @if (activeView() === 'algorithm' && !railCollapsed() && expandedLib() === 'data:' + item.kind) {
+              <div class="ae-libcard" [style.--nc]="item.color">
+                <p class="ae-libcard-desc">{{ item.description }}</p>
+                @for (group of dataGroups(item.kind); track group.title) {
+                  <div class="ds-api-group">
+                    <div class="ds-api-group-title">{{ group.title }}</div>
+                    <div class="ds-api-list">
+                      @for (member of group.members; track member.sig) {
+                        <div class="ds-api-row">
+                          <div class="ds-api-head">
+                            <code class="ds-api-sig">{{ member.sig }}@if (member.returns) {<span class="ds-api-ret">: {{ member.returns }}</span>}</code>
+                            @if (member.cost) {
+                              <span class="ds-api-cost">{{ member.cost }}</span>
+                            }
+                          </div>
+                          <div class="ds-api-desc">{{ member.desc }}</div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
           }
         </div>
       </div>
@@ -123,11 +183,12 @@
       <div class="ae-toolrail-foot">
         <app-icon name="grid" />
         <span>{{ palette.length + dataPalette.length }} block types</span>
-        <span class="hint">click to add</span>
+        <span class="hint">{{ activeView() === 'algorithm' ? 'click for reference' : 'click to add' }}</span>
       </div>
     }
   </aside>
 
+  @if (activeView() === 'canvas') {
   <!-- ── Canvas ────────────────────────────────────────────── -->
   <div class="ae-canvas-wrap" [class.ae-panning]="panning()"
     (mousedown)="onCanvasMouseDown($event)"
@@ -533,44 +594,6 @@
       </div>
     }
 
-    <!-- Info modal (data-structure reference: description, methods next) -->
-    @if (infoCard(); as info) {
-      <div class="ds-modal-backdrop" (click)="closeNodeInfo()">
-        <div class="ds-modal" [style.--nc]="info.color" (click)="$event.stopPropagation()">
-          <div class="ds-modal-head">
-            <span class="ds-modal-icon"><app-icon [name]="info.icon" /></span>
-            <div class="ds-modal-titles">
-              <span class="ds-modal-eyebrow">{{ info.eyebrow }}</span>
-              <span class="ds-modal-title">{{ info.label }}</span>
-            </div>
-            <button class="ds-modal-close" type="button" (click)="closeNodeInfo()" aria-label="Close">
-              <app-icon name="x" />
-            </button>
-          </div>
-          <div class="ds-modal-body">
-            <p class="ds-modal-desc">{{ info.description }}</p>
-            @for (group of info.groups; track group.title) {
-              <div class="ds-api-group">
-                <div class="ds-api-group-title">{{ group.title }}</div>
-                <div class="ds-api-list">
-                  @for (member of group.members; track member.sig) {
-                    <div class="ds-api-row">
-                      <div class="ds-api-head">
-                        <code class="ds-api-sig">{{ member.sig }}@if (member.returns) {<span class="ds-api-ret">: {{ member.returns }}</span>}</code>
-                        @if (member.cost) {
-                          <span class="ds-api-cost">{{ member.cost }}</span>
-                        }
-                      </div>
-                      <div class="ds-api-desc">{{ member.desc }}</div>
-                    </div>
-                  }
-                </div>
-              </div>
-            }
-          </div>
-        </div>
-      </div>
-    }
   </div>
 
   <!-- ── Canvas overview rail (right, collapsible) ─────────── -->
@@ -668,8 +691,161 @@
       <button class="ag-io-btn primary" type="button" (click)="exportCanvas()">
         <app-icon name="download" /> Export
       </button>
-      <input #importInput type="file" accept="application/json,.json" hidden
-        (change)="onImportFile($event)" />
     </div>
   </aside>
+  }
+
+  @if (activeView() === 'algorithm') {
+    <!-- ── Algorithm editor (center) ───────────────────────── -->
+    <div class="ag-editor">
+      <div class="ag-editor-bar">
+        <span class="ag-editor-file"><app-icon name="code" /> dijkstra.algo</span>
+        <span class="ag-editor-lang">Pseudocode</span>
+      </div>
+
+      <div class="ag-editor-scroll">
+        <div class="ag-code">
+          @for (line of pseudocodeLines; track $index) {
+            <div class="ag-code-line" [class.is-comment]="line.trimStart().startsWith('//')">
+              <span class="ag-code-gutter">{{ $index + 1 }}</span>
+              <span class="ag-code-text">{{ line }}</span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="ag-editor-foot">
+        <span class="grp"><app-icon name="code" /> {{ pseudocodeLines.length }} lines</span>
+        <span class="sep"></span>
+        <span class="grp">Ln 1, Col 1</span>
+        <span class="grow"></span>
+        <span class="ag-editor-badge">Pseudocode DSL</span>
+      </div>
+    </div>
+
+    <!-- ── Algorithm overview rail (right, collapsible) ─────── -->
+    <aside class="ag-coderail ag-inspector" [class.collapsed]="codeRailCollapsed()">
+      <div class="ag-coderail-head">
+        <button class="ae-toolrail-toggle ag-coderail-toggle" (click)="toggleCodeRail()"
+          aria-label="Collapse overview">
+          <app-icon name="chevronRight" />
+        </button>
+        <div class="ae-toolrail-titles">
+          <span class="ae-toolrail-eyebrow">Algorithm</span>
+          <span class="ae-toolrail-title">Overview</span>
+        </div>
+        <button class="ae-toolrail-help" type="button" (click)="openGlobalInfo($event)"
+          aria-label="Pseudocode reference">
+          <app-icon name="help" />
+        </button>
+      </div>
+
+      <button class="ag-coderail-vlabel" (click)="toggleCodeRail()" aria-label="Expand overview">
+        <span>Overview</span>
+      </button>
+
+      <div class="ag-coderail-body ag-inspector-body">
+        <!-- Summary -->
+        <div class="ag-insp-section">
+          <div class="ag-insp-title">Summary</div>
+          <div class="ag-insp-line" style="--nc: var(--accent)">
+            <span class="ag-insp-ic"><app-icon name="code" /></span>
+            <span class="ag-insp-key">Lines</span>
+            <span class="ag-insp-val">{{ pseudocodeLines.length }}</span>
+          </div>
+          <div class="ag-insp-line" style="--nc: var(--tone-violet)">
+            <span class="ag-insp-ic"><app-icon name="stepForward" /></span>
+            <span class="ag-insp-key">Steps</span>
+            <span class="ag-insp-val">—</span>
+          </div>
+          <div class="ag-insp-line" style="--nc: var(--success)">
+            <span class="ag-insp-ic"><app-icon name="reset" /></span>
+            <span class="ag-insp-key">Operations</span>
+            <span class="ag-insp-val">—</span>
+          </div>
+        </div>
+
+        <!-- Complexity (filled once the interpreter runs) -->
+        <div class="ag-insp-section">
+          <div class="ag-insp-title">Complexity</div>
+          <div class="ag-insp-line ag-insp-line-muted">
+            <span class="ag-insp-ic"><app-icon name="reset" /></span>
+            <span class="ag-insp-key">Time</span>
+            <span class="ag-insp-val ag-insp-val-mono">O(?)</span>
+          </div>
+          <div class="ag-insp-line ag-insp-line-muted">
+            <span class="ag-insp-ic"><app-icon name="layers" /></span>
+            <span class="ag-insp-key">Space</span>
+            <span class="ag-insp-val ag-insp-val-mono">O(?)</span>
+          </div>
+        </div>
+
+        <!-- State — the data structures the algorithm keeps -->
+        <div class="ag-insp-section">
+          <div class="ag-insp-title">State</div>
+          @for (dn of dataNodes(); track dn.id) {
+            <div class="ag-insp-row" [style.--nc]="dataColor(dn.kind)">
+              <span class="ag-insp-dot"></span>
+              <span class="ag-insp-name">{{ dn.label }}</span>
+              <span class="ag-insp-tag">{{ dataTypeLabel(dn.kind) }}</span>
+            </div>
+          } @empty {
+            <div class="ag-insp-empty">No state structures referenced yet.</div>
+          }
+        </div>
+      </div>
+
+      <div class="ag-coderail-foot ag-inspector-foot">
+        <button class="ag-io-btn" type="button" (click)="triggerImport()">
+          <app-icon name="upload" /> Import
+        </button>
+        <button class="ag-io-btn primary" type="button" (click)="exportCanvas()">
+          <app-icon name="download" /> Export
+        </button>
+      </div>
+    </aside>
+  }
 </div>
+
+<!-- ── Reference card (methods + properties) — shared by both views ── -->
+@if (infoCard(); as info) {
+  <div class="ds-modal-backdrop" (click)="closeNodeInfo()">
+    <div class="ds-modal" [style.--nc]="info.color" (click)="$event.stopPropagation()">
+      <div class="ds-modal-head">
+        <span class="ds-modal-icon"><app-icon [name]="info.icon" /></span>
+        <div class="ds-modal-titles">
+          <span class="ds-modal-eyebrow">{{ info.eyebrow }}</span>
+          <span class="ds-modal-title">{{ info.label }}</span>
+        </div>
+        <button class="ds-modal-close" type="button" (click)="closeNodeInfo()" aria-label="Close">
+          <app-icon name="x" />
+        </button>
+      </div>
+      <div class="ds-modal-body">
+        <p class="ds-modal-desc">{{ info.description }}</p>
+        @for (group of info.groups; track group.title) {
+          <div class="ds-api-group">
+            <div class="ds-api-group-title">{{ group.title }}</div>
+            <div class="ds-api-list">
+              @for (member of group.members; track member.sig) {
+                <div class="ds-api-row">
+                  <div class="ds-api-head">
+                    <code class="ds-api-sig">{{ member.sig }}@if (member.returns) {<span class="ds-api-ret">: {{ member.returns }}</span>}</code>
+                    @if (member.cost) {
+                      <span class="ds-api-cost">{{ member.cost }}</span>
+                    }
+                  </div>
+                  <div class="ds-api-desc">{{ member.desc }}</div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Hidden file picker shared by the Import button in either workspace. -->
+<input #importInput type="file" accept="application/json,.json" hidden
+  (change)="onImportFile($event)" />
