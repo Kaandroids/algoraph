@@ -31,7 +31,8 @@ import {
   GLOBAL_REFERENCE,
   memberName,
 } from './node-api';
-import { HELPERS_SRC, MAIN_SRC, type AlgoFile } from './models/algo-file.model';
+import { type AlgoFile } from './models/algo-file.model';
+import { FilesStore } from './stores/files.store';
 import {
   DATA_PALETTE,
   DATA_STRUCTURES,
@@ -74,6 +75,8 @@ interface NodeInfo {
 })
 export class App {
   private readonly elRef = inject(ElementRef);
+  /** Algorithm files live in their own store; this component is a thin facade over it. */
+  protected readonly fileStore = inject(FilesStore);
   private readonly fCanvas = viewChild(FCanvasComponent);
   private readonly importInput = viewChild<ElementRef<HTMLInputElement>>('importInput');
   private readonly renameInput = viewChild<ElementRef<HTMLInputElement>>('renameInput');
@@ -100,26 +103,16 @@ export class App {
   /** In algorithm mode, which library item's inline reference card is open (`graph:KIND` / `data:KIND`). */
   protected readonly expandedLib = signal<string | null>(null);
 
-  // ── Algorithm source files (entry `main` + module files) ──
-  protected readonly files = signal<AlgoFile[]>([
-    { id: 'main', name: 'main.algo', content: MAIN_SRC, notes: [] },
-    { id: 'helpers', name: 'helpers.algo', content: HELPERS_SRC, notes: [] },
-  ]);
-  protected readonly activeFileId = signal('main');
-  /** Id of the file tab being renamed inline (null = none); `main` is never renamable. */
-  protected readonly renamingFileId = signal<string | null>(null);
-  protected readonly renameDraft = signal('');
-  protected readonly activeFile = computed(
-    () => this.files().find((f) => f.id === this.activeFileId()) ?? this.files()[0],
-  );
-  /** Line count of the file open in the editor. */
-  protected readonly activeLineCount = computed(() => this.activeFile().content.split('\n').length);
-  /** Per-line notes for the file open in the editor. */
-  protected readonly activeFileNotes = computed(() => this.activeFile().notes);
-  /** The entry file — shown read-only in the Run workspace. */
-  protected readonly mainFile = computed(
-    () => this.files().find((f) => f.id === 'main') ?? this.files()[0],
-  );
+  // ── Algorithm source files (owned by FilesStore; re-exposed for the template) ──
+  protected readonly files = this.fileStore.files;
+  protected readonly activeFileId = this.fileStore.activeId;
+  protected readonly renamingFileId = this.fileStore.renamingId;
+  protected readonly renameDraft = this.fileStore.renameDraft;
+  protected readonly activeFile = this.fileStore.active;
+  protected readonly activeLineCount = this.fileStore.activeLineCount;
+  protected readonly activeFileNotes = this.fileStore.activeNotes;
+  protected readonly mainFile = this.fileStore.main;
+
   /** Names in scope for the editor's autocomplete — the graph + canvas data structures. */
   protected readonly editorGlobals = computed<EditorGlobal[]>(() => {
     const structures = this.dataNodes().map((d) => ({
@@ -129,7 +122,6 @@ export class App {
     }));
     return [{ name: 'graph', type: 'Graph' }, ...structures];
   });
-  private nextFileId = 1;
 
   // ── Node palette (tool library rail) ──────────────────────
   protected readonly palette: PaletteItem[] = GRAPH_PALETTE;
@@ -858,56 +850,30 @@ export class App {
     return [key.slice(0, i), key.slice(i + 1)];
   }
 
-  // ── Algorithm files (entry `main` + modules) ──────────────
+  // ── Algorithm files — thin delegations to FilesStore ──────
   setActiveFile(id: string): void {
-    this.activeFileId.set(id);
+    this.fileStore.setActive(id);
   }
-  /** Persist the editor's content back to the active file. */
   onEditorContent(text: string): void {
-    const id = this.activeFileId();
-    this.files.update((list) => list.map((f) => (f.id === id ? { ...f, content: text } : f)));
+    this.fileStore.setContent(text);
   }
-  /** Persist per-line notes back to the active file. */
   onNotesChange(notes: LineNote[]): void {
-    const id = this.activeFileId();
-    this.files.update((list) => list.map((f) => (f.id === id ? { ...f, notes } : f)));
+    this.fileStore.setNotes(notes);
   }
   addFile(): void {
-    const id = `f${this.nextFileId++}`;
-    const used = new Set(this.files().map((f) => f.name));
-    let name = 'module.algo';
-    for (let i = 2; used.has(name); i++) name = `module${i}.algo`;
-    this.files.update((list) => [...list, { id, name, content: '// new module\n', notes: [] }]);
-    this.activeFileId.set(id);
+    this.fileStore.add();
   }
-  /** Close a module file; the entry `main` can't be closed. */
   closeFile(event: Event, id: string): void {
-    event.stopPropagation();
-    if (id === 'main') return;
-    this.files.update((list) => list.filter((f) => f.id !== id));
-    if (this.activeFileId() === id) this.activeFileId.set('main');
+    this.fileStore.close(event, id);
   }
-
-  /** Double-click a tab to rename it inline (the entry `main` can't be renamed). */
   startRename(event: Event, file: AlgoFile): void {
-    event.stopPropagation();
-    if (file.id === 'main') return;
-    this.renameDraft.set(file.name);
-    this.renamingFileId.set(file.id);
+    this.fileStore.startRename(event, file);
   }
   commitRename(): void {
-    const id = this.renamingFileId();
-    if (!id) return;
-    let name = this.renameDraft().trim();
-    if (name) {
-      if (!/\.algo$/i.test(name)) name += '.algo';
-      const taken = this.files().some((f) => f.id !== id && f.name === name);
-      if (!taken) this.files.update((list) => list.map((f) => (f.id === id ? { ...f, name } : f)));
-    }
-    this.renamingFileId.set(null);
+    this.fileStore.commitRename();
   }
   cancelRename(): void {
-    this.renamingFileId.set(null);
+    this.fileStore.cancelRename();
   }
 
   // ── Canvas overview + import / export ─────────────────────
