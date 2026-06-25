@@ -36,35 +36,16 @@ import {
   type DataStructureKind,
   type HeapEntry,
 } from './models/data-structure.model';
-
-type NodeKind = 'NODE' | 'START' | 'GOAL';
-
-/** A graph vertex rendered as a node card. */
-interface GNode {
-  id: string;
-  kind: NodeKind;
-  label: string;
-  position: { x: number; y: number };
-}
-
-/** A graph edge — stored by the Foblex port ids it connects. */
-interface GEdge {
-  id: string;
-  outputId: string;
-  inputId: string;
-  weight: number;
-  /** true = directed (single arrow at the target); false = undirected (plain line, no arrows). */
-  directed: boolean;
-}
-
-interface PaletteItem {
-  kind: NodeKind;
-  label: string;
-  sub: string;
-  icon: string;
-  color: string;
-  description: string;
-}
+import {
+  GRAPH_PALETTE,
+  nodeColor,
+  nodeIcon,
+  nodeTypeLabel,
+  type GEdge,
+  type GNode,
+  type NodeKind,
+  type PaletteItem,
+} from './models/graph.model';
 
 /** One editable source file in the algorithm workspace (entry `main` + module files). */
 interface AlgoFile {
@@ -195,35 +176,7 @@ export class App {
   private nextFileId = 1;
 
   // ── Node palette (tool library rail) ──────────────────────
-  protected readonly palette: PaletteItem[] = [
-    {
-      kind: 'NODE',
-      label: 'Vertex',
-      sub: 'A plain graph node',
-      icon: 'circle',
-      color: 'oklch(0.58 0.13 65)',
-      description:
-        'A plain graph vertex — a point the algorithm can visit and link with edges. Its incoming and outgoing edges define its neighbours, and most traversals iterate over the set of vertices.',
-    },
-    {
-      kind: 'START',
-      label: 'Start',
-      sub: 'Source / entry node',
-      icon: 'play',
-      color: 'oklch(0.55 0.14 150)',
-      description:
-        'The source vertex an algorithm begins from. Single-source traversals and shortest-path searches expand outward from here, so its own distance is initialised to 0.',
-    },
-    {
-      kind: 'GOAL',
-      label: 'Goal',
-      sub: 'Target / destination',
-      icon: 'target',
-      color: 'oklch(0.6 0.17 290)',
-      description:
-        'The target vertex a search is trying to reach. Goal-directed algorithms such as A* and bidirectional search can stop as soon as it is settled.',
-    },
-  ];
+  protected readonly palette: PaletteItem[] = GRAPH_PALETTE;
 
   // ── Data-structure palette (display-only state nodes) ─────
   protected readonly dataPalette: DataPaletteItem[] = DATA_PALETTE;
@@ -372,19 +325,10 @@ export class App {
   inputId(node: GNode): string {
     return `${node.id}-in`;
   }
-  nodeIcon(kind: NodeKind): string {
-    return kind === 'START' ? 'play' : kind === 'GOAL' ? 'target' : 'circle';
-  }
-  nodeColor(kind: NodeKind): string {
-    return kind === 'START'
-      ? 'oklch(0.55 0.14 150)'
-      : kind === 'GOAL'
-        ? 'oklch(0.6 0.17 290)'
-        : 'oklch(0.58 0.13 65)';
-  }
-  nodeTypeLabel(kind: NodeKind): string {
-    return kind;
-  }
+  /** Template hooks for the per-kind vertex appearance (defined in the model). */
+  protected readonly nodeIcon = nodeIcon;
+  protected readonly nodeColor = nodeColor;
+  protected readonly nodeTypeLabel = nodeTypeLabel;
 
   // ── Data-structure node helpers ───────────────────────────
   dataIcon(kind: DataStructureKind): string {
