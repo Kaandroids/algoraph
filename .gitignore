@@ -38,6 +38,11 @@ testem.log
 /typings
 __screenshots__/
 
+# Local visual-check helper (Playwright screenshots)
+/shot.mjs
+/*-full.png
+/*-rail.png
+
 # System files
 .DS_Store
 Thumbs.db
