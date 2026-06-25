@@ -148,10 +148,9 @@
             [fConnectionId]="edge.id"
             [fOutputId]="edge.outputId"
             [fInputId]="edge.inputId"
-            [fType]="EFConnectionType.BEZIER">
-            @if (edge.directed) {
-              <f-connection-marker-arrow [type]="EFMarkerType.END_ALL_STATES" />
-            }
+            [fType]="EFConnectionType.BEZIER"
+            [class.ag-undirected]="!edge.directed">
+            <f-connection-marker-arrow [type]="EFMarkerType.END_ALL_STATES" />
             <div fConnectionContent [position]="0.5" class="ag-edge-badge f-drag-blocker">
               <button class="ag-edge-weight" type="button"
                 (mousedown)="$event.stopPropagation()"

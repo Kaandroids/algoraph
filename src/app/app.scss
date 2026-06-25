@@ -380,6 +380,12 @@
   color: var(--accent);
 }
 
+/* Undirected edges: keep the marker element (so toggling is instant) but hide the
+   rendered arrowhead via CSS, so the line stays plain on both ends. */
+:host ::ng-deep .f-connection.ag-undirected path {
+  marker-end: none !important;
+}
+
 :host ::ng-deep .f-connection circle[f-connection-drag-handle-start],
 :host ::ng-deep .f-connection circle[f-connection-drag-handle-end] {
   fill: transparent;
