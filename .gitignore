@@ -38,8 +38,8 @@ testem.log
 /typings
 __screenshots__/
 
-# Local visual-check helper (Playwright screenshots)
-/shot.mjs
+# Local visual-check helpers (Playwright screenshots)
+/shot*.mjs
 /*-full.png
 /*-rail.png
 
