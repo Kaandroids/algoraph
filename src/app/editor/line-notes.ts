@@ -116,25 +116,40 @@ function noteTooltip(pos: number | null): Tooltip | null {
 let draggingFrom: number | null = null;
 
 class NoteDot extends GutterMarker {
-  constructor(readonly from: number) {
+  constructor(
+    readonly from: number,
+    readonly text: string,
+    readonly drag: boolean,
+  ) {
     super();
   }
   override eq(other: GutterMarker) {
-    return other instanceof NoteDot && other.from === this.from;
+    return (
+      other instanceof NoteDot &&
+      other.from === this.from &&
+      other.text === this.text &&
+      other.drag === this.drag
+    );
   }
   override toDOM() {
     const el = document.createElement('div');
     el.className = 'cm-note-dot';
-    el.draggable = true;
-    el.title = 'Drag to move this note';
-    el.addEventListener('dragstart', (e) => {
-      draggingFrom = this.from;
-      e.dataTransfer?.setData('application/x-algoraph-note', '1');
-      if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
-    });
-    el.addEventListener('dragend', () => {
-      draggingFrom = null;
-    });
+    if (this.drag) {
+      el.draggable = true;
+      el.style.cursor = 'grab';
+      el.title = this.text ? `${this.text}\n— drag to move` : 'Drag to move this note';
+      el.addEventListener('dragstart', (e) => {
+        draggingFrom = this.from;
+        e.dataTransfer?.setData('application/x-algoraph-note', '1');
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+      });
+      el.addEventListener('dragend', () => {
+        draggingFrom = null;
+      });
+    } else {
+      el.style.cursor = 'help';
+      el.title = this.text;
+    }
     return el;
   }
 }
@@ -144,20 +159,24 @@ const openEditor = (view: EditorView, line: { from: number }): boolean => {
   return true;
 };
 
-const noteGutter = gutter({
-  class: 'cm-note-gutter',
-  markers(view) {
-    const builder = new RangeSetBuilder<GutterMarker>();
-    const seen = new Set<number>();
-    for (const n of view.state.field(notesField)) {
-      const line = view.state.doc.lineAt(n.from);
-      if (seen.has(line.number)) continue;
-      seen.add(line.number);
-      builder.add(line.from, line.from, new NoteDot(line.from));
-    }
-    return builder.finish();
-  },
-});
+function makeNoteGutter(drag: boolean) {
+  return gutter({
+    class: 'cm-note-gutter',
+    markers(view) {
+      const builder = new RangeSetBuilder<GutterMarker>();
+      const seen = new Set<number>();
+      for (const n of view.state.field(notesField)) {
+        const line = view.state.doc.lineAt(n.from);
+        if (seen.has(line.number)) continue;
+        seen.add(line.number);
+        builder.add(line.from, line.from, new NoteDot(line.from, n.text, drag));
+      }
+      return builder.finish();
+    },
+  });
+}
+const editGutter = makeNoteGutter(true);
+const readGutter = makeNoteGutter(false);
 
 const noteLineNumbers = lineNumbers({ domEventHandlers: { mousedown: openEditor } });
 
@@ -236,14 +255,18 @@ const noteTheme = EditorView.theme({
 });
 
 /** Line numbers + the note dot gutter + click-to-edit tooltip. Replaces `lineNumbers()`. */
+/** Interactive notes — click a line number to add/edit, drag a dot to move. */
 export const lineNotes: Extension = [
   notesField,
   editingField,
-  noteGutter,
+  editGutter,
   noteLineNumbers,
   noteTheme,
   noteDnd,
 ];
+
+/** Read-only notes — dots only, with the note shown on hover (for the Run view). */
+export const lineNotesReadonly: Extension = [notesField, readGutter, lineNumbers(), noteTheme];
 
 /** Current notes, addressed by line number — for mirroring to Angular. */
 export function notesFromState(state: EditorView['state']): LineNote[] {

@@ -27,7 +27,14 @@ import {
   closeBracketsKeymap,
 } from '@codemirror/autocomplete';
 import { algoraphLanguage, globalsFacet, type EditorGlobal } from './dsl';
-import { lineNotes, loadNotes, notesChanged, notesFromState, type LineNote } from './line-notes';
+import {
+  lineNotes,
+  lineNotesReadonly,
+  loadNotes,
+  notesChanged,
+  notesFromState,
+  type LineNote,
+} from './line-notes';
 
 function sameNotes(a: LineNote[], b: LineNote[]): boolean {
   if (a.length !== b.length) return false;
@@ -59,6 +66,8 @@ export class CodeEditorComponent {
   /** Per-line notes for the active file (addressed by line number). */
   readonly notes = input<LineNote[]>([]);
   readonly notesChange = output<LineNote[]>();
+  /** Read-only viewer (Run workspace) — no editing, notes shown on hover. */
+  readonly readOnly = input<boolean>(false);
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('host');
   private readonly globalsComp = new Compartment();
   private view?: EditorView;
@@ -91,10 +100,11 @@ export class CodeEditorComponent {
   }
 
   private init(): void {
+    const ro = this.readOnly();
     const state = EditorState.create({
       doc: this.content(),
       extensions: [
-        lineNotes,
+        ro ? lineNotesReadonly : lineNotes,
         highlightActiveLineGutter(),
         highlightActiveLine(),
         history(),
@@ -106,6 +116,9 @@ export class CodeEditorComponent {
         autocompletion(),
         this.globalsComp.of(globalsFacet.of(this.globals())),
         algoraphLanguage(),
+        ...(ro
+          ? [EditorState.readOnly.of(true), EditorView.editable.of(false), EditorView.lineWrapping]
+          : []),
         keymap.of([
           ...closeBracketsKeymap,
           ...defaultKeymap,

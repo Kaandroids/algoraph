@@ -313,85 +313,7 @@
             </div>
 
             <div class="ds-body">
-              @switch (dn.kind) {
-                @case ('LIST') {
-                  <div class="ds-array">
-                    @for (v of dn.items; track $index) {
-                      <div class="ds-array-cell">
-                        <span class="ds-cell">{{ v }}</span>
-                        <span class="ds-index">{{ $index }}</span>
-                      </div>
-                    }
-                  </div>
-                }
-                @case ('STACK') {
-                  <div class="ds-stack">
-                    @for (v of reversed(dn.items); track $index; let first = $first) {
-                      <div class="ds-stack-row">
-                        <span class="ds-tag">{{ first ? 'top' : '' }}</span>
-                        <span class="ds-cell">{{ v }}</span>
-                      </div>
-                    }
-                  </div>
-                }
-                @case ('QUEUE') {
-                  <div class="ds-queue">
-                    <div class="ds-ends"><span>front</span><span>back</span></div>
-                    <div class="ds-queue-cells">
-                      @for (v of dn.items; track $index) {
-                        <span class="ds-cell">{{ v }}</span>
-                      }
-                    </div>
-                  </div>
-                }
-                @case ('SET') {
-                  <div class="ds-set">
-                    <span class="ds-brace">&#123;</span>
-                    @for (v of dn.items; track $index) {
-                      <span class="ds-chip">{{ v }}</span>
-                    }
-                    <span class="ds-brace">&#125;</span>
-                  </div>
-                }
-                @case ('MAP') {
-                  <div class="ds-map">
-                    @for (e of dn.entries; track $index) {
-                      <div class="ds-map-row">
-                        <span class="ds-key">{{ e.key }}</span>
-                        <span class="ds-arrow"><app-icon name="arrowRight" /></span>
-                        <span class="ds-val">{{ e.value }}</span>
-                      </div>
-                    }
-                  </div>
-                }
-                @case ('PQUEUE') {
-                  <div class="ds-heap">
-                    @for (h of sortedHeap(dn); track $index) {
-                      <div class="ds-heap-row">
-                        <span class="ds-prio">{{ h.priority }}</span>
-                        <span class="ds-val">{{ h.value }}</span>
-                      </div>
-                    }
-                  </div>
-                }
-                @case ('MATRIX') {
-                  @if (dn.matrix.length) {
-                    <div class="ds-matrix"
-                      [style.grid-template-columns]="'auto repeat(' + dn.matrix[0].length + ', minmax(22px, 1fr))'">
-                      <span class="ds-mcorner"></span>
-                      @for (c of range(dn.matrix[0].length); track c) {
-                        <span class="ds-mindex">{{ c }}</span>
-                      }
-                      @for (row of dn.matrix; track $index; let r = $index) {
-                        <span class="ds-mindex">{{ r }}</span>
-                        @for (cell of row; track $index) {
-                          <span class="ds-cell">{{ cell }}</span>
-                        }
-                      }
-                    </div>
-                  }
-                }
-              }
+              <ng-container [ngTemplateOutlet]="dsBody" [ngTemplateOutletContext]="{ $implicit: dn }" />
             </div>
           </div>
         }
@@ -867,36 +789,138 @@
   }
 
   @if (activeView() === 'run') {
-    <!-- ── Run: code follow-along (left) ─────────────────────── -->
-    <aside class="ag-runcode">
-      <div class="ag-runcode-head">
-        <span class="ag-editor-file"><app-icon name="code" /> main.algo</span>
-      </div>
-      <div class="ag-runcode-scroll">
-        <div class="ag-code">
-          @for (line of mainLines(); track $index) {
-            <div class="ag-code-line"
-              [class.is-comment]="line.trimStart().startsWith('//')"
-              [class.is-current]="$index === runCurrentLine()">
-              <span class="ag-code-gutter">{{ $index + 1 }}</span>
-              <span class="ag-code-text">{{ line }}</span>
-            </div>
-          }
+    <!-- ── Run: data structures (left, collapsible) ──────────── -->
+    <aside class="ag-coderail ag-coderail-left ag-inspector" [class.collapsed]="runDataCollapsed()">
+      <div class="ag-coderail-head">
+        <div class="ae-toolrail-titles">
+          <span class="ae-toolrail-eyebrow">State</span>
+          <span class="ae-toolrail-title">Data</span>
         </div>
+        <button class="ae-toolrail-toggle ag-coderail-toggle" (click)="toggleRunData()"
+          aria-label="Collapse data">
+          <app-icon name="chevronLeft" />
+        </button>
+      </div>
+      <button class="ag-coderail-vlabel" (click)="toggleRunData()" aria-label="Expand data">
+        <span>Data</span>
+      </button>
+      <div class="ag-coderail-body ag-inspector-body">
+        @for (dn of dataNodes(); track dn.id) {
+          <div class="ag-statevar" [style.--nc]="dataColor(dn.kind)">
+            <div class="ag-statevar-head">
+              <span class="ag-statevar-dot"></span>
+              <span class="ag-statevar-name">{{ dn.label }}</span>
+              <span class="ag-statevar-type">{{ dataTypeLabel(dn.kind) }}</span>
+            </div>
+            <div class="ag-statevar-body">
+              @switch (dn.kind) {
+                @case ('MAP') {
+                  @for (e of dn.entries; track $index) {
+                    <div class="ag-kv">
+                      <span class="ag-k">{{ e.key }}</span>
+                      <span class="ag-kv-arrow">→</span>
+                      <span class="ag-v">{{ e.value }}</span>
+                    </div>
+                  } @empty {
+                    <span class="ag-statevar-empty">empty</span>
+                  }
+                }
+                @case ('PQUEUE') {
+                  @for (h of sortedHeap(dn); track $index) {
+                    <div class="ag-kv">
+                      <span class="ag-prio">{{ h.priority }}</span>
+                      <span class="ag-v">{{ h.value }}</span>
+                    </div>
+                  } @empty {
+                    <span class="ag-statevar-empty">empty</span>
+                  }
+                }
+                @case ('MATRIX') {
+                  @for (row of dn.matrix; track $index) {
+                    <code class="ag-statevar-code">[{{ row.join(', ') }}]</code>
+                  }
+                }
+                @default {
+                  <code class="ag-statevar-code">{{ formatItems(dn) }}</code>
+                }
+              }
+            </div>
+          </div>
+        } @empty {
+          <div class="ag-rundata-empty">No data structures on the canvas yet.</div>
+        }
       </div>
     </aside>
 
-    <!-- ── Run: visualization stage + transport (center) ─────── -->
+    <!-- ── Run: read-only canvas + transport (center) ────────── -->
     <div class="ag-runstage">
-      <div class="ag-runviz">
-        <div class="ag-runviz-empty">
-          <span class="ag-runviz-icon"><app-icon name="play" /></span>
-          <p class="ag-runviz-title">Step-by-step run</p>
-          <p class="ag-runviz-sub">
-            Press play to watch the algorithm execute on your graph — one
-            operation at a time, with each step counted.
-          </p>
-        </div>
+      <div class="ag-runcanvas" [class.ae-panning]="panning()" (mousedown)="onCanvasMouseDown($event)">
+        <f-flow fDraggable [fCanvasMoveTrigger]="canvasMoveTrigger">
+          <f-background>
+            <f-circle-pattern [color]="'rgba(128,128,128,0.32)'" [radius]="22" />
+          </f-background>
+          <f-canvas fZoom [fZoomMinimum]="0.2" [fZoomMaximum]="3" [fWheelTrigger]="zoomOnPinch">
+            @for (node of nodes(); track node.id) {
+              <div fNode
+                [fNodeId]="node.id"
+                [fNodePosition]="node.position"
+                class="ae-node ae-node-ro"
+                [attr.data-type]="node.kind"
+                [style.--nc]="nodeColor(node.kind)">
+                <div class="ae-node-header">
+                  <span class="ae-node-icon"><app-icon [name]="nodeIcon(node.kind)" /></span>
+                  <div class="ae-node-header-text">
+                    <span class="ae-node-type-label">{{ nodeTypeLabel(node.kind) }}</span>
+                    <span class="ae-node-label">{{ node.label }}</span>
+                  </div>
+                </div>
+                <div class="ae-node-ports">
+                  <span class="ae-port-end ae-port-in-end">
+                    <div fNodeInput [fInputId]="inputId(node)" [fInputMultiple]="true"
+                      class="ae-port-dot ae-port-circle ae-port-hollow ae-port-nc"></div>
+                  </span>
+                  <span class="ae-port-end ae-port-out-end">
+                    <div fNodeOutput [fOutputId]="outputId(node)" [fOutputMultiple]="true"
+                      class="ae-port-dot ae-port-circle ae-port-filled ae-port-nc"></div>
+                  </span>
+                </div>
+              </div>
+            }
+
+            @for (dn of dataNodes(); track dn.id) {
+              <div fNode
+                [fNodeId]="dn.id"
+                [fNodePosition]="dn.position"
+                class="ds-node ae-node-ro"
+                [attr.data-ds]="dn.kind"
+                [style.--nc]="dataColor(dn.kind)">
+                <div class="ae-node-header">
+                  <span class="ae-node-icon"><app-icon [name]="dataIcon(dn.kind)" /></span>
+                  <div class="ae-node-header-text">
+                    <span class="ae-node-type-label">{{ dataTypeLabel(dn.kind) }}</span>
+                    <span class="ae-node-label">{{ dn.label }}</span>
+                  </div>
+                </div>
+                <div class="ds-body">
+                  <ng-container [ngTemplateOutlet]="dsBody" [ngTemplateOutletContext]="{ $implicit: dn }" />
+                </div>
+              </div>
+            }
+            @for (edge of edges(); track edge.id) {
+              <f-connection
+                [fConnectionId]="edge.id"
+                [fOutputId]="edge.outputId"
+                [fInputId]="edge.inputId"
+                [fType]="EFConnectionType.BEZIER"
+                [class.ag-undirected]="!edge.directed">
+                <f-connection-marker-arrow [type]="EFMarkerType.END_ALL_STATES" />
+                <div fConnectionContent [position]="0.5" class="ag-edge-badge">
+                  <span class="ag-edge-weight ag-edge-weight-ro">{{ edge.weight }}</span>
+                </div>
+              </f-connection>
+            }
+          </f-canvas>
+        </f-flow>
       </div>
 
       <div class="ag-transport">
@@ -922,76 +946,26 @@
       </div>
     </div>
 
-    <!-- ── Run trace (right, collapsible) ────────────────────── -->
-    <aside class="ag-coderail ag-inspector" [class.collapsed]="codeRailCollapsed()">
+    <!-- ── Run: main.algo (right, collapsible, read-only) ────── -->
+    <aside class="ag-coderail ag-runcode-rail" [class.collapsed]="runCodeCollapsed()">
       <div class="ag-coderail-head">
-        <button class="ae-toolrail-toggle ag-coderail-toggle" (click)="toggleCodeRail()"
-          aria-label="Collapse trace">
+        <button class="ae-toolrail-toggle ag-coderail-toggle" (click)="toggleRunCode()"
+          aria-label="Collapse code">
           <app-icon name="chevronRight" />
         </button>
         <div class="ae-toolrail-titles">
           <span class="ae-toolrail-eyebrow">Run</span>
-          <span class="ae-toolrail-title">Trace</span>
+          <span class="ae-toolrail-title">main.algo</span>
         </div>
-        <button class="ae-toolrail-help" type="button" (click)="openGlobalInfo($event)"
-          aria-label="Pseudocode reference">
-          <app-icon name="help" />
-        </button>
       </div>
-
-      <button class="ag-coderail-vlabel" (click)="toggleCodeRail()" aria-label="Expand trace">
-        <span>Trace</span>
+      <button class="ag-coderail-vlabel" (click)="toggleRunCode()" aria-label="Expand code">
+        <span>Code</span>
       </button>
-
-      <div class="ag-coderail-body ag-inspector-body">
-        <!-- Progress -->
-        <div class="ag-insp-section">
-          <div class="ag-insp-title">Progress</div>
-          <div class="ag-insp-line" style="--nc: var(--accent)">
-            <span class="ag-insp-ic"><app-icon name="stepForward" /></span>
-            <span class="ag-insp-key">Step</span>
-            <span class="ag-insp-val">0 / —</span>
-          </div>
-          <div class="ag-insp-line" style="--nc: var(--tone-violet)">
-            <span class="ag-insp-ic"><app-icon name="reset" /></span>
-            <span class="ag-insp-key">Operations</span>
-            <span class="ag-insp-val">—</span>
-          </div>
-          <div class="ag-insp-line" style="--nc: var(--success)">
-            <span class="ag-insp-ic"><app-icon name="code" /></span>
-            <span class="ag-insp-key">Current line</span>
-            <span class="ag-insp-val">{{ runCurrentLine() + 1 }}</span>
-          </div>
-        </div>
-
-        <!-- Complexity (counted live during the run) -->
-        <div class="ag-insp-section">
-          <div class="ag-insp-title">Complexity</div>
-          <div class="ag-insp-line" style="--nc: var(--accent)">
-            <span class="ag-insp-ic"><app-icon name="reset" /></span>
-            <span class="ag-insp-key">Time</span>
-            <span class="ag-insp-val ag-insp-val-mono">O(?)</span>
-          </div>
-          <div class="ag-insp-line" style="--nc: var(--tone-violet)">
-            <span class="ag-insp-ic"><app-icon name="layers" /></span>
-            <span class="ag-insp-key">Space</span>
-            <span class="ag-insp-val ag-insp-val-mono">O(?)</span>
-          </div>
-        </div>
-
-        <!-- State — the data structures as they evolve -->
-        <div class="ag-insp-section">
-          <div class="ag-insp-title">State</div>
-          @for (dn of dataNodes(); track dn.id) {
-            <div class="ag-insp-row" [style.--nc]="dataColor(dn.kind)">
-              <span class="ag-insp-dot"></span>
-              <span class="ag-insp-name">{{ dn.label }}</span>
-              <span class="ag-insp-tag">{{ dataTypeLabel(dn.kind) }}</span>
-            </div>
-          } @empty {
-            <div class="ag-insp-empty">No state structures yet.</div>
-          }
-        </div>
+      <div class="ag-coderail-body">
+        <app-code-editor class="ag-runcode-cm"
+          [content]="mainFile().content"
+          [notes]="mainFile().notes"
+          [readOnly]="true" />
       </div>
     </aside>
   }
@@ -1039,3 +1013,86 @@
 <!-- Hidden file picker shared by the Import button in either workspace. -->
 <input #importInput type="file" accept="application/json,.json" hidden
   (change)="onImportFile($event)" />
+
+<!-- Shared data-structure body — rendered on the canvas and in the Run state panel. -->
+<ng-template #dsBody let-dn>
+  @switch (dn.kind) {
+    @case ('LIST') {
+      <div class="ds-array">
+        @for (v of dn.items; track $index) {
+          <div class="ds-array-cell">
+            <span class="ds-cell">{{ v }}</span>
+            <span class="ds-index">{{ $index }}</span>
+          </div>
+        }
+      </div>
+    }
+    @case ('STACK') {
+      <div class="ds-stack">
+        @for (v of reversed(dn.items); track $index; let first = $first) {
+          <div class="ds-stack-row">
+            <span class="ds-tag">{{ first ? 'top' : '' }}</span>
+            <span class="ds-cell">{{ v }}</span>
+          </div>
+        }
+      </div>
+    }
+    @case ('QUEUE') {
+      <div class="ds-queue">
+        <div class="ds-ends"><span>front</span><span>back</span></div>
+        <div class="ds-queue-cells">
+          @for (v of dn.items; track $index) {
+            <span class="ds-cell">{{ v }}</span>
+          }
+        </div>
+      </div>
+    }
+    @case ('SET') {
+      <div class="ds-set">
+        <span class="ds-brace">&#123;</span>
+        @for (v of dn.items; track $index) {
+          <span class="ds-chip">{{ v }}</span>
+        }
+        <span class="ds-brace">&#125;</span>
+      </div>
+    }
+    @case ('MAP') {
+      <div class="ds-map">
+        @for (e of dn.entries; track $index) {
+          <div class="ds-map-row">
+            <span class="ds-key">{{ e.key }}</span>
+            <span class="ds-arrow"><app-icon name="arrowRight" /></span>
+            <span class="ds-val">{{ e.value }}</span>
+          </div>
+        }
+      </div>
+    }
+    @case ('PQUEUE') {
+      <div class="ds-heap">
+        @for (h of sortedHeap(dn); track $index) {
+          <div class="ds-heap-row">
+            <span class="ds-prio">{{ h.priority }}</span>
+            <span class="ds-val">{{ h.value }}</span>
+          </div>
+        }
+      </div>
+    }
+    @case ('MATRIX') {
+      @if (dn.matrix.length) {
+        <div class="ds-matrix"
+          [style.grid-template-columns]="'auto repeat(' + dn.matrix[0].length + ', minmax(22px, 1fr))'">
+          <span class="ds-mcorner"></span>
+          @for (c of range(dn.matrix[0].length); track c) {
+            <span class="ds-mindex">{{ c }}</span>
+          }
+          @for (row of dn.matrix; track $index; let r = $index) {
+            <span class="ds-mindex">{{ r }}</span>
+            @for (cell of row; track $index) {
+              <span class="ds-cell">{{ cell }}</span>
+            }
+          }
+        </div>
+      }
+    }
+  }
+</ng-template>

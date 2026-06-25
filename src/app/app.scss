@@ -835,40 +835,6 @@
   app-icon { width: 14px; height: 14px; color: var(--fg-muted); }
 }
 
-.ag-code {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 1.7;
-}
-
-.ag-code-line {
-  display: flex;
-  gap: 16px;
-  padding: 0 16px;
-
-  &:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
-}
-
-.ag-code-gutter {
-  flex-shrink: 0;
-  width: 24px;
-  text-align: right;
-  color: var(--fg-subtle);
-  user-select: none;
-  font-variant-numeric: tabular-nums;
-}
-
-.ag-code-text {
-  white-space: pre;
-  color: var(--fg);
-  tab-size: 2;
-}
-
-.ag-code-line.is-comment .ag-code-text {
-  color: var(--fg-subtle);
-  font-style: italic;
-}
-
 .ag-editor-foot {
   display: flex;
   align-items: center;
@@ -945,43 +911,8 @@
 .ae-libcard .ds-api-desc { margin-top: 2px; font-size: 11px; }
 
 /* ════════════════════════════════════════════════════════════
-   Run workspace — code follow-along, visualization stage,
-   transport controls and trace rail. Design shell for now.
+   Run workspace — read-only canvas, transport, data + code rails.
    ════════════════════════════════════════════════════════════ */
-.ag-runcode {
-  flex-shrink: 0;
-  width: 300px;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  background: var(--bg);
-  border-right: 0.5px solid var(--border);
-  overflow: hidden;
-}
-
-.ag-runcode-head {
-  display: flex;
-  align-items: center;
-  height: 40px;
-  padding: 0 14px;
-  border-bottom: 0.5px solid var(--border);
-  flex-shrink: 0;
-}
-
-.ag-runcode-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 14px 0;
-}
-
-/* Highlight the line under execution (shares .ag-code base styling). */
-.ag-code-line.is-current {
-  background: color-mix(in srgb, var(--accent) 13%, transparent);
-  box-shadow: inset 2px 0 0 var(--accent);
-}
-.ag-code-line.is-current .ag-code-text { color: var(--fg); font-style: normal; }
-
 .ag-runstage {
   flex: 1;
   min-width: 0;
@@ -991,47 +922,130 @@
   overflow: hidden;
 }
 
-.ag-runviz {
+/* Right-side code panel mirrors the left rail's border. */
+/* Run code panel — a wide collapsible coderail holding the read-only editor. */
+.ag-runcode-rail {
+  width: 470px;
+}
+
+.ag-runcode-cm {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Data rail mirrors the right coderail onto the left edge, sized like the
+   library rail on the other pages. */
+.ag-coderail-left {
+  width: 268px;
+  border-left: 0;
+  border-right: 0.5px solid var(--border);
+}
+.ag-coderail-left .ag-coderail-toggle {
+  margin-left: auto;
+}
+
+.ag-rundata-empty {
+  padding: 28px 6px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--fg-subtle);
+}
+
+/* ── Run: read-only canvas (centre) — pan / zoom only ─────── */
+.ag-runcanvas {
   flex: 1;
   min-height: 0;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background-image: radial-gradient(rgba(128, 128, 128, 0.22) 1.4px, transparent 1.4px);
-  background-size: 22px 22px;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-2);
 }
 
-.ag-runviz-empty {
-  max-width: 330px;
-  text-align: center;
+.ag-runcanvas f-flow { width: 100%; height: 100%; cursor: grab; }
+.ag-runcanvas f-flow:active,
+.ag-runcanvas.ae-panning f-flow { cursor: grabbing; }
+
+.ae-node-ro { cursor: grab; }
+.ag-edge-weight-ro { cursor: grab; }
+
+/* ── Run: readable state rail (left) ──────────────────────── */
+.ag-statevar {
+  --nc: var(--accent);
+  padding: 10px 12px 11px;
+  background: var(--bg-2);
+  border: 0.5px solid var(--border);
+  border-left: 3px solid var(--nc);
+  border-radius: 10px;
 }
 
-.ag-runviz-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  margin-bottom: 14px;
-  border-radius: 14px;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
-  border: 0.5px solid color-mix(in srgb, var(--accent) 30%, var(--border));
-
-  app-icon { width: 20px; height: 20px; }
+.ag-statevar-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px;
 }
 
-.ag-runviz-title {
-  margin: 0 0 6px;
-  font-family: var(--font-serif);
-  font-size: 19px;
+.ag-statevar-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--nc);
+}
+
+.ag-statevar-name {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
   color: var(--fg);
 }
 
-.ag-runviz-sub {
-  margin: 0;
+.ag-statevar-type {
+  margin-left: auto;
+  padding: 2px 7px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--nc);
+  background: color-mix(in srgb, var(--nc) 13%, transparent);
+  border-radius: 999px;
+}
+
+.ag-statevar-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: var(--font-mono);
   font-size: 12.5px;
-  line-height: 1.55;
-  color: var(--fg-muted);
+  color: var(--fg);
+}
+
+.ag-statevar-code {
+  word-break: break-word;
+}
+
+.ag-statevar-empty {
+  color: var(--fg-subtle);
+  font-style: italic;
+}
+
+.ag-kv {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .ag-k { min-width: 16px; }
+  .ag-kv-arrow { color: var(--fg-subtle); }
+  .ag-prio {
+    min-width: 20px;
+    padding: 0 5px;
+    text-align: center;
+    font-weight: 600;
+    color: var(--nc);
+    background: color-mix(in srgb, var(--nc) 12%, transparent);
+    border-radius: 5px;
+  }
 }
 
 .ag-transport {

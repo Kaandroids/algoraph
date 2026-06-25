@@ -9,6 +9,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import {
   EFConnectionType,
   EFMarkerType,
@@ -289,7 +290,7 @@ function memberName(sig: string): string | null {
   selector: 'app-root',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FFlowModule, IconComponent, CodeEditorComponent],
+  imports: [FFlowModule, IconComponent, CodeEditorComponent, NgTemplateOutlet],
   templateUrl: './app.html',
   styleUrls: ['./app.scss', './editor-chrome.scss', './editor-nodes.scss', './data-nodes.scss'],
 })
@@ -321,9 +322,6 @@ export class App {
   /** In algorithm mode, which library item's inline reference card is open (`graph:KIND` / `data:KIND`). */
   protected readonly expandedLib = signal<string | null>(null);
 
-  /** Run workspace — pseudocode line currently being executed (static placeholder for now). */
-  protected readonly runCurrentLine = signal(9);
-
   // ── Algorithm source files (entry `main` + module files) ──
   protected readonly files = signal<AlgoFile[]>([
     { id: 'main', name: 'main.algo', content: MAIN_SRC, notes: [] },
@@ -340,9 +338,9 @@ export class App {
   protected readonly activeLineCount = computed(() => this.activeFile().content.split('\n').length);
   /** Per-line notes for the file open in the editor. */
   protected readonly activeFileNotes = computed(() => this.activeFile().notes);
-  /** main.algo split into lines — what the Run workspace steps through. */
-  protected readonly mainLines = computed(
-    () => (this.files().find((f) => f.id === 'main')?.content ?? '').split('\n'),
+  /** The entry file — shown read-only in the Run workspace. */
+  protected readonly mainFile = computed(
+    () => this.files().find((f) => f.id === 'main') ?? this.files()[0],
   );
   /** Names in scope for the editor's autocomplete — the graph + canvas data structures. */
   protected readonly editorGlobals = computed<EditorGlobal[]>(() => {
@@ -455,6 +453,8 @@ export class App {
   protected readonly panning = signal(false);
   protected readonly railCollapsed = signal(false);
   protected readonly codeRailCollapsed = signal(false);
+  protected readonly runDataCollapsed = signal(false);
+  protected readonly runCodeCollapsed = signal(false);
   protected readonly librarySearch = signal('');
   protected readonly tipsOpen = signal(false);
   protected readonly legendOpen = signal(true);
@@ -574,6 +574,12 @@ export class App {
       }
     }
     return out;
+  }
+
+  /** Readable inline form of a linear structure's items for the Run state rail. */
+  formatItems(dn: DataNode): string {
+    const inner = dn.items.join(', ');
+    return dn.kind === 'SET' ? `{ ${inner} }` : `[${inner}]`;
   }
 
   /** Current element count, shown next to a data structure in the globals list. */
@@ -1074,6 +1080,12 @@ export class App {
   }
   toggleCodeRail(): void {
     this.codeRailCollapsed.update((v) => !v);
+  }
+  toggleRunData(): void {
+    this.runDataCollapsed.update((v) => !v);
+  }
+  toggleRunCode(): void {
+    this.runCodeCollapsed.update((v) => !v);
   }
 
   // ── View switch (graph builder ↔ algorithm editor) ────────
