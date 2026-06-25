@@ -230,3 +230,18 @@ export const GLOBAL_REFERENCE: {
     },
   ],
 };
+
+/**
+ * The identifier from an API signature, used to drive autocomplete:
+ * `pq.push(value x, number p)` → `push`, `size()` → `size`, `name` → `name`.
+ * Returns null for forms that aren't a member call (`arr[i]`, `x in s`, …).
+ */
+export function memberName(sig: string): string | null {
+  const dot = /^[A-Za-z_]\w*\.(\w+)/.exec(sig);
+  if (dot) return dot[1];
+  const call = /^([A-Za-z_]\w*)\s*\(/.exec(sig);
+  if (call) return call[1];
+  const prop = /^([A-Za-z_]\w*)$/.exec(sig);
+  if (prop) return prop[1];
+  return null;
+}

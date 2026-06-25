@@ -24,7 +24,14 @@ import { IconComponent } from './shared/icon.component';
 import { CodeEditorComponent } from './editor/code-editor.component';
 import { type EditorGlobal } from './editor/dsl';
 import { type LineNote } from './editor/line-notes';
-import { ApiGroup, DATA_STRUCTURE_API, GRAPH_NODE_API, GLOBAL_REFERENCE } from './node-api';
+import {
+  ApiGroup,
+  DATA_STRUCTURE_API,
+  GRAPH_NODE_API,
+  GLOBAL_REFERENCE,
+  memberName,
+} from './node-api';
+import { HELPERS_SRC, MAIN_SRC, type AlgoFile } from './models/algo-file.model';
 import {
   DATA_PALETTE,
   DATA_STRUCTURES,
@@ -47,15 +54,6 @@ import {
   type PaletteItem,
 } from './models/graph.model';
 
-/** One editable source file in the algorithm workspace (entry `main` + module files). */
-interface AlgoFile {
-  id: string;
-  name: string;
-  content: string;
-  /** Per-line notes the learner attached, addressed by line number. */
-  notes: LineNote[];
-}
-
 /** View model for the info modal — shared by graph nodes and data structures. */
 interface NodeInfo {
   eyebrow: string;
@@ -64,48 +62,6 @@ interface NodeInfo {
   color: string;
   description: string;
   groups: ApiGroup[];
-}
-
-/** Entry algorithm — the file the Run workspace steps through. */
-const MAIN_SRC = `// Dijkstra — shortest paths from the Start vertex
-s ← source()
-for each vertex u in nodes() do
-  dist[u] ← INFINITY
-end
-dist[s] ← 0
-pq.push(s, 0)
-
-while not pq.isEmpty() do
-  u ← pq.popMin()
-  if u in visited then continue end
-  visited.add(u)
-
-  for each vertex v in neighbors(u) do
-    relax(u, v)
-  end
-end
-`;
-
-/** A module file — exports a helper the entry calls. */
-const HELPERS_SRC = `// Edge relaxation — shared helper
-export function relax(u, v) do
-  alt ← dist[u] + weight(u, v)
-  if alt < dist[v] then
-    dist[v] ← alt
-    pq.push(v, alt)
-  end
-end
-`;
-
-/** Method / property name from an API signature (`pq.push(…)` → `push`, `size()` → `size`). */
-function memberName(sig: string): string | null {
-  const dot = /^[A-Za-z_]\w*\.(\w+)/.exec(sig);
-  if (dot) return dot[1];
-  const call = /^([A-Za-z_]\w*)\s*\(/.exec(sig);
-  if (call) return call[1];
-  const prop = /^([A-Za-z_]\w*)$/.exec(sig);
-  if (prop) return prop[1];
-  return null;
 }
 
 @Component({
