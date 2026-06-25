@@ -49,6 +49,7 @@ interface PaletteItem {
   sub: string;
   icon: string;
   color: string;
+  description: string;
 }
 
 /** The data structures a learner can drop on the canvas to watch an algorithm's state. */
@@ -93,6 +94,15 @@ interface DataPaletteItem {
   color: string;
 }
 
+/** View model for the info modal — shared by graph nodes and data structures. */
+interface NodeInfo {
+  eyebrow: string;
+  label: string;
+  icon: string;
+  color: string;
+  description: string;
+}
+
 const SAMPLE_PSEUDOCODE = `// Dijkstra — shortest path
 algorithm Dijkstra(source):
     for each v in nodes() do
@@ -116,18 +126,74 @@ algorithm Dijkstra(source):
 end algorithm
 `;
 
-/** Static metadata (label, header tag, icon, accent colour) for each data-structure kind. */
+/** Static metadata (label, header tag, icon, accent colour, description) per data-structure kind. */
 const DATA_STRUCTURES: Record<
   DataStructureKind,
-  { label: string; tag: string; sub: string; icon: string; color: string }
+  { label: string; tag: string; sub: string; icon: string; color: string; description: string }
 > = {
-  LIST: { label: 'List / Array', tag: 'Array', sub: 'Indexed, ordered values', icon: 'list', color: 'oklch(0.6 0.13 230)' },
-  STACK: { label: 'Stack', tag: 'Stack', sub: 'LIFO — push / pop on top', icon: 'layers', color: 'oklch(0.58 0.14 300)' },
-  QUEUE: { label: 'Queue', tag: 'Queue', sub: 'FIFO — front to back', icon: 'arrowRightLeft', color: 'oklch(0.6 0.13 200)' },
-  SET: { label: 'Set', tag: 'Set', sub: 'Unique membership', icon: 'braces', color: 'oklch(0.58 0.15 350)' },
-  MAP: { label: 'Map', tag: 'Map', sub: 'Key → value lookup', icon: 'arrowRight', color: 'oklch(0.58 0.14 162)' },
-  PQUEUE: { label: 'Priority Queue', tag: 'Priority Q', sub: 'Min-heap by priority', icon: 'gitBranch', color: 'oklch(0.64 0.15 50)' },
-  MATRIX: { label: '2D Matrix', tag: 'Matrix', sub: 'Row × column grid', icon: 'grid', color: 'oklch(0.56 0.13 20)' },
+  LIST: {
+    label: 'List / Array',
+    tag: 'Array',
+    sub: 'Indexed, ordered values',
+    icon: 'list',
+    color: 'oklch(0.6 0.13 230)',
+    description:
+      'An ordered sequence addressed by position. Reading or overwriting any index is O(1); inserting or removing in the middle shifts the following elements, so it costs O(n).',
+  },
+  STACK: {
+    label: 'Stack',
+    tag: 'Stack',
+    sub: 'LIFO — push / pop on top',
+    icon: 'layers',
+    color: 'oklch(0.58 0.14 300)',
+    description:
+      'A last-in, first-out (LIFO) collection: you push onto the top and pop from the top, so only the most recently added element is reachable. Backs depth-first search and backtracking.',
+  },
+  QUEUE: {
+    label: 'Queue',
+    tag: 'Queue',
+    sub: 'FIFO — front to back',
+    icon: 'arrowRightLeft',
+    color: 'oklch(0.6 0.13 200)',
+    description:
+      'A first-in, first-out (FIFO) collection: you enqueue at the back and dequeue from the front, so elements leave in the order they arrived. It is the frontier of breadth-first search.',
+  },
+  SET: {
+    label: 'Set',
+    tag: 'Set',
+    sub: 'Unique membership',
+    icon: 'braces',
+    color: 'oklch(0.58 0.15 350)',
+    description:
+      'An unordered collection of distinct elements. Adding an element and testing membership are amortized O(1). Graph traversals use it to remember which vertices have been visited.',
+  },
+  MAP: {
+    label: 'Map',
+    tag: 'Map',
+    sub: 'Key → value lookup',
+    icon: 'arrowRight',
+    color: 'oklch(0.58 0.14 162)',
+    description:
+      'A collection of key → value pairs (dictionary / hash map). Every key is unique and maps to a single value; lookups and updates are amortized O(1). Stores distances, predecessors, colours and similar per-vertex data.',
+  },
+  PQUEUE: {
+    label: 'Priority Queue',
+    tag: 'Priority Q',
+    sub: 'Min-heap by priority',
+    icon: 'gitBranch',
+    color: 'oklch(0.64 0.15 50)',
+    description:
+      'A queue ordered by priority instead of arrival time. Removing the smallest (or largest) element takes O(log n) with a binary heap. It drives Dijkstra, Prim and A*.',
+  },
+  MATRIX: {
+    label: '2D Matrix',
+    tag: 'Matrix',
+    sub: 'Row × column grid',
+    icon: 'grid',
+    color: 'oklch(0.56 0.13 20)',
+    description:
+      'A two-dimensional grid of values indexed by row and column. As an adjacency matrix it records a weight for every pair of vertices in O(V²) space with O(1) access. Used by Floyd–Warshall.',
+  },
 };
 
 /** Default variable name used when a structure is dropped from the library. */
@@ -208,9 +274,33 @@ export class App implements AfterViewInit, OnDestroy {
 
   // ── Node palette (tool library rail) ──────────────────────
   protected readonly palette: PaletteItem[] = [
-    { kind: 'NODE', label: 'Vertex', sub: 'A plain graph node', icon: 'circle', color: 'oklch(0.58 0.13 65)' },
-    { kind: 'START', label: 'Start', sub: 'Source / entry node', icon: 'play', color: 'oklch(0.55 0.14 150)' },
-    { kind: 'GOAL', label: 'Goal', sub: 'Target / destination', icon: 'target', color: 'oklch(0.6 0.17 290)' },
+    {
+      kind: 'NODE',
+      label: 'Vertex',
+      sub: 'A plain graph node',
+      icon: 'circle',
+      color: 'oklch(0.58 0.13 65)',
+      description:
+        'A plain graph vertex — a point the algorithm can visit and link with edges. Its incoming and outgoing edges define its neighbours, and most traversals iterate over the set of vertices.',
+    },
+    {
+      kind: 'START',
+      label: 'Start',
+      sub: 'Source / entry node',
+      icon: 'play',
+      color: 'oklch(0.55 0.14 150)',
+      description:
+        'The source vertex an algorithm begins from. Single-source traversals and shortest-path searches expand outward from here, so its own distance is initialised to 0.',
+    },
+    {
+      kind: 'GOAL',
+      label: 'Goal',
+      sub: 'Target / destination',
+      icon: 'target',
+      color: 'oklch(0.6 0.17 290)',
+      description:
+        'The target vertex a search is trying to reach. Goal-directed algorithms such as A* and bidirectional search can stop as soon as it is settled.',
+    },
   ];
 
   // ── Data-structure palette (display-only state nodes) ─────
@@ -286,6 +376,9 @@ export class App implements AfterViewInit, OnDestroy {
     if (this.usedNames(id).has(name.toLowerCase())) return 'Name already in use';
     return '';
   });
+
+  // Info modal — graph node / data-structure reference (description, methods next)
+  protected readonly infoCard = signal<NodeInfo | null>(null);
 
   private nextNodeId = 1;
   private nextDataId = 1;
@@ -505,6 +598,43 @@ export class App implements AfterViewInit, OnDestroy {
     if (this.editNodeKind() === 'data') this.deleteDataNode(id);
     else this.deleteNode(id);
     this.closeNodeEditor();
+  }
+
+  // ── Info modal (graph node / data-structure reference) ────
+  openGraphInfo(event: MouseEvent, kind: NodeKind): void {
+    const item = this.palette.find((p) => p.kind === kind);
+    if (!item) return;
+    this.showInfo(event, {
+      eyebrow: 'Graph node',
+      label: item.label,
+      icon: item.icon,
+      color: item.color,
+      description: item.description,
+    });
+  }
+
+  openDataInfo(event: MouseEvent, kind: DataStructureKind): void {
+    const m = DATA_STRUCTURES[kind];
+    this.showInfo(event, {
+      eyebrow: 'Data structure',
+      label: m.label,
+      icon: m.icon,
+      color: m.color,
+      description: m.description,
+    });
+  }
+
+  private showInfo(event: MouseEvent, info: NodeInfo): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.ctxMenuOpen.set(false);
+    this.nodeCtxMenuOpen.set(false);
+    this.closeNodeEditor();
+    this.infoCard.set(info);
+  }
+
+  closeNodeInfo(): void {
+    this.infoCard.set(null);
   }
 
   /** Rename live; an empty or duplicate draft surfaces an error and leaves the model untouched. */
@@ -767,6 +897,7 @@ export class App implements AfterViewInit, OnDestroy {
       this.closeNodeContextMenu();
       this.closeEdgeEditor();
       this.closeNodeEditor();
+      this.closeNodeInfo();
       this.tipsOpen.set(false);
       return;
     }

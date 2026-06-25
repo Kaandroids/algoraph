@@ -428,3 +428,140 @@
   height: 30px;
   padding: 0 4px;
 }
+
+/* ── Library "?" info button — top-right of each rail item ─── */
+.ae-toolitem-info {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  padding: 0;
+  color: var(--fg-subtle);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+
+  app-icon { width: 12px; height: 12px; }
+
+  &:hover {
+    color: var(--nc);
+    background: color-mix(in srgb, var(--nc) 14%, transparent);
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+}
+
+/* ── Info modal (data-structure reference) ────────────────── */
+.ds-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, #000 38%, transparent);
+  animation: ds-modal-fade 0.14s ease-out;
+}
+
+.ds-modal {
+  width: min(420px, 100%);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  animation: ds-modal-pop 0.16s ease-out;
+}
+
+.ds-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 16px 14px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.ds-modal-icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--nc);
+  color: #fff;
+
+  app-icon { width: 18px; height: 18px; }
+}
+
+.ds-modal-titles {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ds-modal-eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--nc);
+}
+
+.ds-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.ds-modal-close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: var(--fg-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+
+  app-icon { width: 15px; height: 15px; }
+
+  &:hover { background: var(--bg-2); color: var(--fg); }
+}
+
+.ds-modal-body {
+  padding: 16px;
+}
+
+.ds-modal-desc {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--fg-muted);
+}
+
+@keyframes ds-modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ds-modal-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}

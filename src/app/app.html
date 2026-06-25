@@ -76,7 +76,11 @@
                   <span class="n">{{ item.label }}</span>
                   <span class="s">{{ item.sub }}</span>
                 </span>
-                <span class="ae-toolitem-add" aria-hidden="true"><app-icon name="plus" /></span>
+                <button class="ae-toolitem-info" type="button"
+                  (click)="openGraphInfo($event, item.kind)"
+                  aria-label="About this node">
+                  <app-icon name="help" />
+                </button>
               }
             </div>
           }
@@ -103,7 +107,11 @@
                   <span class="n">{{ item.label }}</span>
                   <span class="s">{{ item.sub }}</span>
                 </span>
-                <span class="ae-toolitem-add" aria-hidden="true"><app-icon name="plus" /></span>
+                <button class="ae-toolitem-info" type="button"
+                  (click)="openDataInfo($event, item.kind)"
+                  aria-label="About this data structure">
+                  <app-icon name="help" />
+                </button>
               }
             </div>
           }
@@ -522,6 +530,27 @@
         <button class="ag-edit-delete" type="button" (click)="deleteEditingNode()">
           <app-icon name="trash" /> Delete {{ editNodeKind() === 'data' ? 'structure' : 'node' }}
         </button>
+      </div>
+    }
+
+    <!-- Info modal (data-structure reference: description, methods next) -->
+    @if (infoCard(); as info) {
+      <div class="ds-modal-backdrop" (click)="closeNodeInfo()">
+        <div class="ds-modal" [style.--nc]="info.color" (click)="$event.stopPropagation()">
+          <div class="ds-modal-head">
+            <span class="ds-modal-icon"><app-icon [name]="info.icon" /></span>
+            <div class="ds-modal-titles">
+              <span class="ds-modal-eyebrow">{{ info.eyebrow }}</span>
+              <span class="ds-modal-title">{{ info.label }}</span>
+            </div>
+            <button class="ds-modal-close" type="button" (click)="closeNodeInfo()" aria-label="Close">
+              <app-icon name="x" />
+            </button>
+          </div>
+          <div class="ds-modal-body">
+            <p class="ds-modal-desc">{{ info.description }}</p>
+          </div>
+        </div>
       </div>
     }
   </div>
