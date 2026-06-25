@@ -549,36 +549,102 @@
           </div>
           <div class="ds-modal-body">
             <p class="ds-modal-desc">{{ info.description }}</p>
+            @for (group of info.groups; track group.title) {
+              <div class="ds-api-group">
+                <div class="ds-api-group-title">{{ group.title }}</div>
+                <div class="ds-api-list">
+                  @for (member of group.members; track member.sig) {
+                    <div class="ds-api-row">
+                      <div class="ds-api-head">
+                        <code class="ds-api-sig">{{ member.sig }}@if (member.returns) {<span class="ds-api-ret">: {{ member.returns }}</span>}</code>
+                        @if (member.cost) {
+                          <span class="ds-api-cost">{{ member.cost }}</span>
+                        }
+                      </div>
+                      <div class="ds-api-desc">{{ member.desc }}</div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
           </div>
         </div>
       </div>
     }
   </div>
 
-  <!-- ── Pseudocode rail (right, collapsible) ──────────────── -->
-  <aside class="ag-coderail" [class.collapsed]="codeRailCollapsed()">
+  <!-- ── Canvas overview rail (right, collapsible) ─────────── -->
+  <aside class="ag-coderail ag-inspector" [class.collapsed]="codeRailCollapsed()">
     <div class="ag-coderail-head">
       <button class="ae-toolrail-toggle ag-coderail-toggle" (click)="toggleCodeRail()"
-        aria-label="Collapse pseudocode">
-        <app-icon name="chevronLeft" />
+        aria-label="Collapse overview">
+        <app-icon name="chevronRight" />
       </button>
       <div class="ae-toolrail-titles">
-        <span class="ae-toolrail-eyebrow">Algorithm</span>
-        <span class="ae-toolrail-title">Pseudocode</span>
+        <span class="ae-toolrail-eyebrow">Canvas</span>
+        <span class="ae-toolrail-title">Overview</span>
+      </div>
+      <button class="ae-toolrail-help" type="button" (click)="openGlobalInfo($event)"
+        aria-label="Pseudocode reference">
+        <app-icon name="help" />
+      </button>
+    </div>
+
+    <button class="ag-coderail-vlabel" (click)="toggleCodeRail()" aria-label="Expand overview">
+      <span>Overview</span>
+    </button>
+
+    <div class="ag-coderail-body ag-inspector-body">
+      <!-- Stat tiles -->
+      <div class="ag-stat-grid">
+        <div class="ag-stat">
+          <span class="ag-stat-num">{{ nodes().length }}</span>
+          <span class="ag-stat-label">Nodes</span>
+        </div>
+        <div class="ag-stat">
+          <span class="ag-stat-num">{{ edges().length }}</span>
+          <span class="ag-stat-label">Edges</span>
+        </div>
+        <div class="ag-stat">
+          <span class="ag-stat-num">{{ dataNodes().length }}</span>
+          <span class="ag-stat-label">Structures</span>
+        </div>
+      </div>
+
+      <!-- Graph breakdown -->
+      <div class="ag-insp-section">
+        <div class="ag-insp-title">Graph</div>
+        <div class="ag-insp-line"><span>Start</span><span class="ag-insp-val">{{ canvasSummary().starts }}</span></div>
+        <div class="ag-insp-line"><span>Goal</span><span class="ag-insp-val">{{ canvasSummary().goals }}</span></div>
+        <div class="ag-insp-line"><span>Plain vertices</span><span class="ag-insp-val">{{ canvasSummary().plain }}</span></div>
+        <div class="ag-insp-line"><span>Directed edges</span><span class="ag-insp-val">{{ canvasSummary().directed }}</span></div>
+        <div class="ag-insp-line"><span>Undirected edges</span><span class="ag-insp-val">{{ canvasSummary().undirected }}</span></div>
+      </div>
+
+      <!-- Data structures present -->
+      <div class="ag-insp-section">
+        <div class="ag-insp-title">Data structures</div>
+        @for (dn of dataNodes(); track dn.id) {
+          <div class="ag-insp-row" [style.--nc]="dataColor(dn.kind)">
+            <span class="ag-insp-dot"></span>
+            <span class="ag-insp-name">{{ dn.label }}</span>
+            <span class="ag-insp-tag">{{ dataTypeLabel(dn.kind) }}</span>
+          </div>
+        } @empty {
+          <div class="ag-insp-empty">No data structures on the canvas yet.</div>
+        }
       </div>
     </div>
 
-    <button class="ag-coderail-vlabel" (click)="toggleCodeRail()" aria-label="Expand pseudocode">
-      <span>Pseudocode</span>
-    </button>
-
-    <div class="ag-coderail-body">
-      <div class="ag-editor" #editorHost></div>
-    </div>
-
-    <div class="ag-coderail-foot">
-      <span>Custom DSL</span>
-      <span class="hint">interpreter next</span>
+    <div class="ag-coderail-foot ag-inspector-foot">
+      <button class="ag-io-btn" type="button" (click)="triggerImport()">
+        <app-icon name="upload" /> Import
+      </button>
+      <button class="ag-io-btn primary" type="button" (click)="exportCanvas()">
+        <app-icon name="download" /> Export
+      </button>
+      <input #importInput type="file" accept="application/json,.json" hidden
+        (change)="onImportFile($event)" />
     </div>
   </aside>
 </div>

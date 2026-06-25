@@ -1,10 +1,8 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   ElementRef,
   HostListener,
-  OnDestroy,
   computed,
   inject,
   signal,
@@ -20,8 +18,8 @@ import {
   FMoveNodesEvent,
   FSelectionChangeEvent,
 } from '@foblex/flow';
-import { EditorView, basicSetup } from 'codemirror';
 import { IconComponent } from './shared/icon.component';
+import { ApiGroup, DATA_STRUCTURE_API, GRAPH_NODE_API, GLOBAL_REFERENCE } from './node-api';
 
 type NodeKind = 'NODE' | 'START' | 'GOAL';
 
@@ -101,30 +99,8 @@ interface NodeInfo {
   icon: string;
   color: string;
   description: string;
+  groups: ApiGroup[];
 }
-
-const SAMPLE_PSEUDOCODE = `// Dijkstra — shortest path
-algorithm Dijkstra(source):
-    for each v in nodes() do
-        dist[v] ← infinity        // unreachable at first
-    end for
-    dist[source] ← 0
-
-    pq ← priorityQueue()
-    pq.push(source, 0)
-
-    while not pq.isEmpty() do
-        u ← pq.popMin()           // nearest unvisited
-        visit(u)
-        for each v in neighbors(u) do
-            if dist[u] + weight(u, v) < dist[v] then   // relaxation
-                dist[v] ← dist[u] + weight(u, v)
-                pq.push(v, dist[v])
-            end if
-        end for
-    end while
-end algorithm
-`;
 
 /** Static metadata (label, header tag, icon, accent colour, description) per data-structure kind. */
 const DATA_STRUCTURES: Record<
@@ -261,11 +237,10 @@ function makeDataNode(
   templateUrl: './app.html',
   styleUrls: ['./app.scss', './editor-chrome.scss', './editor-nodes.scss', './data-nodes.scss'],
 })
-export class App implements AfterViewInit, OnDestroy {
+export class App {
   private readonly elRef = inject(ElementRef);
   private readonly fCanvas = viewChild(FCanvasComponent);
-  private readonly editorHost = viewChild<ElementRef<HTMLElement>>('editorHost');
-  private editorView?: EditorView;
+  private readonly importInput = viewChild<ElementRef<HTMLInputElement>>('importInput');
 
   readonly EFConnectionType = EFConnectionType;
   readonly EFMarkerType = EFMarkerType;
@@ -407,37 +382,6 @@ export class App implements AfterViewInit, OnDestroy {
     if (!q) return this.dataPalette;
     return this.dataPalette.filter((i) => i.label.toLowerCase().includes(q) || i.sub.toLowerCase().includes(q));
   });
-
-  // ── Lifecycle ─────────────────────────────────────────────
-  ngAfterViewInit(): void {
-    const host = this.editorHost()?.nativeElement;
-    if (!host) return;
-    this.editorView = new EditorView({
-      doc: SAMPLE_PSEUDOCODE,
-      extensions: [basicSetup, EditorView.lineWrapping, App.editorTheme],
-      parent: host,
-    });
-  }
-
-  ngOnDestroy(): void {
-    this.editorView?.destroy();
-  }
-
-  private static readonly editorTheme = EditorView.theme(
-    {
-      '&': { height: '100%', backgroundColor: 'transparent', color: 'var(--fg)', fontSize: '12.5px' },
-      '.cm-scroller': { fontFamily: 'var(--font-mono)', lineHeight: '1.65' },
-      '.cm-gutters': { backgroundColor: 'transparent', border: 'none', color: 'var(--fg-subtle)' },
-      '.cm-activeLine': { backgroundColor: 'color-mix(in srgb, var(--accent) 8%, transparent)' },
-      '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--fg-muted)' },
-      '.cm-cursor': { borderLeftColor: 'var(--accent)' },
-      '&.cm-focused': { outline: 'none' },
-      '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': {
-        backgroundColor: 'color-mix(in srgb, var(--accent) 18%, transparent)',
-      },
-    },
-    { dark: false },
-  );
 
   // ── Node helpers ──────────────────────────────────────────
   outputId(node: GNode): string {
@@ -610,6 +554,7 @@ export class App implements AfterViewInit, OnDestroy {
       icon: item.icon,
       color: item.color,
       description: item.description,
+      groups: GRAPH_NODE_API[kind],
     });
   }
 
@@ -621,7 +566,12 @@ export class App implements AfterViewInit, OnDestroy {
       icon: m.icon,
       color: m.color,
       description: m.description,
+      groups: DATA_STRUCTURE_API[kind],
     });
+  }
+
+  openGlobalInfo(event: MouseEvent): void {
+    this.showInfo(event, { ...GLOBAL_REFERENCE });
   }
 
   private showInfo(event: MouseEvent, info: NodeInfo): void {
@@ -949,5 +899,69 @@ export class App implements AfterViewInit, OnDestroy {
   }
   toggleCodeRail(): void {
     this.codeRailCollapsed.update((v) => !v);
+  }
+
+  // ── Canvas overview + import / export ─────────────────────
+  /** Per-kind breakdown shown in the right-hand overview panel. */
+  protected readonly canvasSummary = computed(() => {
+    const ns = this.nodes();
+    const es = this.edges();
+    return {
+      starts: ns.filter((n) => n.kind === 'START').length,
+      goals: ns.filter((n) => n.kind === 'GOAL').length,
+      plain: ns.filter((n) => n.kind === 'NODE').length,
+      directed: es.filter((e) => e.directed).length,
+      undirected: es.filter((e) => !e.directed).length,
+    };
+  });
+
+  /** Download the whole canvas (graph + data structures) as a JSON file. */
+  exportCanvas(): void {
+    const data = { version: 1, nodes: this.nodes(), edges: this.edges(), dataNodes: this.dataNodes() };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'algoraph-canvas.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  triggerImport(): void {
+    this.importInput()?.nativeElement.click();
+  }
+
+  onImportFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // let the same file be re-imported later
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        this.loadCanvas(JSON.parse(reader.result as string));
+      } catch {
+        // Invalid JSON — ignored for now (a toast can surface this later).
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  private loadCanvas(data: { nodes?: GNode[]; edges?: GEdge[]; dataNodes?: DataNode[] }): void {
+    if (Array.isArray(data.nodes)) this.nodes.set(data.nodes);
+    if (Array.isArray(data.edges)) this.edges.set(data.edges);
+    if (Array.isArray(data.dataNodes)) this.dataNodes.set(data.dataNodes);
+    // Keep new-node counters ahead of any imported ids so they never collide.
+    this.nextNodeId = this.maxIdNumber(this.nodes(), 'n') + 1;
+    this.nextDataId = this.maxIdNumber(this.dataNodes(), 'ds') + 1;
+  }
+
+  private maxIdNumber(items: { id: string }[], prefix: string): number {
+    let max = 0;
+    for (const it of items) {
+      const m = new RegExp(`^${prefix}(\\d+)$`).exec(it.id);
+      if (m) max = Math.max(max, Number(m[1]));
+    }
+    return max;
   }
 }

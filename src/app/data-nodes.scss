@@ -474,8 +474,8 @@
 }
 
 .ds-modal {
-  width: min(420px, 100%);
-  max-height: 80vh;
+  width: min(500px, 100%);
+  max-height: 82vh;
   overflow-y: auto;
   background: var(--bg);
   border: 0.5px solid var(--border-strong);
@@ -550,11 +550,101 @@
 }
 
 .ds-modal-desc {
-  margin: 0;
+  margin: 0 0 4px;
   font-size: 13.5px;
   line-height: 1.6;
   color: var(--fg-muted);
 }
+
+/* ── API reference groups (Properties / Methods / …) ──────── */
+.ds-api-group {
+  margin-top: 16px;
+}
+
+.ds-api-group-title {
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--nc);
+}
+
+.ds-api-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-api-row {
+  padding: 8px 0;
+  border-top: 0.5px solid var(--border);
+
+  &:first-child { border-top: 0; }
+}
+
+.ds-api-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ds-api-sig {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--fg);
+  word-break: break-word;
+}
+
+.ds-api-ret {
+  font-weight: 400;
+  color: var(--fg-subtle);
+}
+
+.ds-api-cost {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--nc);
+  background: color-mix(in srgb, var(--nc) 12%, transparent);
+  border-radius: 5px;
+}
+
+.ds-api-desc {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+
+/* ── Library-header "?" — opens the global pseudocode reference ── */
+.ae-toolrail-help {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--fg-subtle);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+
+  app-icon { width: 14px; height: 14px; }
+
+  &:hover { color: var(--accent); background: var(--bg-2); }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+}
+
 
 @keyframes ds-modal-fade {
   from { opacity: 0; }
