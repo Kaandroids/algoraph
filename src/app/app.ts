@@ -828,14 +828,34 @@ export class App {
     return DATA_STRUCTURE_API[kind];
   }
 
-  /** Library click — drops a node in builder mode, expands its inline reference card in algorithm mode. */
-  onGraphLibClick(_event: Event, kind: NodeKind): void {
-    if (this.activeView() === 'algorithm') this.toggleLibCard('graph:' + kind);
-    else this.addNode(kind);
+  /**
+   * Library click. In builder (canvas) mode an addable item drops onto the
+   * canvas; otherwise — algorithm mode, or a reference-only built-in — the
+   * inline reference card toggles. The `key` (`graph:KIND` / `data:KIND` /
+   * `builtin:NAME`) carries both the card identity and the dispatch target.
+   */
+  onLibItemClick(_event: Event, key: string): void {
+    const [type, kind] = this.splitLibKey(key);
+    if (this.activeView() === 'algorithm' || type === 'builtin') {
+      this.toggleLibCard(key);
+    } else if (type === 'graph') {
+      this.addNode(kind as NodeKind);
+    } else {
+      this.addDataNode(kind as DataStructureKind);
+    }
   }
-  onDataLibClick(_event: Event, kind: DataStructureKind): void {
-    if (this.activeView() === 'algorithm') this.toggleLibCard('data:' + kind);
-    else this.addDataNode(kind);
+
+  /** Open the reference modal for a library item (the builder-mode "?" button). */
+  openLibInfo(event: Event, key: string): void {
+    const [type, kind] = this.splitLibKey(key);
+    if (type === 'graph') this.openGraphInfo(event, kind as NodeKind);
+    else if (type === 'data') this.openDataInfo(event, kind as DataStructureKind);
+  }
+
+  /** Split a library key (`type:rest`) into its `[type, rest]` parts. */
+  private splitLibKey(key: string): [string, string] {
+    const i = key.indexOf(':');
+    return [key.slice(0, i), key.slice(i + 1)];
   }
 
   // ── Algorithm files (entry `main` + modules) ──────────────

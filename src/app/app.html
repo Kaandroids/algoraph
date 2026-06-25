@@ -64,30 +64,8 @@
           }
           <div class="ae-toolgroup-items">
             @for (item of builtinLibItems; track item.key) {
-              <div class="ae-toolitem" role="button" tabindex="0" [style.--nc]="item.color"
-                [class.expanded]="expandedLib() === 'builtin:' + item.key"
-                (click)="toggleLibCard('builtin:' + item.key)"
-                (keydown.enter)="toggleLibCard('builtin:' + item.key)"
-                (keydown.space)="$event.preventDefault(); toggleLibCard('builtin:' + item.key)">
-                <span class="ae-toolitem-rail"></span>
-                <span class="ae-glyph"><app-icon [name]="item.icon" /></span>
-                @if (!railCollapsed()) {
-                  <span class="ae-toolitem-text">
-                    <span class="n">{{ item.label }}</span>
-                    <span class="s">{{ item.sub }}</span>
-                  </span>
-                  <span class="ae-toolitem-caret" [class.open]="expandedLib() === 'builtin:' + item.key">
-                    <app-icon name="chevronDown" />
-                  </span>
-                }
-              </div>
-              @if (!railCollapsed() && expandedLib() === 'builtin:' + item.key) {
-                <div class="ae-libcard" [style.--nc]="item.color">
-                  <p class="ae-libcard-desc">{{ item.description }}</p>
-                  <ng-container [ngTemplateOutlet]="apiGroups"
-                    [ngTemplateOutletContext]="{ $implicit: item.groups }" />
-                </div>
-              }
+              <ng-container [ngTemplateOutlet]="libItem"
+                [ngTemplateOutletContext]="{ $implicit: item, key: 'builtin:' + item.key, groups: item.groups, addable: false }" />
             }
           </div>
         </div>
@@ -102,38 +80,8 @@
         }
         <div class="ae-toolgroup-items">
           @for (item of libraryItems(); track item.kind) {
-            <div class="ae-toolitem" role="button" tabindex="0" [style.--nc]="item.color"
-              [class.expanded]="expandedLib() === 'graph:' + item.kind"
-              (click)="onGraphLibClick($event, item.kind)"
-              (keydown.enter)="onGraphLibClick($event, item.kind)"
-              (keydown.space)="$event.preventDefault(); onGraphLibClick($event, item.kind)">
-              <span class="ae-toolitem-rail"></span>
-              <span class="ae-glyph"><app-icon [name]="item.icon" /></span>
-              @if (!railCollapsed()) {
-                <span class="ae-toolitem-text">
-                  <span class="n">{{ item.label }}</span>
-                  <span class="s">{{ item.sub }}</span>
-                </span>
-                @if (activeView() === 'algorithm') {
-                  <span class="ae-toolitem-caret" [class.open]="expandedLib() === 'graph:' + item.kind">
-                    <app-icon name="chevronDown" />
-                  </span>
-                } @else {
-                  <button class="ae-toolitem-info" type="button"
-                    (click)="openGraphInfo($event, item.kind)"
-                    aria-label="About this node">
-                    <app-icon name="help" />
-                  </button>
-                }
-              }
-            </div>
-            @if (activeView() === 'algorithm' && !railCollapsed() && expandedLib() === 'graph:' + item.kind) {
-              <div class="ae-libcard" [style.--nc]="item.color">
-                <p class="ae-libcard-desc">{{ item.description }}</p>
-                <ng-container [ngTemplateOutlet]="apiGroups"
-                  [ngTemplateOutletContext]="{ $implicit: graphGroups(item.kind) }" />
-              </div>
-            }
+            <ng-container [ngTemplateOutlet]="libItem"
+              [ngTemplateOutletContext]="{ $implicit: item, key: 'graph:' + item.kind, groups: graphGroups(item.kind), addable: true }" />
           }
         </div>
       </div>
@@ -147,38 +95,8 @@
         }
         <div class="ae-toolgroup-items">
           @for (item of dataLibraryItems(); track item.kind) {
-            <div class="ae-toolitem" role="button" tabindex="0" [style.--nc]="item.color"
-              [class.expanded]="expandedLib() === 'data:' + item.kind"
-              (click)="onDataLibClick($event, item.kind)"
-              (keydown.enter)="onDataLibClick($event, item.kind)"
-              (keydown.space)="$event.preventDefault(); onDataLibClick($event, item.kind)">
-              <span class="ae-toolitem-rail"></span>
-              <span class="ae-glyph"><app-icon [name]="item.icon" /></span>
-              @if (!railCollapsed()) {
-                <span class="ae-toolitem-text">
-                  <span class="n">{{ item.label }}</span>
-                  <span class="s">{{ item.sub }}</span>
-                </span>
-                @if (activeView() === 'algorithm') {
-                  <span class="ae-toolitem-caret" [class.open]="expandedLib() === 'data:' + item.kind">
-                    <app-icon name="chevronDown" />
-                  </span>
-                } @else {
-                  <button class="ae-toolitem-info" type="button"
-                    (click)="openDataInfo($event, item.kind)"
-                    aria-label="About this data structure">
-                    <app-icon name="help" />
-                  </button>
-                }
-              }
-            </div>
-            @if (activeView() === 'algorithm' && !railCollapsed() && expandedLib() === 'data:' + item.kind) {
-              <div class="ae-libcard" [style.--nc]="item.color">
-                <p class="ae-libcard-desc">{{ item.description }}</p>
-                <ng-container [ngTemplateOutlet]="apiGroups"
-                  [ngTemplateOutletContext]="{ $implicit: dataGroups(item.kind) }" />
-              </div>
-            }
+            <ng-container [ngTemplateOutlet]="libItem"
+              [ngTemplateOutletContext]="{ $implicit: item, key: 'data:' + item.kind, groups: dataGroups(item.kind), addable: true }" />
           }
         </div>
       </div>
@@ -1051,6 +969,46 @@
           </div>
         }
       </div>
+    </div>
+  }
+</ng-template>
+
+<!-- Shared library entry — one tool item plus its inline reference card. The
+     three groups (graph nodes, data structures, built-in globals) all render
+     through this, differing only by the context they pass:
+       item     — the palette entry (label, sub, icon, colour, description)
+       key      — its `expandedLib` identity, e.g. `graph:NODE` / `builtin:graph`
+       groups   — the ApiGroup[] shown when the card is expanded
+       addable  — whether a builder-mode click drops it on the canvas -->
+<ng-template #libItem let-item let-key="key" let-groups="groups" let-addable="addable">
+  <div class="ae-toolitem" role="button" tabindex="0" [style.--nc]="item.color"
+    [class.expanded]="expandedLib() === key"
+    (click)="onLibItemClick($event, key)"
+    (keydown.enter)="onLibItemClick($event, key)"
+    (keydown.space)="$event.preventDefault(); onLibItemClick($event, key)">
+    <span class="ae-toolitem-rail"></span>
+    <span class="ae-glyph"><app-icon [name]="item.icon" /></span>
+    @if (!railCollapsed()) {
+      <span class="ae-toolitem-text">
+        <span class="n">{{ item.label }}</span>
+        <span class="s">{{ item.sub }}</span>
+      </span>
+      @if (activeView() === 'algorithm') {
+        <span class="ae-toolitem-caret" [class.open]="expandedLib() === key">
+          <app-icon name="chevronDown" />
+        </span>
+      } @else if (addable) {
+        <button class="ae-toolitem-info" type="button" (click)="openLibInfo($event, key)"
+          aria-label="About this item">
+          <app-icon name="help" />
+        </button>
+      }
+    }
+  </div>
+  @if (activeView() === 'algorithm' && !railCollapsed() && expandedLib() === key) {
+    <div class="ae-libcard" [style.--nc]="item.color">
+      <p class="ae-libcard-desc">{{ item.description }}</p>
+      <ng-container [ngTemplateOutlet]="apiGroups" [ngTemplateOutletContext]="{ $implicit: groups }" />
     </div>
   }
 </ng-template>
