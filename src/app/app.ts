@@ -25,6 +25,17 @@ import { CodeEditorComponent } from './editor/code-editor.component';
 import { type EditorGlobal } from './editor/dsl';
 import { type LineNote } from './editor/line-notes';
 import { ApiGroup, DATA_STRUCTURE_API, GRAPH_NODE_API, GLOBAL_REFERENCE } from './node-api';
+import {
+  DATA_PALETTE,
+  DATA_STRUCTURES,
+  dataSize,
+  formatDataItems,
+  makeDataNode,
+  type DataNode,
+  type DataPaletteItem,
+  type DataStructureKind,
+  type HeapEntry,
+} from './models/data-structure.model';
 
 type NodeKind = 'NODE' | 'START' | 'GOAL';
 
@@ -55,49 +66,6 @@ interface PaletteItem {
   description: string;
 }
 
-/** The data structures a learner can drop on the canvas to watch an algorithm's state. */
-type DataStructureKind = 'LIST' | 'STACK' | 'QUEUE' | 'SET' | 'MAP' | 'PQUEUE' | 'MATRIX';
-
-interface MapEntry {
-  key: string;
-  value: string | number;
-}
-
-interface HeapEntry {
-  value: string;
-  priority: number;
-}
-
-/**
- * A data-structure node — pure display. It holds contents and renders them on the
- * canvas, but has no ports and no input/output mechanism: it exists only to make the
- * state an algorithm keeps (visited set, distance map, frontier queue, …) visible.
- */
-interface DataNode {
-  id: string;
-  kind: DataStructureKind;
-  /** Variable-style name shown in the header, e.g. `dist`, `pq`, `visited`. */
-  label: string;
-  position: { x: number; y: number };
-  /** LIST · STACK · QUEUE · SET — linear contents. */
-  items: (string | number)[];
-  /** MAP — key → value rows. */
-  entries: MapEntry[];
-  /** PQUEUE — values with priority, kept sorted (lowest priority first). */
-  heap: HeapEntry[];
-  /** MATRIX — row-major numeric grid. */
-  matrix: number[][];
-}
-
-interface DataPaletteItem {
-  kind: DataStructureKind;
-  label: string;
-  sub: string;
-  icon: string;
-  color: string;
-  description: string;
-}
-
 /** One editable source file in the algorithm workspace (entry `main` + module files). */
 interface AlgoFile {
   id: string;
@@ -115,133 +83,6 @@ interface NodeInfo {
   color: string;
   description: string;
   groups: ApiGroup[];
-}
-
-/** Static metadata (label, header tag, icon, accent colour, description) per data-structure kind. */
-const DATA_STRUCTURES: Record<
-  DataStructureKind,
-  { label: string; tag: string; sub: string; icon: string; color: string; description: string }
-> = {
-  LIST: {
-    label: 'List / Array',
-    tag: 'Array',
-    sub: 'Indexed, ordered values',
-    icon: 'list',
-    color: 'oklch(0.6 0.13 230)',
-    description:
-      'An ordered sequence addressed by position. Reading or overwriting any index is O(1); inserting or removing in the middle shifts the following elements, so it costs O(n).',
-  },
-  STACK: {
-    label: 'Stack',
-    tag: 'Stack',
-    sub: 'LIFO — push / pop on top',
-    icon: 'layers',
-    color: 'oklch(0.58 0.14 300)',
-    description:
-      'A last-in, first-out (LIFO) collection: you push onto the top and pop from the top, so only the most recently added element is reachable. Backs depth-first search and backtracking.',
-  },
-  QUEUE: {
-    label: 'Queue',
-    tag: 'Queue',
-    sub: 'FIFO — front to back',
-    icon: 'arrowRightLeft',
-    color: 'oklch(0.6 0.13 200)',
-    description:
-      'A first-in, first-out (FIFO) collection: you enqueue at the back and dequeue from the front, so elements leave in the order they arrived. It is the frontier of breadth-first search.',
-  },
-  SET: {
-    label: 'Set',
-    tag: 'Set',
-    sub: 'Unique membership',
-    icon: 'braces',
-    color: 'oklch(0.58 0.15 350)',
-    description:
-      'An unordered collection of distinct elements. Adding an element and testing membership are amortized O(1). Graph traversals use it to remember which vertices have been visited.',
-  },
-  MAP: {
-    label: 'Map',
-    tag: 'Map',
-    sub: 'Key → value lookup',
-    icon: 'arrowRight',
-    color: 'oklch(0.58 0.14 162)',
-    description:
-      'A collection of key → value pairs (dictionary / hash map). Every key is unique and maps to a single value; lookups and updates are amortized O(1). Stores distances, predecessors, colours and similar per-vertex data.',
-  },
-  PQUEUE: {
-    label: 'Priority Queue',
-    tag: 'Priority Q',
-    sub: 'Min-heap by priority',
-    icon: 'gitBranch',
-    color: 'oklch(0.64 0.15 50)',
-    description:
-      'A queue ordered by priority instead of arrival time. Removing the smallest (or largest) element takes O(log n) with a binary heap. It drives Dijkstra, Prim and A*.',
-  },
-  MATRIX: {
-    label: '2D Matrix',
-    tag: 'Matrix',
-    sub: 'Row × column grid',
-    icon: 'grid',
-    color: 'oklch(0.56 0.13 20)',
-    description:
-      'A two-dimensional grid of values indexed by row and column. As an adjacency matrix it records a weight for every pair of vertices in O(V²) space with O(1) access. Used by Floyd–Warshall.',
-  },
-};
-
-/** Default variable name used when a structure is dropped from the library. */
-const DEFAULT_DATA_LABEL: Record<DataStructureKind, string> = {
-  LIST: 'list',
-  STACK: 'stack',
-  QUEUE: 'queue',
-  SET: 'set',
-  MAP: 'map',
-  PQUEUE: 'pq',
-  MATRIX: 'matrix',
-};
-
-/** Build a data-structure node seeded with small sample contents so the card isn't empty. */
-function makeDataNode(
-  kind: DataStructureKind,
-  id: string,
-  position: { x: number; y: number },
-  label: string = DEFAULT_DATA_LABEL[kind],
-): DataNode {
-  const node: DataNode = { id, kind, label, position, items: [], entries: [], heap: [], matrix: [] };
-  switch (kind) {
-    case 'LIST':
-      node.items = [5, 3, 8, 1, 4];
-      break;
-    case 'STACK':
-      node.items = [4, 2, 7];
-      break;
-    case 'QUEUE':
-      node.items = ['A', 'B', 'C', 'D'];
-      break;
-    case 'SET':
-      node.items = ['A', 'C', 'F'];
-      break;
-    case 'MAP':
-      node.entries = [
-        { key: 'A', value: 0 },
-        { key: 'B', value: 4 },
-        { key: 'C', value: 2 },
-      ];
-      break;
-    case 'PQUEUE':
-      node.heap = [
-        { value: 'A', priority: 0 },
-        { value: 'C', priority: 2 },
-        { value: 'B', priority: 4 },
-      ];
-      break;
-    case 'MATRIX':
-      node.matrix = [
-        [0, 4, 2],
-        [4, 0, 1],
-        [2, 1, 0],
-      ];
-      break;
-  }
-  return node;
 }
 
 /** Entry algorithm — the file the Run workspace steps through. */
@@ -385,9 +226,7 @@ export class App {
   ];
 
   // ── Data-structure palette (display-only state nodes) ─────
-  protected readonly dataPalette: DataPaletteItem[] = (
-    ['LIST', 'STACK', 'QUEUE', 'SET', 'MAP', 'PQUEUE', 'MATRIX'] as DataStructureKind[]
-  ).map((kind) => ({ kind, ...DATA_STRUCTURES[kind] }));
+  protected readonly dataPalette: DataPaletteItem[] = DATA_PALETTE;
 
   /**
    * Algorithm-only library entries — built-in globals (`graph`, `canvas`), not
@@ -576,25 +415,9 @@ export class App {
     return out;
   }
 
-  /** Readable inline form of a linear structure's items for the Run state rail. */
-  formatItems(dn: DataNode): string {
-    const inner = dn.items.join(', ');
-    return dn.kind === 'SET' ? `{ ${inner} }` : `[${inner}]`;
-  }
-
-  /** Current element count, shown next to a data structure in the globals list. */
-  dataSizeLabel(dn: DataNode): string {
-    switch (dn.kind) {
-      case 'MAP':
-        return `${dn.entries.length}`;
-      case 'PQUEUE':
-        return `${dn.heap.length}`;
-      case 'MATRIX':
-        return dn.matrix.length ? `${dn.matrix.length}×${dn.matrix[0].length}` : '0';
-      default:
-        return `${dn.items.length}`;
-    }
-  }
+  /** Template hooks for the data-structure presentation helpers (defined in the model). */
+  protected readonly formatItems = formatDataItems;
+  protected readonly dataSizeLabel = dataSize;
   /** Stacks grow upward, so render the top (last pushed) element first. */
   reversed(items: (string | number)[]): (string | number)[] {
     return [...items].reverse();
@@ -646,7 +469,7 @@ export class App {
   // ── Data-structure node operations ────────────────────────
   private createDataNodeAt(kind: DataStructureKind, position: { x: number; y: number }): void {
     const id = `ds${this.nextDataId++}`;
-    const label = this.uniqueName(DEFAULT_DATA_LABEL[kind]);
+    const label = this.uniqueName(DATA_STRUCTURES[kind].defaultLabel);
     this.dataNodes.update((list) => [...list, makeDataNode(kind, id, position, label)]);
   }
 
