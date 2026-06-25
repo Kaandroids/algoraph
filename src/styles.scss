@@ -1,1 +1,36 @@
-/* You can add global styles to this file, and also import other style files */
+/* Algoraph — global theme */
+:root {
+  --bg: #0b1120;
+  --panel: #18233a;
+  --panel-2: #111a2e;
+  --border: #2a3a57;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #6366f1;
+  --accent-2: #818cf8;
+  --green: #34d399;
+  --amber: #fbbf24;
+  --radius: 12px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}

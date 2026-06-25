@@ -1,59 +1,46 @@
 # Algoraph
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.0.3.
+**Algoraph** is an interactive graph-algorithm learning platform that runs entirely in the
+browser — no backend.
 
-## Development server
+You build a graph (nodes + directed/bidirectional, weighted edges), write an algorithm in a
+small **pseudocode** language in the code panel, and Algoraph runs it **step by step**,
+visualizing every step on the graph while **counting operations** so you can see the
+algorithm's complexity emerge.
 
-To start a local development server, run:
+## Status
 
-```bash
-ng serve
-```
+Early scaffold. Working:
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+- Angular 21 (standalone, signals), static SPA — no SSR, no backend.
+- App shell: top bar + graph canvas + pseudocode/counters panels.
+- Graph rendering via [`@foblex/flow`](https://flow.foblex.com) with a sample graph.
 
-## Code scaffolding
+### Roadmap
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+1. **Graph editor** — create/delete nodes & edges, toggle directed/bidirectional, set weights.
+2. **Pseudocode language** — lexer + parser + tree-walking interpreter (CodeMirror 6 editor,
+   custom syntax highlighting, hover annotations).
+3. **Step player** — run the interpreter to a trace; play / pause / step forward / step back.
+4. **Operation counting & complexity** — categorized counters + empirical complexity view.
 
-```bash
-ng generate component component-name
-```
+## Pseudocode language (design)
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+- Assignment with `←`, comparison with `=` / `<` / `>`.
+- Explicit blocks: `do ... end`, `then ... end`.
+- Comments with `//`; longer per-line explanations live in a separate annotation layer,
+  shown on hover.
 
-```bash
-ng generate --help
-```
+## Tech
 
-## Building
+- [Angular 21](https://angular.dev)
+- [Foblex Flow](https://flow.foblex.com) — node-based graph canvas
+- [CodeMirror 6](https://codemirror.net) — code editor
 
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
+## Development
 
 ```bash
-ng e2e
+npm start        # dev server at http://localhost:4200/
+npm run build    # production build into dist/
+npm test         # unit tests (Vitest)
 ```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.

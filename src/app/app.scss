@@ -1,0 +1,263 @@
+:host {
+  display: block;
+  height: 100vh;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ---------- Top bar ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  padding: 0 16px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .logo {
+    color: var(--accent-2);
+    font-size: 22px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+
+  .tag {
+    color: var(--muted);
+    font-size: 12px;
+    padding-left: 8px;
+    border-left: 1px solid var(--border);
+  }
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  .divider {
+    width: 1px;
+    height: 22px;
+    background: var(--border);
+    margin: 0 6px;
+  }
+
+  .step-count {
+    color: var(--muted);
+    font-size: 12px;
+    margin-left: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.btn {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    border-color: var(--accent);
+  }
+
+  &.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* ---------- Workspace ---------- */
+.workspace {
+  flex: 1;
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  min-height: 0;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel-head {
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.graph-panel {
+  flex: 1;
+}
+
+.flow {
+  flex: 1;
+  display: block;
+  width: 100%;
+  min-height: 0;
+}
+
+.side {
+  width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.code-panel {
+  flex: 1;
+}
+
+.code-placeholder {
+  padding: 14px;
+  overflow: auto;
+
+  pre {
+    margin: 0;
+    font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #cbd5e1;
+  }
+
+  .hint {
+    margin: 14px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-style: italic;
+  }
+}
+
+.counters-panel {
+  flex: 0 0 auto;
+}
+
+.counters {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.counter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+
+  span {
+    color: var(--muted);
+  }
+
+  b {
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+}
+
+.complexity {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--muted);
+
+  b {
+    color: var(--accent-2);
+  }
+}
+
+/* ---------- Step bar ---------- */
+.stepbar {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  background: var(--panel-2);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+
+  .status {
+    color: var(--green);
+    font-weight: 600;
+  }
+}
+
+/* ---------- Graph nodes ---------- */
+.g-node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #243352, #1a2740);
+  border: 2px solid var(--accent);
+  color: var(--text);
+  font-weight: 700;
+  cursor: grab;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  user-select: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.g-label {
+  font-size: 16px;
+}
+
+.anchor {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent-2);
+  top: 50%;
+  transform: translateY(-50%);
+
+  &.in {
+    left: -5px;
+  }
+
+  &.out {
+    right: -5px;
+  }
+}
