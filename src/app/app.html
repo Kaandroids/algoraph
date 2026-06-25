@@ -94,7 +94,9 @@
   </aside>
 
   <!-- ── Canvas ────────────────────────────────────────────── -->
-  <div class="ae-canvas-wrap" (contextmenu)="onCanvasContextMenu($event)">
+  <div class="ae-canvas-wrap" [class.ae-panning]="panning()"
+    (mousedown)="onCanvasMouseDown($event)"
+    (contextmenu)="onCanvasContextMenu($event)">
     <f-flow fDraggable
       [fCanvasMoveTrigger]="canvasMoveTrigger"
       (fSelectionChange)="onSelectionChanged($event)"

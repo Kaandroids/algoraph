@@ -119,6 +119,7 @@ export class App implements AfterViewInit, OnDestroy {
   ]);
 
   protected readonly zoomLevel = signal(100);
+  protected readonly panning = signal(false);
   protected readonly railCollapsed = signal(false);
   protected readonly codeRailCollapsed = signal(false);
   protected readonly librarySearch = signal('');
@@ -141,6 +142,9 @@ export class App implements AfterViewInit, OnDestroy {
   private nextNodeId = 1;
   private currentCanvasPos = { x: 0, y: 0 };
   private ctxCanvasPos = { x: 0, y: 0 };
+  private panStart = { x: 0, y: 0 };
+  private canvasPosStart = { x: 0, y: 0 };
+  private panSetPosition = { x: 0, y: 0 };
 
   // ── Foblex triggers ───────────────────────────────────────
   /** Left-drag on empty canvas pans (Figma-style). */
@@ -279,6 +283,37 @@ export class App implements AfterViewInit, OnDestroy {
   onCanvasChange(event: FCanvasChangeEvent): void {
     this.zoomLevel.set(Math.round(event.scale * 100));
     this.currentCanvasPos = event.position;
+  }
+
+  // ── Middle-mouse pan ──────────────────────────────────────
+  /** Hold the middle mouse button and drag to pan (left-drag already pans via Foblex). */
+  onCanvasMouseDown(event: MouseEvent): void {
+    if (event.button !== 1) return; // middle button only
+    event.preventDefault();
+    const canvas = this.fCanvas();
+    this.panStart = { x: event.clientX, y: event.clientY };
+    this.canvasPosStart = canvas ? { ...canvas.getPosition() } : { ...this.panSetPosition };
+    this.panning.set(true);
+  }
+
+  @HostListener('window:mousemove', ['$event'])
+  onWindowMouseMove(event: MouseEvent): void {
+    if (!this.panning()) return;
+    const canvas = this.fCanvas();
+    if (!canvas) return;
+    const newPos = {
+      x: this.canvasPosStart.x + (event.clientX - this.panStart.x),
+      y: this.canvasPosStart.y + (event.clientY - this.panStart.y),
+    };
+    this.panSetPosition = newPos;
+    canvas._setPosition(newPos);
+    canvas.redraw();
+    canvas.emitCanvasChangeEvent();
+  }
+
+  @HostListener('window:mouseup')
+  onWindowMouseUp(): void {
+    if (this.panning()) this.panning.set(false);
   }
 
   // ── Context menus ─────────────────────────────────────────
