@@ -1,86 +1,279 @@
-<div class="app">
-  <header class="topbar">
-    <div class="brand">
-      <span class="logo">⬡</span>
-      <h1>{{ title() }}</h1>
-      <span class="tag">graph algorithm lab</span>
+<!-- ── Toolbar ──────────────────────────────────────────────── -->
+<div class="ae-toolbar">
+  <div class="ae-toolbar-left">
+    <span class="ag-brand-mark"><app-icon name="workflow" /></span>
+    <span class="ae-toolbar-name ag-wordmark">{{ title() }}</span>
+    <span class="ae-status-pill" data-status="TESTING">
+      <span class="ae-status-dot"></span>
+      <span class="ae-status-label">Editor</span>
+    </span>
+  </div>
+  <div class="ae-toolbar-right">
+    <div class="ae-tabs">
+      <button class="ae-tab active">
+        <app-icon name="workflow" /><span>Canvas</span>
+      </button>
+      <button class="ae-tab" disabled>
+        <app-icon name="code" /><span>Algorithm</span>
+      </button>
+    </div>
+    <button class="ae-toolbar-btn ae-btn-vars" disabled>
+      <app-icon name="code" /> Pseudocode
+    </button>
+    <button class="ae-toolbar-btn ae-btn-run" disabled>
+      <app-icon name="play" /> Run
+    </button>
+  </div>
+  <div class="ae-toolbar-accent" aria-hidden="true"></div>
+</div>
+
+<!-- ── Main area ────────────────────────────────────────────── -->
+<div class="ae-main">
+  <!-- ── Tool library rail ─────────────────────────────────── -->
+  <aside class="ae-toolrail" [class.collapsed]="railCollapsed()">
+    <div class="ae-toolrail-head">
+      <span class="ae-toolrail-mark"><app-icon name="grid" /></span>
+      <div class="ae-toolrail-titles">
+        <span class="ae-toolrail-eyebrow">Library</span>
+        <span class="ae-toolrail-title">Nodes</span>
+      </div>
+      <button class="ae-toolrail-toggle" (click)="toggleRail()" aria-label="Toggle library">
+        <app-icon name="chevronRight" />
+      </button>
     </div>
 
-    <div class="controls">
-      <button class="btn primary" disabled>▷ Run</button>
-      <span class="divider"></span>
-      <button class="btn" disabled title="Reset to start">⏮</button>
-      <button class="btn" disabled title="Step back">◀</button>
-      <button class="btn" disabled title="Step forward">▶</button>
-      <button class="btn" disabled title="Reset">⟳</button>
-      <span class="step-count">Step 0 / 0</span>
-    </div>
-  </header>
+    @if (!railCollapsed()) {
+      <div class="ae-toolrail-search">
+        <span class="ic"><app-icon name="search" /></span>
+        <input type="text" [value]="librarySearch()"
+          (input)="librarySearch.set($any($event.target).value)" placeholder="Search nodes" />
+        @if (librarySearch()) {
+          <button class="clr" (click)="librarySearch.set('')" aria-label="Clear">
+            <app-icon name="x" />
+          </button>
+        }
+      </div>
+    }
 
-  <main class="workspace">
-    <section class="panel graph-panel">
-      <div class="panel-head">Graph</div>
-
-      <f-flow fDraggable class="flow">
-        <f-canvas fZoom>
-          <f-background>
-            <f-circle-pattern></f-circle-pattern>
-          </f-background>
-
-          @for (edge of edges(); track edge.id) {
-            <f-connection
-              [fOutputId]="edge.from + '-out'"
-              [fInputId]="edge.to + '-in'"
-              fBehavior="floating"
-            ></f-connection>
-          }
-
-          @for (node of nodes(); track node.id) {
-            <div
-              fNode
-              [fNodeId]="node.id"
-              [fNodePosition]="node.position"
-              class="g-node"
-            >
-              <div class="anchor in" fNodeInput [fInputId]="node.id + '-in'" [fInputMultiple]="true"></div>
-              <span class="g-label">{{ node.label }}</span>
-              <div class="anchor out" fNodeOutput [fOutputId]="node.id + '-out'" [fOutputMultiple]="true"></div>
+    <div class="ae-toolrail-scroll">
+      <div class="ae-toolgroup">
+        @if (!railCollapsed()) {
+          <div class="ae-toolgroup-h">
+            <span class="lbl">Graph</span>
+            <span class="cnt">{{ libraryItems().length }}</span>
+          </div>
+        }
+        <div class="ae-toolgroup-items">
+          @for (item of libraryItems(); track item.kind) {
+            <div class="ae-toolitem" role="button" tabindex="0" [style.--nc]="item.color"
+              (click)="addNode(item.kind)"
+              (keydown.enter)="addNode(item.kind)"
+              (keydown.space)="$event.preventDefault(); addNode(item.kind)">
+              <span class="ae-toolitem-rail"></span>
+              <span class="ae-glyph"><app-icon [name]="item.icon" /></span>
+              @if (!railCollapsed()) {
+                <span class="ae-toolitem-text">
+                  <span class="n">{{ item.label }}</span>
+                  <span class="s">{{ item.sub }}</span>
+                </span>
+                <span class="ae-toolitem-add" aria-hidden="true"><app-icon name="plus" /></span>
+              }
             </div>
           }
-        </f-canvas>
-      </f-flow>
-    </section>
-
-    <aside class="side">
-      <section class="panel code-panel">
-        <div class="panel-head">Pseudocode</div>
-        <div class="code-placeholder">
-<pre>// Dijkstra — shortest path
-algorithm Dijkstra(source):
-    for each v in nodes() do
-        dist[v] ← infinity
-    end for
-    dist[source] ← 0
-    ...
-end algorithm</pre>
-          <p class="hint">CodeMirror editor goes here (next step).</p>
         </div>
-      </section>
+      </div>
+    </div>
 
-      <section class="panel counters-panel">
-        <div class="panel-head">Operation Counters</div>
-        <div class="counters">
-          <div class="counter"><span>Comparisons</span><b>0</b></div>
-          <div class="counter"><span>Edge inspections</span><b>0</b></div>
-          <div class="counter"><span>Node visits</span><b>0</b></div>
+    @if (!railCollapsed()) {
+      <div class="ae-toolrail-foot">
+        <app-icon name="grid" />
+        <span>{{ palette.length }} node types</span>
+        <span class="hint">click to add</span>
+      </div>
+    }
+  </aside>
+
+  <!-- ── Canvas ────────────────────────────────────────────── -->
+  <div class="ae-canvas-wrap" (contextmenu)="onCanvasContextMenu($event)">
+    <f-flow fDraggable
+      [fCanvasMoveTrigger]="canvasMoveTrigger"
+      (fSelectionChange)="onSelectionChanged($event)"
+      (fCreateConnection)="onConnectionCreated($event)"
+      (fMoveNodes)="onNodeMoved($event)">
+      <f-background>
+        <f-circle-pattern [color]="'rgba(128,128,128,0.32)'" [radius]="22" />
+      </f-background>
+      <f-canvas fZoom [fZoomMinimum]="0.2" [fZoomMaximum]="3"
+        [fWheelTrigger]="zoomOnPinch"
+        (fCanvasChange)="onCanvasChange($event)">
+
+        <!-- Nodes -->
+        @for (node of nodes(); track node.id) {
+          <div fNode
+            [fNodeId]="node.id"
+            [fNodePosition]="node.position"
+            class="ae-node"
+            [attr.data-type]="node.kind"
+            [style.--nc]="nodeColor(node.kind)"
+            (contextmenu)="onNodeContextMenu($event, node.id)">
+
+            <div class="ae-node-header" fDragHandle>
+              <span class="ae-node-icon"><app-icon [name]="nodeIcon(node.kind)" /></span>
+              <div class="ae-node-header-text">
+                <span class="ae-node-type-label">{{ nodeTypeLabel(node.kind) }}</span>
+                <span class="ae-node-label">Node {{ node.label }}</span>
+              </div>
+            </div>
+
+            <div class="ae-node-ports">
+              <div class="ae-port-row ae-port-in-row">
+                <div fNodeInput [fInputId]="inputId(node)" [fInputMultiple]="true"
+                  class="ae-port-dot ae-port-circle ae-port-hollow ae-port-nc"></div>
+                <span class="ae-port-label">in</span>
+              </div>
+              <div class="ae-port-row ae-port-out-row">
+                <span class="ae-port-label">out</span>
+                <div fNodeOutput [fOutputId]="outputId(node)" [fOutputMultiple]="true"
+                  class="ae-port-dot ae-port-circle ae-port-filled ae-port-nc"></div>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Connections -->
+        @for (edge of edges(); track edge.id) {
+          <f-connection
+            [fConnectionId]="edge.id"
+            [fOutputId]="edge.outputId"
+            [fInputId]="edge.inputId"
+            [fType]="EFConnectionType.BEZIER">
+            <f-connection-marker-arrow [type]="EFMarkerType.END_ALL_STATES" />
+          </f-connection>
+        }
+
+        <f-connection-for-create [fType]="EFConnectionType.BEZIER" />
+      </f-canvas>
+    </f-flow>
+
+    <!-- Tips overlay -->
+    <div class="ae-tips-wrap f-drag-blocker">
+      <button class="ae-canvas-btn" (click)="tipsOpen.set(!tipsOpen())" title="Tips">
+        <app-icon name="help" />
+      </button>
+      @if (tipsOpen()) {
+        <div class="ae-tips-backdrop" (click)="tipsOpen.set(false)"></div>
+        <div class="ae-tips-panel">
+          <div class="ae-tips-title">Tips</div>
+          <div class="ae-tips-list">
+            <div class="ae-tips-item"><span class="ae-tips-key">Drag</span><span>Pan the canvas</span></div>
+            <div class="ae-tips-item"><span class="ae-tips-key">⌘ / Ctrl + Wheel</span><span>Zoom in / out</span></div>
+            <div class="ae-tips-item"><span class="ae-tips-key">Port → Port</span><span>Create an edge</span></div>
+            <div class="ae-tips-item"><span class="ae-tips-key">Del</span><span>Delete selected edge</span></div>
+          </div>
         </div>
-        <div class="complexity">Observed complexity: <b>—</b></div>
-      </section>
-    </aside>
-  </main>
+      }
+    </div>
 
-  <footer class="stepbar">
-    <span class="status">● Ready.</span>
-    Algoraph shell is running — next up: graph editor, pseudocode interpreter and step player.
-  </footer>
+    <!-- Zoom controls (bottom-left pill) -->
+    <div class="ae-zoom f-drag-blocker">
+      <button (click)="zoomOut()" title="Zoom out" aria-label="Zoom out">
+        <app-icon name="minus" />
+      </button>
+      <span class="lvl">{{ zoomLevel() }}%</span>
+      <button (click)="zoomIn()" title="Zoom in" aria-label="Zoom in">
+        <app-icon name="plus" />
+      </button>
+      <span class="sep"></span>
+      <button (click)="resetZoom()" title="Reset view" aria-label="Reset view">
+        <app-icon name="maximize" />
+      </button>
+    </div>
+
+    <!-- Legend -->
+    <div class="ae-legend f-drag-blocker" [class.ae-legend-collapsed]="!legendOpen()">
+      <button class="ae-legend-toggle" (click)="legendOpen.set(!legendOpen())">
+        <span class="ae-legend-title">Legend</span>
+        <app-icon [name]="legendOpen() ? 'chevronDown' : 'chevronUp'" />
+      </button>
+      @if (legendOpen()) {
+        <div class="ae-legend-items">
+          <div class="ae-legend-item">
+            <span class="ae-legend-shape ae-legend-circle ae-legend-hollow"></span>
+            <span>Input port</span>
+          </div>
+          <div class="ae-legend-item">
+            <span class="ae-legend-shape ae-legend-circle ae-legend-filled"></span>
+            <span>Output port</span>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Mini status (bottom-right) -->
+    <div class="ag-mini-status f-drag-blocker">
+      <span class="grp"><app-icon name="grid" /> {{ nodes().length }} nodes</span>
+      <span class="sep"></span>
+      <span class="grp"><app-icon name="link" /> {{ edges().length }} edges</span>
+    </div>
+
+    <!-- Canvas context menu (right-click empty canvas) -->
+    @if (ctxMenuOpen()) {
+      <div class="ae-ctx-backdrop"
+        (click)="closeContextMenu()"
+        (contextmenu)="closeContextMenu(); $event.preventDefault()"></div>
+      <div class="ae-ctx-menu" [style.left.px]="ctxMenuPos().x" [style.top.px]="ctxMenuPos().y">
+        @for (item of palette; track item.kind) {
+          <button class="ae-ctx-item" (click)="addNodeAt(item.kind)">
+            <span class="ae-ctx-icon" [style.--pc]="item.color"><app-icon [name]="item.icon" /></span>
+            <span>Add {{ item.label }}</span>
+          </button>
+        }
+      </div>
+    }
+
+    <!-- Node context menu (right-click a node) -->
+    @if (nodeCtxMenuOpen()) {
+      <div class="ae-ctx-backdrop"
+        (click)="closeNodeContextMenu()"
+        (contextmenu)="closeNodeContextMenu(); $event.preventDefault()"></div>
+      <div class="ae-ctx-menu" [style.left.px]="nodeCtxMenuPos().x" [style.top.px]="nodeCtxMenuPos().y">
+        <button class="ae-ctx-item" (click)="copyNode(nodeCtxTarget()!)">
+          <span class="ae-ctx-icon" style="--pc: var(--fg-muted)"><app-icon name="copy" /></span>
+          <span>Duplicate node</span>
+        </button>
+        <button class="ae-ctx-item ae-ctx-item-danger"
+          (click)="deleteNode(nodeCtxTarget()!); closeNodeContextMenu()">
+          <span class="ae-ctx-icon ae-ctx-icon-danger"><app-icon name="trash" /></span>
+          <span>Delete node</span>
+        </button>
+      </div>
+    }
+  </div>
+
+  <!-- ── Pseudocode rail (right, collapsible) ──────────────── -->
+  <aside class="ag-coderail" [class.collapsed]="codeRailCollapsed()">
+    <div class="ag-coderail-head">
+      <button class="ae-toolrail-toggle ag-coderail-toggle" (click)="toggleCodeRail()"
+        aria-label="Collapse pseudocode">
+        <app-icon name="chevronLeft" />
+      </button>
+      <div class="ae-toolrail-titles">
+        <span class="ae-toolrail-eyebrow">Algorithm</span>
+        <span class="ae-toolrail-title">Pseudocode</span>
+      </div>
+    </div>
+
+    <button class="ag-coderail-vlabel" (click)="toggleCodeRail()" aria-label="Expand pseudocode">
+      <span>Pseudocode</span>
+    </button>
+
+    <div class="ag-coderail-body">
+      <div class="ag-editor" #editorHost></div>
+    </div>
+
+    <div class="ag-coderail-foot">
+      <span>Custom DSL</span>
+      <span class="hint">interpreter next</span>
+    </div>
+  </aside>
 </div>

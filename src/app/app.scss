@@ -1,263 +1,531 @@
 :host {
-  display: block;
-  height: 100vh;
-}
-
-.app {
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ── Brand ────────────────────────────────────────────────── */
+.ag-brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: var(--accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 1px 2px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+
+  app-icon { width: 17px; height: 17px; }
+}
+
+.ag-wordmark {
+  font-family: var(--font-serif);
+  font-size: 23px;
+  font-weight: 400;
+  letter-spacing: 0.1px;
+}
+
+/* ── Canvas ───────────────────────────────────────────────── */
+.ae-canvas-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+  background: var(--bg-2);
+}
+
+.ae-canvas-wrap f-flow {
+  width: 100%;
   height: 100%;
 }
 
-/* ---------- Top bar ---------- */
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 56px;
-  padding: 0 16px;
-  background: var(--panel-2);
-  border-bottom: 1px solid var(--border);
+/* ── Tips overlay ─────────────────────────────────────────── */
+.ae-tips-wrap {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 20;
+  pointer-events: auto;
 }
 
-.brand {
+.ae-tips-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+}
+
+.ae-tips-panel {
+  margin-top: 6px;
+  background: var(--bg);
+  border: 0.5px solid var(--border);
+  border-radius: 9px;
+  padding: 14px 16px;
+  min-width: 300px;
+  box-shadow: 0 8px 28px rgba(34, 28, 18, 0.12), 0 1px 2px rgba(34, 28, 18, 0.05);
+  animation: ae-ctx-in 0.12s ease-out;
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@keyframes ae-ctx-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.ae-tips-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--fg-subtle);
+}
+
+.ae-tips-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 9px 14px;
   align-items: center;
-  gap: 10px;
+}
 
-  .logo {
-    color: var(--accent-2);
-    font-size: 22px;
-  }
+.ae-tips-item {
+  display: contents;
 
-  h1 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-  }
-
-  .tag {
-    color: var(--muted);
+  > span:last-child {
     font-size: 12px;
-    padding-left: 8px;
-    border-left: 1px solid var(--border);
+    color: var(--fg-muted);
+    line-height: 1.4;
   }
 }
 
-.controls {
+.ae-tips-key {
+  justify-self: start;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  background: var(--bg-2);
+  border: 0.5px solid var(--border);
+  border-bottom-width: 1.5px;
+  border-radius: 5px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+/* ── Canvas overlay buttons ───────────────────────────────── */
+.ae-canvas-btn {
+  appearance: none;
+  border: 0.5px solid var(--border);
+  background: var(--bg);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+
+  app-icon { width: 16px; height: 16px; }
+  > * { pointer-events: none; }
+}
+
+.ae-canvas-btn:hover {
+  background: var(--bg-2);
+  color: var(--fg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Zoom control pill (bottom-left) ──────────────────────── */
+.ae-zoom {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  z-index: 20;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg);
+  border: 0.5px solid var(--border);
+  border-radius: 9px;
+  padding: 4px;
+  box-shadow: 0 1px 2px rgba(34, 28, 18, 0.05);
+
+  button {
+    appearance: none;
+    width: 26px;
+    height: 26px;
+    border: 0;
+    background: transparent;
+    color: var(--fg-muted);
+    border-radius: 6px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background 0.12s, color 0.12s;
+
+    app-icon { width: 15px; height: 15px; }
+    > * { pointer-events: none; }
+
+    &:hover { background: var(--bg-2); color: var(--fg); }
+  }
+
+  .lvl {
+    padding: 0 8px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--fg-muted);
+    min-width: 42px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+  }
+
+  .sep {
+    width: 0.5px;
+    height: 18px;
+    background: var(--border);
+    margin: 0 2px;
+  }
+}
+
+/* ── Legend ───────────────────────────────────────────────── */
+.ae-legend {
+  position: absolute;
+  bottom: 56px;
+  left: 14px;
+  z-index: 20;
+  pointer-events: auto;
+  background: var(--bg);
+  border: 0.5px solid var(--border);
+  border-radius: 9px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 2px rgba(34, 28, 18, 0.05);
+}
+
+.ae-legend-collapsed {
+  padding: 0;
+}
+
+.ae-legend-toggle {
+  appearance: none;
+  border: 0;
+  background: none;
   display: flex;
   align-items: center;
   gap: 6px;
-
-  .divider {
-    width: 1px;
-    height: 22px;
-    background: var(--border);
-    margin: 0 6px;
-  }
-
-  .step-count {
-    color: var(--muted);
-    font-size: 12px;
-    margin-left: 8px;
-    font-variant-numeric: tabular-nums;
-  }
-}
-
-.btn {
-  background: var(--panel);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 13px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  padding: 0;
+  color: var(--fg-subtle);
 
-  &:hover:not(:disabled) {
-    border-color: var(--accent);
+  > * { pointer-events: none; }
+
+  .ae-legend-collapsed & {
+    padding: 8px 12px;
   }
 
-  &.primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    font-weight: 600;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  app-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--fg-subtle);
   }
 }
 
-/* ---------- Workspace ---------- */
-.workspace {
-  flex: 1;
-  display: flex;
-  gap: 12px;
-  padding: 12px;
-  min-height: 0;
+.ae-legend-toggle:hover {
+  color: var(--fg-muted);
+  app-icon { color: var(--fg-muted); }
 }
 
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+.ae-legend-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ae-legend-items {
   display: flex;
   flex-direction: column;
+  gap: 6px;
+}
+
+.ae-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+.ae-legend-shape {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+}
+
+.ae-legend-circle {
+  border-radius: 50%;
+}
+
+.ae-legend-hollow {
+  background: transparent;
+  border: 2px solid var(--fg-muted);
+}
+
+.ae-legend-filled {
+  background: var(--fg-muted);
+  border: 2px solid var(--fg-muted);
+}
+
+/* ── Mini status (bottom-right) ───────────────────────────── */
+.ag-mini-status {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  z-index: 20;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 14px;
+  background: var(--bg);
+  border: 0.5px solid var(--border);
+  border-radius: 9px;
+  box-shadow: 0 1px 2px rgba(34, 28, 18, 0.05);
+  font-size: 12px;
+  color: var(--fg-muted);
+
+  .grp {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-variant-numeric: tabular-nums;
+
+    app-icon { width: 14px; height: 14px; color: var(--fg-subtle); }
+  }
+
+  .sep {
+    width: 0.5px;
+    height: 16px;
+    background: var(--border);
+  }
+}
+
+/* ── Foblex Flow overrides (match Postwerk/Automail) ──────── */
+:host ::ng-deep .f-connection path {
+  stroke: var(--border-strong);
+  stroke-width: 2;
+  fill: none;
+}
+
+:host ::ng-deep .f-connection:hover path,
+:host ::ng-deep .f-connection.f-selected path {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+:host ::ng-deep .f-connection-for-create path {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  fill: none;
+}
+
+:host ::ng-deep .f-marker {
+  color: var(--fg-muted);
+}
+
+:host ::ng-deep .f-marker circle,
+:host ::ng-deep .f-marker path,
+:host ::ng-deep .f-marker polygon {
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 0.75px;
+  transition: color 0.15s;
+}
+
+:host ::ng-deep .f-connection:hover .f-marker,
+:host ::ng-deep .f-connection.f-selected .f-marker {
+  color: var(--accent);
+}
+
+:host ::ng-deep .f-connection circle[f-connection-drag-handle-start],
+:host ::ng-deep .f-connection circle[f-connection-drag-handle-end] {
+  fill: transparent;
+  stroke: transparent;
+}
+
+/* ── Context menu ─────────────────────────────────────────── */
+.ae-ctx-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+}
+
+.ae-ctx-menu {
+  position: fixed;
+  z-index: 100;
+  background: var(--bg);
+  border: 0.5px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  min-width: 168px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  animation: ae-ctx-in 0.12s ease-out;
+}
+
+.ae-ctx-item {
+  appearance: none;
+  border: 0;
+  background: none;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--fg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.12s;
+
+  &:hover { background: var(--bg-2); }
+}
+
+.ae-ctx-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  background: var(--pc);
+  color: #fff;
+  flex-shrink: 0;
+
+  app-icon { width: 13px; height: 13px; }
+}
+
+.ae-ctx-item-danger {
+  color: oklch(0.55 0.2 25);
+}
+
+.ae-ctx-icon-danger {
+  background: oklch(0.55 0.2 25 / 0.12);
+  color: oklch(0.55 0.2 25);
+}
+
+/* ── Pseudocode rail (right, collapsible) ─────────────────── */
+.ag-coderail {
+  flex-shrink: 0;
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg);
+  border-left: 0.5px solid var(--border);
+  overflow: hidden;
+  transition: width 0.18s ease;
+
+  &.collapsed {
+    width: 46px;
+  }
+}
+
+.ag-coderail-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 14px;
+  border-bottom: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Collapse toggle hugs the left (inner) edge. */
+.ag-coderail-head .ag-coderail-toggle {
+  margin: 0;
+}
+
+.ag-coderail.collapsed {
+  .ag-coderail-head,
+  .ag-coderail-body,
+  .ag-coderail-foot {
+    display: none;
+  }
+}
+
+.ag-coderail-vlabel {
+  display: none;
+}
+
+.ag-coderail.collapsed .ag-coderail-vlabel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  padding: 16px 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--fg-muted);
+
+  app-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  span {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-subtle);
+  }
+
+  &:hover {
+    color: var(--fg);
+    span { color: var(--fg-muted); }
+  }
+}
+
+.ag-coderail-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.ag-editor {
+  flex: 1;
   min-height: 0;
   overflow: hidden;
 }
 
-.panel-head {
+.ag-coderail-foot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   padding: 10px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--muted);
-  border-bottom: 1px solid var(--border);
-}
+  border-top: 0.5px solid var(--border);
+  font-size: 11px;
+  color: var(--fg-muted);
+  flex-shrink: 0;
 
-.graph-panel {
-  flex: 1;
-}
-
-.flow {
-  flex: 1;
-  display: block;
-  width: 100%;
-  min-height: 0;
-}
-
-.side {
-  width: 420px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.code-panel {
-  flex: 1;
-}
-
-.code-placeholder {
-  padding: 14px;
-  overflow: auto;
-
-  pre {
-    margin: 0;
-    font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
-    font-size: 13px;
-    line-height: 1.6;
-    color: #cbd5e1;
-  }
-
-  .hint {
-    margin: 14px 0 0;
-    color: var(--muted);
-    font-size: 12px;
-    font-style: italic;
-  }
-}
-
-.counters-panel {
-  flex: 0 0 auto;
-}
-
-.counters {
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.counter {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-
-  span {
-    color: var(--muted);
-  }
-
-  b {
-    font-variant-numeric: tabular-nums;
-    color: var(--text);
-  }
-}
-
-.complexity {
-  padding: 12px 14px;
-  border-top: 1px solid var(--border);
-  font-size: 13px;
-  color: var(--muted);
-
-  b {
-    color: var(--accent-2);
-  }
-}
-
-/* ---------- Step bar ---------- */
-.stepbar {
-  height: 36px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 16px;
-  background: var(--panel-2);
-  border-top: 1px solid var(--border);
-  font-size: 12px;
-  color: var(--muted);
-
-  .status {
-    color: var(--green);
-    font-weight: 600;
-  }
-}
-
-/* ---------- Graph nodes ---------- */
-.g-node {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: linear-gradient(160deg, #243352, #1a2740);
-  border: 2px solid var(--accent);
-  color: var(--text);
-  font-weight: 700;
-  cursor: grab;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-  user-select: none;
-
-  &:active {
-    cursor: grabbing;
-  }
-}
-
-.g-label {
-  font-size: 16px;
-}
-
-.anchor {
-  position: absolute;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--accent-2);
-  top: 50%;
-  transform: translateY(-50%);
-
-  &.in {
-    left: -5px;
-  }
-
-  &.out {
-    right: -5px;
-  }
+  app-icon { width: 14px; height: 14px; color: var(--fg-subtle); }
+  .hint { margin-left: auto; color: var(--fg-subtle); font-size: 10.5px; }
 }

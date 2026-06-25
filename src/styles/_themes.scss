@@ -1,0 +1,121 @@
+// Themes — Postwerk design system (light + dark variants)
+// Ported from the Postwerk/Automail design tokens so Algoraph shares the same palette.
+
+:root {
+  // Fonts
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-serif: "Instrument Serif", Georgia, serif;
+
+  // Light — warm paper
+  --bg: #faf7f2;
+  --bg-2: #f3eee5;
+  --bg-panel: #1c1a17;
+  --bg-panel-fg: #f2ede4;
+  --fg: #1c1a17;
+  --fg-muted: #6e6557;
+  --fg-subtle: #9a9080;
+  --border: #e8e0d2;
+  --border-strong: #d4cab8;
+  --field-bg: #ffffff;
+  --field-bg-hover: #fbf8f2;
+  --field-fg: #1c1a17;
+  --accent: oklch(0.58 0.13 65);
+  --accent-fg: #ffffff;
+  --accent-soft: oklch(0.58 0.13 65 / 0.12);
+  --danger: oklch(0.55 0.20 25);
+  --success: oklch(0.55 0.14 150);
+  --warning: oklch(0.68 0.16 70);
+  --tone-violet: oklch(0.6 0.17 290);
+  --tone-amber: oklch(0.66 0.15 70);
+
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 40px -12px rgba(0, 0, 0, 0.08);
+}
+
+// Dark — default (base slate)
+[data-theme="dark"] {
+  --bg: #14141a;
+  --bg-2: #1c1c24;
+  --bg-panel: #20202a;
+  --bg-panel-fg: #fafafa;
+  --fg: #f4f4f6;
+  --fg-muted: #b4b4be;
+  --fg-subtle: #8a8a96;
+  --border: #2f2f3a;
+  --border-strong: #404050;
+  --field-bg: #1c1c24;
+  --field-bg-hover: #25252f;
+  --field-fg: #f4f4f6;
+  --accent-soft: oklch(0.62 0.18 270 / 0.22);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 24px 48px -16px rgba(0, 0, 0, 0.5);
+  --success: oklch(0.72 0.16 155);
+  --danger: oklch(0.68 0.19 25);
+  --warning: oklch(0.78 0.14 75);
+}
+
+// Variant: Slate — cool blue-gray
+[data-theme="dark"][data-dark-variant="slate"] {
+  --bg: #0e1116;
+  --bg-2: #161b22;
+  --bg-panel: #1c2230;
+  --fg: #e6edf3;
+  --fg-muted: #9aa6b2;
+  --fg-subtle: #6e7681;
+  --border: #232a36;
+  --border-strong: #303a48;
+  --field-bg: #161b22;
+  --field-bg-hover: #1d232c;
+  --field-fg: #e6edf3;
+}
+
+// Variant: Warm — charcoal with brown undertone
+[data-theme="dark"][data-dark-variant="warm"] {
+  --bg: #1c1a17;
+  --bg-2: #25221d;
+  --bg-panel: #2d2925;
+  --fg: #f2ede4;
+  --fg-muted: #b8aea0;
+  --fg-subtle: #8a8073;
+  --border: #34302a;
+  --border-strong: #443e36;
+  --field-bg: #25221d;
+  --field-bg-hover: #2c2823;
+  --field-fg: #f2ede4;
+  --accent: oklch(0.74 0.13 65);
+  --accent-fg: #1c1a17;
+  --accent-soft: oklch(0.74 0.13 65 / 0.18);
+}
+
+// Variant: Plum — soft violet-tinted dark
+[data-theme="dark"][data-dark-variant="plum"] {
+  --bg: #16131c;
+  --bg-2: #1e1a26;
+  --bg-panel: #261f31;
+  --fg: #f0ecf6;
+  --fg-muted: #b4abc3;
+  --fg-subtle: #877e96;
+  --border: #2a2335;
+  --border-strong: #3a3148;
+  --field-bg: #1e1a26;
+  --field-bg-hover: #25202f;
+  --field-fg: #f0ecf6;
+}
+
+// Variant: True black — OLED
+[data-theme="dark"][data-dark-variant="black"] {
+  --bg: #000000;
+  --bg-2: #0a0a0c;
+  --bg-panel: #111114;
+  --fg: #ffffff;
+  --fg-muted: #a8a8b0;
+  --fg-subtle: #6c6c75;
+  --border: #1c1c22;
+  --border-strong: #2a2a32;
+  --field-bg: #0a0a0c;
+  --field-bg-hover: #15151a;
+  --field-fg: #ffffff;
+}
