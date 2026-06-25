@@ -84,24 +84,8 @@
               @if (!railCollapsed() && expandedLib() === 'builtin:' + item.key) {
                 <div class="ae-libcard" [style.--nc]="item.color">
                   <p class="ae-libcard-desc">{{ item.description }}</p>
-                  @for (group of item.groups; track group.title) {
-                    <div class="ds-api-group">
-                      <div class="ds-api-group-title">{{ group.title }}</div>
-                      <div class="ds-api-list">
-                        @for (member of group.members; track member.sig) {
-                          <div class="ds-api-row">
-                            <div class="ds-api-head">
-                              <code class="ds-api-sig">{{ member.sig }}@if (member.returns) {<span class="ds-api-ret">: {{ member.returns }}</span>}</code>
-                              @if (member.cost) {
-                                <span class="ds-api-cost">{{ member.cost }}</span>
-                              }
-                            </div>
-                            <div class="ds-api-desc">{{ member.desc }}</div>
-                          </div>
-                        }
-                      </div>
-                    </div>
-                  }
+                  <ng-container [ngTemplateOutlet]="apiGroups"
+                    [ngTemplateOutletContext]="{ $implicit: item.groups }" />
                 </div>
               }
             }
@@ -146,24 +130,8 @@
             @if (activeView() === 'algorithm' && !railCollapsed() && expandedLib() === 'graph:' + item.kind) {
               <div class="ae-libcard" [style.--nc]="item.color">
                 <p class="ae-libcard-desc">{{ item.description }}</p>
-                @for (group of graphGroups(item.kind); track group.title) {
-                  <div class="ds-api-group">
-                    <div class="ds-api-group-title">{{ group.title }}</div>
-                    <div class="ds-api-list">
-                      @for (member of group.members; track member.sig) {
-                        <div class="ds-api-row">
-                          <div class="ds-api-head">
-                            <code class="ds-api-sig">{{ member.sig }}@if (member.returns) {<span class="ds-api-ret">: {{ member.returns }}</span>}</code>
-                            @if (member.cost) {
-                              <span class="ds-api-cost">{{ member.cost }}</span>
-                            }
-                          </div>
-                          <div class="ds-api-desc">{{ member.desc }}</div>
-                        </div>
-                      }
-                    </div>
-                  </div>
-                }
+                <ng-container [ngTemplateOutlet]="apiGroups"
+                  [ngTemplateOutletContext]="{ $implicit: graphGroups(item.kind) }" />
               </div>
             }
           }
@@ -207,24 +175,8 @@
             @if (activeView() === 'algorithm' && !railCollapsed() && expandedLib() === 'data:' + item.kind) {
               <div class="ae-libcard" [style.--nc]="item.color">
                 <p class="ae-libcard-desc">{{ item.description }}</p>
-                @for (group of dataGroups(item.kind); track group.title) {
-                  <div class="ds-api-group">
-                    <div class="ds-api-group-title">{{ group.title }}</div>
-                    <div class="ds-api-list">
-                      @for (member of group.members; track member.sig) {
-                        <div class="ds-api-row">
-                          <div class="ds-api-head">
-                            <code class="ds-api-sig">{{ member.sig }}@if (member.returns) {<span class="ds-api-ret">: {{ member.returns }}</span>}</code>
-                            @if (member.cost) {
-                              <span class="ds-api-cost">{{ member.cost }}</span>
-                            }
-                          </div>
-                          <div class="ds-api-desc">{{ member.desc }}</div>
-                        </div>
-                      }
-                    </div>
-                  </div>
-                }
+                <ng-container [ngTemplateOutlet]="apiGroups"
+                  [ngTemplateOutletContext]="{ $implicit: dataGroups(item.kind) }" />
               </div>
             }
           }
@@ -987,24 +939,7 @@
       </div>
       <div class="ds-modal-body">
         <p class="ds-modal-desc">{{ info.description }}</p>
-        @for (group of info.groups; track group.title) {
-          <div class="ds-api-group">
-            <div class="ds-api-group-title">{{ group.title }}</div>
-            <div class="ds-api-list">
-              @for (member of group.members; track member.sig) {
-                <div class="ds-api-row">
-                  <div class="ds-api-head">
-                    <code class="ds-api-sig">{{ member.sig }}@if (member.returns) {<span class="ds-api-ret">: {{ member.returns }}</span>}</code>
-                    @if (member.cost) {
-                      <span class="ds-api-cost">{{ member.cost }}</span>
-                    }
-                  </div>
-                  <div class="ds-api-desc">{{ member.desc }}</div>
-                </div>
-              }
-            </div>
-          </div>
-        }
+        <ng-container [ngTemplateOutlet]="apiGroups" [ngTemplateOutletContext]="{ $implicit: info.groups }" />
       </div>
     </div>
   </div>
@@ -1094,5 +1029,28 @@
         </div>
       }
     }
+  }
+</ng-template>
+
+<!-- Shared API reference — the methods & properties listing used by the library
+     cards and the info modal. Fed an ApiGroup[] via `$implicit`. -->
+<ng-template #apiGroups let-groups>
+  @for (group of groups; track group.title) {
+    <div class="ds-api-group">
+      <div class="ds-api-group-title">{{ group.title }}</div>
+      <div class="ds-api-list">
+        @for (member of group.members; track member.sig) {
+          <div class="ds-api-row">
+            <div class="ds-api-head">
+              <code class="ds-api-sig">{{ member.sig }}@if (member.returns) {<span class="ds-api-ret">: {{ member.returns }}</span>}</code>
+              @if (member.cost) {
+                <span class="ds-api-cost">{{ member.cost }}</span>
+              }
+            </div>
+            <div class="ds-api-desc">{{ member.desc }}</div>
+          </div>
+        }
+      </div>
+    </div>
   }
 </ng-template>
