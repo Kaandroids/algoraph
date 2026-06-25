@@ -4,6 +4,7 @@ import {
   ElementRef,
   HostListener,
   computed,
+  effect,
   inject,
   signal,
   viewChild,
@@ -21,6 +22,7 @@ import {
 import { IconComponent } from './shared/icon.component';
 import { CodeEditorComponent } from './editor/code-editor.component';
 import { type EditorGlobal } from './editor/dsl';
+import { type LineNote } from './editor/line-notes';
 import { ApiGroup, DATA_STRUCTURE_API, GRAPH_NODE_API, GLOBAL_REFERENCE } from './node-api';
 
 type NodeKind = 'NODE' | 'START' | 'GOAL';
@@ -100,6 +102,8 @@ interface AlgoFile {
   id: string;
   name: string;
   content: string;
+  /** Per-line notes the learner attached, addressed by line number. */
+  notes: LineNote[];
 }
 
 /** View model for the info modal — shared by graph nodes and data structures. */
@@ -293,6 +297,18 @@ export class App {
   private readonly elRef = inject(ElementRef);
   private readonly fCanvas = viewChild(FCanvasComponent);
   private readonly importInput = viewChild<ElementRef<HTMLInputElement>>('importInput');
+  private readonly renameInput = viewChild<ElementRef<HTMLInputElement>>('renameInput');
+
+  /** Focus & select the rename field when a file tab enters rename mode. */
+  private readonly focusRename = effect(() => {
+    if (this.renamingFileId()) {
+      const el = this.renameInput()?.nativeElement;
+      if (el) {
+        el.focus();
+        el.select();
+      }
+    }
+  });
 
   readonly EFConnectionType = EFConnectionType;
   readonly EFMarkerType = EFMarkerType;
@@ -310,15 +326,20 @@ export class App {
 
   // ── Algorithm source files (entry `main` + module files) ──
   protected readonly files = signal<AlgoFile[]>([
-    { id: 'main', name: 'main.algo', content: MAIN_SRC },
-    { id: 'helpers', name: 'helpers.algo', content: HELPERS_SRC },
+    { id: 'main', name: 'main.algo', content: MAIN_SRC, notes: [] },
+    { id: 'helpers', name: 'helpers.algo', content: HELPERS_SRC, notes: [] },
   ]);
   protected readonly activeFileId = signal('main');
+  /** Id of the file tab being renamed inline (null = none); `main` is never renamable. */
+  protected readonly renamingFileId = signal<string | null>(null);
+  protected readonly renameDraft = signal('');
   protected readonly activeFile = computed(
     () => this.files().find((f) => f.id === this.activeFileId()) ?? this.files()[0],
   );
   /** Line count of the file open in the editor. */
   protected readonly activeLineCount = computed(() => this.activeFile().content.split('\n').length);
+  /** Per-line notes for the file open in the editor. */
+  protected readonly activeFileNotes = computed(() => this.activeFile().notes);
   /** main.algo split into lines — what the Run workspace steps through. */
   protected readonly mainLines = computed(
     () => (this.files().find((f) => f.id === 'main')?.content ?? '').split('\n'),
@@ -369,6 +390,41 @@ export class App {
   protected readonly dataPalette: DataPaletteItem[] = (
     ['LIST', 'STACK', 'QUEUE', 'SET', 'MAP', 'PQUEUE', 'MATRIX'] as DataStructureKind[]
   ).map((kind) => ({ kind, ...DATA_STRUCTURES[kind] }));
+
+  /**
+   * Algorithm-only library entries — built-in globals (`graph`, `canvas`), not
+   * addable blocks. Clicking one opens its reference card; nothing is placed.
+   */
+  protected readonly builtinLibItems: {
+    key: string;
+    label: string;
+    sub: string;
+    icon: string;
+    color: string;
+    description: string;
+    groups: ApiGroup[];
+  }[] = [
+    {
+      key: 'graph',
+      label: 'Graph',
+      sub: 'Vertices, edges & queries',
+      icon: 'workflow',
+      color: 'oklch(0.58 0.13 65)',
+      description:
+        'The graph built on the canvas — query its vertices and edges as the algorithm explores them.',
+      groups: GLOBAL_REFERENCE.groups.filter((g) => g.title === 'Graph access'),
+    },
+    {
+      key: 'canvas',
+      label: 'Canvas',
+      sub: 'Highlight & visualise',
+      icon: 'maximize',
+      color: 'oklch(0.6 0.17 290)',
+      description:
+        'The drawing surface — highlight vertices and edges to show what the algorithm is doing.',
+      groups: GLOBAL_REFERENCE.groups.filter((g) => g.title === 'Visualization'),
+    },
+  ];
 
   // ── Canvas state ──────────────────────────────────────────
   protected readonly nodes = signal<GNode[]>([
@@ -1056,12 +1112,17 @@ export class App {
     const id = this.activeFileId();
     this.files.update((list) => list.map((f) => (f.id === id ? { ...f, content: text } : f)));
   }
+  /** Persist per-line notes back to the active file. */
+  onNotesChange(notes: LineNote[]): void {
+    const id = this.activeFileId();
+    this.files.update((list) => list.map((f) => (f.id === id ? { ...f, notes } : f)));
+  }
   addFile(): void {
     const id = `f${this.nextFileId++}`;
     const used = new Set(this.files().map((f) => f.name));
     let name = 'module.algo';
     for (let i = 2; used.has(name); i++) name = `module${i}.algo`;
-    this.files.update((list) => [...list, { id, name, content: '// new module\n' }]);
+    this.files.update((list) => [...list, { id, name, content: '// new module\n', notes: [] }]);
     this.activeFileId.set(id);
   }
   /** Close a module file; the entry `main` can't be closed. */
@@ -1070,6 +1131,28 @@ export class App {
     if (id === 'main') return;
     this.files.update((list) => list.filter((f) => f.id !== id));
     if (this.activeFileId() === id) this.activeFileId.set('main');
+  }
+
+  /** Double-click a tab to rename it inline (the entry `main` can't be renamed). */
+  startRename(event: Event, file: AlgoFile): void {
+    event.stopPropagation();
+    if (file.id === 'main') return;
+    this.renameDraft.set(file.name);
+    this.renamingFileId.set(file.id);
+  }
+  commitRename(): void {
+    const id = this.renamingFileId();
+    if (!id) return;
+    let name = this.renameDraft().trim();
+    if (name) {
+      if (!/\.algo$/i.test(name)) name += '.algo';
+      const taken = this.files().some((f) => f.id !== id && f.name === name);
+      if (!taken) this.files.update((list) => list.map((f) => (f.id === id ? { ...f, name } : f)));
+    }
+    this.renamingFileId.set(null);
+  }
+  cancelRename(): void {
+    this.renamingFileId.set(null);
   }
 
   // ── Canvas overview + import / export ─────────────────────

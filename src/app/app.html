@@ -54,6 +54,61 @@
     }
 
     <div class="ae-toolrail-scroll">
+      @if (activeView() === 'algorithm') {
+        <div class="ae-toolgroup">
+          @if (!railCollapsed()) {
+            <div class="ae-toolgroup-h">
+              <span class="lbl">Built-ins</span>
+              <span class="cnt">{{ builtinLibItems.length }}</span>
+            </div>
+          }
+          <div class="ae-toolgroup-items">
+            @for (item of builtinLibItems; track item.key) {
+              <div class="ae-toolitem" role="button" tabindex="0" [style.--nc]="item.color"
+                [class.expanded]="expandedLib() === 'builtin:' + item.key"
+                (click)="toggleLibCard('builtin:' + item.key)"
+                (keydown.enter)="toggleLibCard('builtin:' + item.key)"
+                (keydown.space)="$event.preventDefault(); toggleLibCard('builtin:' + item.key)">
+                <span class="ae-toolitem-rail"></span>
+                <span class="ae-glyph"><app-icon [name]="item.icon" /></span>
+                @if (!railCollapsed()) {
+                  <span class="ae-toolitem-text">
+                    <span class="n">{{ item.label }}</span>
+                    <span class="s">{{ item.sub }}</span>
+                  </span>
+                  <span class="ae-toolitem-caret" [class.open]="expandedLib() === 'builtin:' + item.key">
+                    <app-icon name="chevronDown" />
+                  </span>
+                }
+              </div>
+              @if (!railCollapsed() && expandedLib() === 'builtin:' + item.key) {
+                <div class="ae-libcard" [style.--nc]="item.color">
+                  <p class="ae-libcard-desc">{{ item.description }}</p>
+                  @for (group of item.groups; track group.title) {
+                    <div class="ds-api-group">
+                      <div class="ds-api-group-title">{{ group.title }}</div>
+                      <div class="ds-api-list">
+                        @for (member of group.members; track member.sig) {
+                          <div class="ds-api-row">
+                            <div class="ds-api-head">
+                              <code class="ds-api-sig">{{ member.sig }}@if (member.returns) {<span class="ds-api-ret">: {{ member.returns }}</span>}</code>
+                              @if (member.cost) {
+                                <span class="ds-api-cost">{{ member.cost }}</span>
+                              }
+                            </div>
+                            <div class="ds-api-desc">{{ member.desc }}</div>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            }
+          </div>
+        </div>
+      }
+
       <div class="ae-toolgroup">
         @if (!railCollapsed()) {
           <div class="ae-toolgroup-h">
@@ -699,15 +754,27 @@
     <div class="ag-editor">
       <div class="ag-editor-tabs">
         @for (f of files(); track f.id) {
-          <button class="ag-ftab" type="button" [class.active]="f.id === activeFileId()"
-            (click)="setActiveFile(f.id)">
-            <app-icon name="code" />
-            <span class="ag-ftab-name">{{ f.name }}</span>
-            @if (f.id !== 'main') {
-              <span class="ag-ftab-x" role="button" tabindex="0" aria-label="Close file"
-                (click)="closeFile($event, f.id)"><app-icon name="x" /></span>
-            }
-          </button>
+          @if (renamingFileId() === f.id) {
+            <div class="ag-ftab active">
+              <app-icon name="code" />
+              <input #renameInput class="ag-ftab-input" type="text" spellcheck="false"
+                [value]="renameDraft()"
+                (input)="renameDraft.set($any($event.target).value)"
+                (keydown.enter)="commitRename()"
+                (keydown.escape)="cancelRename()"
+                (blur)="commitRename()" />
+            </div>
+          } @else {
+            <button class="ag-ftab" type="button" [class.active]="f.id === activeFileId()"
+              (click)="setActiveFile(f.id)" (dblclick)="startRename($event, f)">
+              <app-icon name="code" />
+              <span class="ag-ftab-name">{{ f.name }}</span>
+              @if (f.id !== 'main') {
+                <span class="ag-ftab-x" role="button" tabindex="0" aria-label="Close file"
+                  (click)="closeFile($event, f.id)"><app-icon name="x" /></span>
+              }
+            </button>
+          }
         }
         <button class="ag-ftab-add" type="button" (click)="addFile()" aria-label="New file">
           <app-icon name="plus" />
@@ -717,7 +784,9 @@
       <app-code-editor class="ag-editor-cm"
         [content]="activeFile().content"
         (contentChange)="onEditorContent($event)"
-        [globals]="editorGlobals()" />
+        [globals]="editorGlobals()"
+        [notes]="activeFileNotes()"
+        (notesChange)="onNotesChange($event)" />
 
       <div class="ag-editor-foot">
         <span class="grp"><app-icon name="code" /> {{ activeLineCount() }} lines</span>
@@ -750,48 +819,14 @@
       </button>
 
       <div class="ag-coderail-body ag-inspector-body">
-        <!-- Summary -->
-        <div class="ag-insp-section">
-          <div class="ag-insp-title">Summary</div>
-          <div class="ag-insp-line" style="--nc: var(--accent)">
-            <span class="ag-insp-ic"><app-icon name="code" /></span>
-            <span class="ag-insp-key">Lines</span>
-            <span class="ag-insp-val">{{ activeLineCount() }}</span>
-          </div>
-          <div class="ag-insp-line" style="--nc: var(--tone-violet)">
-            <span class="ag-insp-ic"><app-icon name="stepForward" /></span>
-            <span class="ag-insp-key">Steps</span>
-            <span class="ag-insp-val">—</span>
-          </div>
-          <div class="ag-insp-line" style="--nc: var(--success)">
-            <span class="ag-insp-ic"><app-icon name="reset" /></span>
-            <span class="ag-insp-key">Operations</span>
-            <span class="ag-insp-val">—</span>
-          </div>
-        </div>
-
-        <!-- Complexity (filled once the interpreter runs) -->
-        <div class="ag-insp-section">
-          <div class="ag-insp-title">Complexity</div>
-          <div class="ag-insp-line ag-insp-line-muted">
-            <span class="ag-insp-ic"><app-icon name="reset" /></span>
-            <span class="ag-insp-key">Time</span>
-            <span class="ag-insp-val ag-insp-val-mono">O(?)</span>
-          </div>
-          <div class="ag-insp-line ag-insp-line-muted">
-            <span class="ag-insp-ic"><app-icon name="layers" /></span>
-            <span class="ag-insp-key">Space</span>
-            <span class="ag-insp-val ag-insp-val-mono">O(?)</span>
-          </div>
-        </div>
-
         <!-- Globals — the graph and data structures in scope -->
         <div class="ag-insp-section">
           <div class="ag-insp-title">Globals</div>
           <div class="ag-insp-row" style="--nc: var(--accent)">
             <span class="ag-insp-dot"></span>
             <span class="ag-insp-name">graph</span>
-            <span class="ag-insp-size">{{ nodes().length }} · {{ edges().length }}</span>
+            <span class="ag-insp-size"
+              [title]="nodes().length + ' vertices · ' + edges().length + ' edges'">{{ nodes().length }}V · {{ edges().length }}E</span>
             <span class="ag-insp-tag">Graph</span>
           </div>
           @for (dn of dataNodes(); track dn.id) {
@@ -802,6 +837,21 @@
               <span class="ag-insp-tag">{{ dataTypeLabel(dn.kind) }}</span>
             </div>
           }
+        </div>
+
+        <!-- Complexity (filled once the interpreter runs) -->
+        <div class="ag-insp-section">
+          <div class="ag-insp-title">Complexity</div>
+          <div class="ag-insp-line" style="--nc: var(--accent)">
+            <span class="ag-insp-ic"><app-icon name="reset" /></span>
+            <span class="ag-insp-key">Time</span>
+            <span class="ag-insp-val ag-insp-val-mono">O(?)</span>
+          </div>
+          <div class="ag-insp-line" style="--nc: var(--tone-violet)">
+            <span class="ag-insp-ic"><app-icon name="layers" /></span>
+            <span class="ag-insp-key">Space</span>
+            <span class="ag-insp-val ag-insp-val-mono">O(?)</span>
+          </div>
         </div>
       </div>
 
@@ -917,12 +967,12 @@
         <!-- Complexity (counted live during the run) -->
         <div class="ag-insp-section">
           <div class="ag-insp-title">Complexity</div>
-          <div class="ag-insp-line ag-insp-line-muted">
+          <div class="ag-insp-line" style="--nc: var(--accent)">
             <span class="ag-insp-ic"><app-icon name="reset" /></span>
             <span class="ag-insp-key">Time</span>
             <span class="ag-insp-val ag-insp-val-mono">O(?)</span>
           </div>
-          <div class="ag-insp-line ag-insp-line-muted">
+          <div class="ag-insp-line" style="--nc: var(--tone-violet)">
             <span class="ag-insp-ic"><app-icon name="layers" /></span>
             <span class="ag-insp-key">Space</span>
             <span class="ag-insp-val ag-insp-val-mono">O(?)</span>

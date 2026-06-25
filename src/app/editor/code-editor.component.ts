@@ -6,12 +6,12 @@ import {
   effect,
   input,
   model,
+  output,
   viewChild,
 } from '@angular/core';
 import {
   EditorView,
   keymap,
-  lineNumbers,
   highlightActiveLine,
   highlightActiveLineGutter,
   drawSelection,
@@ -27,6 +27,12 @@ import {
   closeBracketsKeymap,
 } from '@codemirror/autocomplete';
 import { algoraphLanguage, globalsFacet, type EditorGlobal } from './dsl';
+import { lineNotes, loadNotes, notesChanged, notesFromState, type LineNote } from './line-notes';
+
+function sameNotes(a: LineNote[], b: LineNote[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((n, i) => n.line === b[i].line && n.text === b[i].text);
+}
 
 /**
  * Thin CodeMirror 6 wrapper. Two-way bound to `content`; swapping the bound
@@ -50,6 +56,9 @@ export class CodeEditorComponent {
   readonly content = model<string>('');
   /** Names in scope (graph + canvas data structures) for autocomplete. */
   readonly globals = input<EditorGlobal[]>([]);
+  /** Per-line notes for the active file (addressed by line number). */
+  readonly notes = input<LineNote[]>([]);
+  readonly notesChange = output<LineNote[]>();
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('host');
   private readonly globalsComp = new Compartment();
   private view?: EditorView;
@@ -57,12 +66,20 @@ export class CodeEditorComponent {
   constructor() {
     afterNextRender(() => this.init());
 
-    // External content change (file switch) → replace the document.
+    // External content / notes change (file switch) → swap the document and its
+    // notes atomically so notes never map onto a different file's text.
     effect(() => {
       const next = this.content();
+      const notes = this.notes();
       const view = this.view;
-      if (view && view.state.doc.toString() !== next) {
-        view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
+      if (!view) return;
+      if (view.state.doc.toString() !== next) {
+        view.dispatch({
+          changes: { from: 0, to: view.state.doc.length, insert: next },
+          effects: loadNotes.of(notes),
+        });
+      } else if (!sameNotes(notesFromState(view.state), notes)) {
+        view.dispatch({ effects: loadNotes.of(notes) });
       }
     });
 
@@ -77,7 +94,7 @@ export class CodeEditorComponent {
     const state = EditorState.create({
       doc: this.content(),
       extensions: [
-        lineNumbers(),
+        lineNotes,
         highlightActiveLineGutter(),
         highlightActiveLine(),
         history(),
@@ -98,6 +115,7 @@ export class CodeEditorComponent {
         ]),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) this.content.set(u.state.doc.toString());
+          if (notesChanged(u)) this.notesChange.emit(notesFromState(u.state));
         }),
       ],
     });
