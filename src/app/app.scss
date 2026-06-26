@@ -569,6 +569,31 @@
   border-radius: 12px;
 }
 
+/* Run the open file — the primary action of the algorithm overview. */
+.ag-run-active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 120ms ease;
+}
+.ag-run-active:hover {
+  filter: brightness(1.07);
+}
+.ag-run-active app-icon {
+  display: inline-flex;
+}
+
 .ag-insp-title {
   margin-bottom: 9px;
   font-size: 9.5px;

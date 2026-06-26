@@ -257,6 +257,19 @@ export class App {
       .map((d) => ({ line: d.line, severity: d.severity, message: d.message })),
   );
 
+  /** Diagnostics for the file the Run workspace is showing (read-only rail). */
+  protected readonly runDiagnostics = computed<EditorDiagnostic[]>(() =>
+    this.compiled()
+      .diagnostics.filter((d) => d.fileId === this.run.entryFile()?.id)
+      .map((d) => ({ line: d.line, severity: d.severity, message: d.message })),
+  );
+
+  /** Run the file open in the editor: make it the entry, then switch to the Run view. */
+  runActive(): void {
+    this.run.entryId.set(this.activeFileId());
+    this.setView('run');
+  }
+
   /** Estimated Big-O of the entry algorithm, shown in the overview's Complexity card. */
   protected readonly complexity = computed(() => {
     const program = this.compiled();
