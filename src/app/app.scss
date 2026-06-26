@@ -377,6 +377,7 @@
 
 /* ── Pseudocode rail (right, collapsible) ─────────────────── */
 .ag-coderail {
+  position: relative;
   flex-shrink: 0;
   width: 320px;
   display: flex;
@@ -1046,6 +1047,26 @@
 }
 .ag-coderail-left .ag-coderail-toggle {
   margin-left: auto;
+}
+/* Drag handle on a panel edge — grab to resize. */
+.ag-coderail-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 6;
+  transition: background 0.12s;
+
+  &:hover {
+    background: color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+}
+.ag-coderail-resize-left { left: 0; }
+/* While dragging, drop the width transition so the panel tracks the cursor. */
+.ag-coderail.is-resizing {
+  transition: none;
+  user-select: none;
 }
 
 .ag-rundata-empty {

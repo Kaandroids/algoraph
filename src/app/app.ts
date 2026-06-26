@@ -406,6 +406,10 @@ export class App {
   protected readonly codeRailCollapsed = signal(false);
   protected readonly runDataCollapsed = signal(false);
   protected readonly runCodeCollapsed = signal(false);
+  /** Width of the Run code rail (px), adjustable by dragging its left edge. */
+  protected readonly runCodeWidth = signal(320);
+  /** True while the user is dragging a panel's resize handle. */
+  protected readonly resizing = signal(false);
   protected readonly librarySearch = signal('');
   protected readonly tipsOpen = signal(false);
   private readonly selectedConnectionIds = signal<string[]>([]);
@@ -931,6 +935,24 @@ export class App {
   /** Toggle one inspector rail by its key — drives the shared rail chrome. */
   toggleInspector(key: InspectorRail): void {
     this.inspectorRails[key].update((v) => !v);
+  }
+
+  /** Drag the Run code rail's left edge to grow/shrink it (clamped). It sits on the
+   *  right, so dragging the edge left widens it — the delta is inverted. */
+  startRunCodeResize(event: MouseEvent): void {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startW = this.runCodeWidth();
+    const move = (e: MouseEvent) =>
+      this.runCodeWidth.set(Math.max(240, Math.min(640, startW + (startX - e.clientX))));
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      this.resizing.set(false);
+    };
+    this.resizing.set(true);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
   }
 
   // ── View switch (graph builder ↔ algorithm editor) ────────

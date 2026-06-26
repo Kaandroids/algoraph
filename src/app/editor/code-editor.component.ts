@@ -27,6 +27,7 @@ import {
   closeBracketsKeymap,
 } from '@codemirror/autocomplete';
 import { algoraphLanguage, globalsFacet, exportsFacet, type EditorGlobal } from './dsl';
+import { wrapIndent } from './wrap-indent';
 import { runHighlight, setCurrentLine } from './run-highlight';
 import { diagnosticsHighlight, setDiagnostics, type EditorDiagnostic } from './diagnostics';
 import type { ExportRef } from '../models/exports';
@@ -162,7 +163,7 @@ export class CodeEditorComponent {
         diagnosticsHighlight(),
         algoraphLanguage(),
         ...(ro
-          ? [EditorState.readOnly.of(true), EditorView.editable.of(false), EditorView.lineWrapping]
+          ? [EditorState.readOnly.of(true), EditorView.editable.of(false), EditorView.lineWrapping, wrapIndent()]
           : []),
         keymap.of([
           ...closeBracketsKeymap,

@@ -813,8 +813,14 @@
       </div>
     </div>
 
-    <!-- ── Run: entry file (right, collapsible, read-only) ───── -->
-    <aside class="ag-coderail ag-runcode-rail" [class.collapsed]="runCodeCollapsed()">
+    <!-- ── Run: entry file (right, collapsible + resizable, read-only) ── -->
+    <aside class="ag-coderail ag-runcode-rail" [class.collapsed]="runCodeCollapsed()"
+      [class.is-resizing]="resizing()"
+      [style.width.px]="runCodeCollapsed() ? null : runCodeWidth()">
+      @if (!runCodeCollapsed()) {
+        <div class="ag-coderail-resize ag-coderail-resize-left" (mousedown)="startRunCodeResize($event)"
+          role="separator" aria-orientation="vertical" aria-label="Resize panel"></div>
+      }
       <ng-container [ngTemplateOutlet]="railHead"
         [ngTemplateOutletContext]="{ eyebrow: 'Run', title: run.entryFile()?.name ?? 'main.algo', vlabel: 'Code', noun: 'code', key: 'runcode', side: 'right', help: false }" />
 
