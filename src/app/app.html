@@ -642,7 +642,7 @@
         [ngTemplateOutletContext]="{ eyebrow: 'State', title: 'Data', vlabel: 'Data', noun: 'data', key: 'data', side: 'left', help: false }" />
 
       <div class="ag-coderail-body ag-inspector-body">
-        @for (dn of dataNodes(); track dn.id) {
+        @for (dn of run.dataState(); track dn.id) {
           <div class="ag-statevar" [style.--nc]="dataColor(dn.kind)">
             <div class="ag-statevar-head">
               <span class="ag-statevar-dot"></span>
@@ -754,25 +754,36 @@
         </f-flow>
       </div>
 
+      @if (run.error(); as err) {
+        <div class="ag-run-error">{{ err }}</div>
+      }
+
       <div class="ag-transport">
         <div class="ag-transport-controls">
-          <button class="ag-tp-btn" type="button" disabled aria-label="Restart">
+          <button class="ag-tp-btn" type="button" (click)="run.restart()"
+            [disabled]="!run.hasRun()" aria-label="Restart">
             <app-icon name="reset" />
           </button>
-          <button class="ag-tp-btn" type="button" disabled aria-label="Step back">
+          <button class="ag-tp-btn" type="button" (click)="run.stepBack()"
+            [disabled]="!run.hasRun() || run.atStart()" aria-label="Step back">
             <app-icon name="stepBack" />
           </button>
-          <button class="ag-tp-btn ag-tp-play" type="button" disabled aria-label="Play">
-            <app-icon name="play" />
+          <button class="ag-tp-btn ag-tp-play" type="button" (click)="run.togglePlay()"
+            [disabled]="!run.hasRun()" [attr.aria-label]="run.playing() ? 'Pause' : 'Play'">
+            <app-icon [name]="run.playing() ? 'pause' : 'play'" />
           </button>
-          <button class="ag-tp-btn" type="button" disabled aria-label="Step forward">
+          <button class="ag-tp-btn" type="button" (click)="run.stepForward()"
+            [disabled]="!run.hasRun() || run.atEnd()" aria-label="Step forward">
             <app-icon name="stepForward" />
           </button>
         </div>
         <div class="ag-transport-track">
-          <span class="ag-transport-step">Step 0 / —</span>
-          <div class="ag-transport-bar"><div class="ag-transport-fill" style="width: 0%"></div></div>
-          <span class="ag-transport-speed">1×</span>
+          <span class="ag-transport-step">Step {{ run.stepNumber() }} / {{ run.lastStep() }}</span>
+          <div class="ag-transport-bar">
+            <div class="ag-transport-fill" [style.width.%]="run.progress() * 100"></div>
+          </div>
+          <button class="ag-transport-speed" type="button" (click)="run.cycleSpeed()"
+            aria-label="Cycle playback speed">{{ run.speed() }}×</button>
         </div>
       </div>
     </div>

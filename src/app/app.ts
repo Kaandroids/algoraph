@@ -7,6 +7,7 @@ import {
   effect,
   inject,
   signal,
+  untracked,
   viewChild,
   type WritableSignal,
 } from '@angular/core';
@@ -37,6 +38,7 @@ import { type ExportRef } from './models/exports';
 import { compile } from './lang/compile';
 import { FilesStore } from './stores/files.store';
 import { CanvasStore } from './stores/canvas.store';
+import { RunStore } from './stores/run.store';
 import {
   DATA_PALETTE,
   DATA_STRUCTURES,
@@ -84,6 +86,8 @@ export class App {
   protected readonly canvas = inject(CanvasStore);
   /** Algorithm files live in their own store; this component is a thin facade over it. */
   protected readonly fileStore = inject(FilesStore);
+  /** Step-by-step execution state for the Run workspace. */
+  protected readonly run = inject(RunStore);
   private readonly fCanvas = viewChild(FCanvasComponent);
   private readonly importInput = viewChild<ElementRef<HTMLInputElement>>('importInput');
   private readonly renameInput = viewChild<ElementRef<HTMLInputElement>>('renameInput');
@@ -106,6 +110,11 @@ export class App {
 
   /** Which workspace is showing — graph builder, algorithm editor, or step-by-step run. */
   protected readonly activeView = signal<'canvas' | 'algorithm' | 'run'>('canvas');
+
+  /** Compile + run the algorithm afresh each time the Run workspace is opened. */
+  private readonly autoBuild = effect(() => {
+    if (this.activeView() === 'run') untracked(() => this.run.build());
+  });
 
   /** In algorithm mode, which library item's inline reference card is open (`graph:KIND` / `data:KIND`). */
   protected readonly expandedLib = signal<string | null>(null);
@@ -303,7 +312,7 @@ export class App {
     return [...items].reverse();
   }
   /** Priority queues are displayed lowest-priority-first regardless of edit order. */
-  sortedHeap(node: DataNode): HeapEntry[] {
+  sortedHeap(node: { heap: HeapEntry[] }): HeapEntry[] {
     return [...node.heap].sort((a, b) => a.priority - b.priority);
   }
   /** `[0, 1, …, n-1]` — used to render matrix index headers. */

@@ -210,7 +210,7 @@ export function dataSize(node: DataNode): string {
 }
 
 /** Readable inline form of a linear structure's items — sets in braces, the rest in brackets. */
-export function formatDataItems(node: DataNode): string {
+export function formatDataItems(node: Pick<DataNode, 'kind' | 'items'>): string {
   const inner = node.items.join(', ');
   return node.kind === 'SET' ? `{ ${inner} }` : `[${inner}]`;
 }

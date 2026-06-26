@@ -17,6 +17,10 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       @case ('play') {
         <polygon points="6 3 20 12 6 21 6 3" fill="currentColor" stroke="none" />
       }
+      @case ('pause') {
+        <rect x="6" y="4" width="4" height="16" fill="currentColor" stroke="none" rx="1" />
+        <rect x="14" y="4" width="4" height="16" fill="currentColor" stroke="none" rx="1" />
+      }
       @case ('reset') {
         <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
       }
