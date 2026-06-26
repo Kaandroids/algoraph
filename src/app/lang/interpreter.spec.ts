@@ -273,6 +273,18 @@ describe('interpreter (Dijkstra seed)', () => {
     expect(removed.steps.at(-1)!.data).toEqual([]);
   });
 
+  it('concatenates strings with + for dynamic names', () => {
+    const result = runSrc('clearGraph()\nfor i in 1..3 do\n  createNode(i, i, "N" + i)\nend\n');
+    expect(result.error).toBeNull();
+    expect(result.steps.at(-1)!.graph.nodes.map((n) => n.label)).toEqual(['N1', 'N2', 'N3']);
+  });
+
+  it('makes code-created names unique, like the canvas', () => {
+    const result = runSrc('createSet(0, 0, "N")\ncreateSet(0, 0, "N")\ncreateSet(0, 0, "N")\n');
+    expect(result.error).toBeNull();
+    expect(result.steps.at(-1)!.data.map((d) => d.label)).toEqual(['N', 'N2', 'N3']);
+  });
+
   it('persists only when saveCanvas() is called', () => {
     expect(runSrc('createNode(0, 0)\n').savedCanvas).toBeNull();
     const saved = runSrc('clearGraph()\ncreateNode(10, 20, "P")\nsaveCanvas()\n').savedCanvas;

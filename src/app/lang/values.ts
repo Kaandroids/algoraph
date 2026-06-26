@@ -143,7 +143,7 @@ export class GraphValue {
     this.charge(1);
     const num = this.nextNode++;
     const id = `n${num}`;
-    const v = new Vertex(id, name ?? this.uniqueLabel(`N${num}`), 'NODE', x, y);
+    const v = new Vertex(id, this.uniqueLabel(name ?? `N${num}`), 'NODE', x, y);
     this.byId.set(id, v);
     this.adj.set(id, []);
     this.dirty = true;

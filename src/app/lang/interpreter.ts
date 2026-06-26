@@ -316,7 +316,11 @@ export class Interpreter {
       case '>': return Number(left) > Number(right);
       case '≤': return Number(left) <= Number(right);
       case '≥': return Number(left) >= Number(right);
-      case '+': return Number(left) + Number(right);
+      case '+':
+        // String on either side concatenates (e.g. "N" + i); otherwise numeric add.
+        return typeof left === 'string' || typeof right === 'string'
+          ? `${display(left)}${display(right)}`
+          : Number(left) + Number(right);
       case '-': return Number(left) - Number(right);
       case '*': return Number(left) * Number(right);
       case '/': return Number(left) / Number(right);
@@ -479,7 +483,7 @@ export class Interpreter {
   ): RDataStructure {
     this.charge(1);
     const id = `ds${this.nextDataId++}`;
-    const label = name ?? this.uniqueDataLabel(DATA_STRUCTURES[kind].defaultLabel);
+    const label = this.uniqueDataLabel(name ?? DATA_STRUCTURES[kind].defaultLabel);
     const ds = makeRuntimeDSByKind(kind, id, label, Number(args[0]), Number(args[1]), this.charge, rows, cols);
     this.dsList.push(ds);
     this.dsByLabel.set(label, ds);
