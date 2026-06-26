@@ -148,38 +148,56 @@ export const DATA_STRUCTURE_API: Record<string, ApiGroup[]> = {
   ],
 };
 
-/** Global graph functions that operate on any vertex. */
-const GRAPH_WORKS_WITH: ApiMember[] = [
-  { sig: 'neighbors(vertex u)', desc: 'Vertices reachable from u by one edge.', returns: 'list<vertex>', cost: 'O(deg u)' },
-  { sig: 'weight(vertex u, vertex v)', desc: 'Weight of the edge u → v.', returns: 'number', cost: 'O(1)' },
-  { sig: 'hasEdge(vertex u, vertex v)', desc: 'Whether an edge u → v exists.', returns: 'bool', cost: 'O(1)' },
-  { sig: 'degree(vertex u)', desc: 'Number of edges incident to u.', returns: 'int', cost: 'O(1)' },
-  { sig: 'mark(vertex u, string type?)', desc: 'Highlight u — type "danger" / "warn" / "success" / "info" recolours it (default accent).', returns: 'void' },
+/** Graph queries available on any vertex, written as methods (`v.hasEdge(w)`). */
+const VERTEX_METHODS: ApiMember[] = [
+  { sig: 'v.neighbors()', desc: 'Vertices reachable from v by one edge.', returns: 'list<vertex>', cost: 'O(deg v)' },
+  { sig: 'v.degree()', desc: 'Number of edges incident to v.', returns: 'int', cost: 'O(1)' },
+  { sig: 'v.hasEdge(vertex w)', desc: 'Whether an edge v → w exists.', returns: 'bool', cost: 'O(1)' },
+  { sig: 'v.weight(vertex w)', desc: 'Weight of the edge v → w.', returns: 'number', cost: 'O(1)' },
 ];
 
 export const GRAPH_NODE_API: Record<string, ApiGroup[]> = {
-  NODE: [NODE_PROPS, { title: 'Works with', members: GRAPH_WORKS_WITH }],
+  NODE: [NODE_PROPS, { title: 'Methods', members: VERTEX_METHODS }],
   START: [
     NODE_PROPS,
+    { title: 'Methods', members: VERTEX_METHODS },
     {
       title: 'Works with',
       members: [
         { sig: 'source()', desc: 'Returns this Start vertex — where the algorithm begins.', returns: 'vertex', cost: 'O(1)' },
-        ...GRAPH_WORKS_WITH,
       ],
     },
   ],
   GOAL: [
     NODE_PROPS,
+    { title: 'Methods', members: VERTEX_METHODS },
     {
       title: 'Works with',
       members: [
         { sig: 'goal()', desc: 'Returns this Goal vertex — the search target.', returns: 'vertex', cost: 'O(1)' },
-        ...GRAPH_WORKS_WITH,
       ],
     },
   ],
 };
+
+/** Reference card for an edge — its read-only fields. (Edges are made by linking ports, so there is no library node to drag.) */
+export const EDGE_API: ApiGroup[] = [
+  {
+    title: 'Properties',
+    members: [
+      { sig: 'e.startVertex', desc: 'The source endpoint — the "from" vertex.', returns: 'vertex' },
+      { sig: 'e.endVertex', desc: 'The target endpoint — the "to" vertex.', returns: 'vertex' },
+      { sig: 'e.weight', desc: 'The edge weight.', returns: 'number' },
+      { sig: 'e.isDirected', desc: 'True for a one-way edge. When false (undirected), start/end are simply the two ends — order is not meaningful.', returns: 'bool' },
+    ],
+  },
+  {
+    title: 'Works with',
+    members: [
+      { sig: 'edges()', desc: 'Every edge on the canvas, to iterate over.', returns: 'list<edge>', cost: 'O(E)' },
+    ],
+  },
+];
 
 /** The library-level "?" — built-ins and language constructs, tied to no single node. */
 export const GLOBAL_REFERENCE: {

@@ -29,6 +29,21 @@ export class Vertex implements VertexRef {
   ) {}
 }
 
+/**
+ * An edge value returned by `edges()` — its two endpoints, weight and direction.
+ * For an undirected edge `startVertex`/`endVertex` are simply the two ends in
+ * storage order; the order carries no meaning, so read `isDirected` to know
+ * whether `start → end` is a real direction.
+ */
+export class Edge {
+  constructor(
+    readonly startVertex: Vertex,
+    readonly endVertex: Vertex,
+    readonly weight: number,
+    readonly isDirected: boolean,
+  ) {}
+}
+
 /** An inclusive integer range produced by `a..b`, iterable by a counted loop. */
 export class RangeValue {
   constructor(
@@ -48,6 +63,7 @@ export type Value =
   | boolean
   | null
   | Vertex
+  | Edge
   | RangeValue
   | RDataStructure
   | Namespace
@@ -58,6 +74,7 @@ const log2 = (n: number): number => (n <= 1 ? 1 : Math.ceil(Math.log2(n)));
 /** A stable key for set/map membership: vertices by id, primitives by value. */
 export function keyOf(value: Value): string {
   if (value instanceof Vertex) return `v:${value.id}`;
+  if (value instanceof Edge) return `e:${value.startVertex.id}->${value.endVertex.id}`;
   if (typeof value === 'number') return `n:${value}`;
   if (typeof value === 'string') return `s:${value}`;
   if (typeof value === 'boolean') return `b:${value}`;
@@ -68,6 +85,7 @@ export function keyOf(value: Value): string {
 /** How a value reads in the data panel (a vertex shows its label). */
 export function display(value: Value): string | number {
   if (value instanceof Vertex) return value.label;
+  if (value instanceof Edge) return `${value.startVertex.label} ${value.isDirected ? '→' : '—'} ${value.endVertex.label}`;
   if (value === Infinity) return '∞';
   if (value === -Infinity) return '-∞';
   if (value === null) return 'nil';
@@ -108,9 +126,15 @@ export class GraphValue {
     this.charge(this.byId.size);
     return [...this.byId.values()];
   }
-  edges(): Vertex[][] {
-    this.charge(this.edgeList.length);
-    return [];
+  edges(): Edge[] {
+    this.charge(Math.max(1, this.edgeList.length));
+    const out: Edge[] = [];
+    for (const e of this.edgeList) {
+      const s = this.byId.get(e.src);
+      const t = this.byId.get(e.tgt);
+      if (s && t) out.push(new Edge(s, t, e.weight, e.directed));
+    }
+    return out;
   }
   neighbors(u: Vertex): Vertex[] {
     const list = this.adj.get(u.id) ?? [];

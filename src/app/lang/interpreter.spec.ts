@@ -364,6 +364,28 @@ describe('interpreter (Dijkstra seed)', () => {
     expect(vars.find((v) => v.name === 'n')).toEqual({ name: 'n', value: '5', kind: 'number' });
   });
 
+  it('calls graph queries as vertex methods and reads vertex properties', () => {
+    const src =
+      'a ← source()\n' +
+      'b ← graph.nodes().get(1)\n' + // B
+      'showMessage(a.degree() + "|" + a.hasEdge(b) + "|" + a.weight(b) + "|" + a.name + "|" + a.type)\n';
+    const result = runSrc(src);
+    expect(result.error).toBeNull();
+    expect(result.steps.at(-1)!.effects.message!.text).toBe('2|true|4|A|START');
+    // chained: vertex method then list query
+    expect(runSrc('showMessage("" + source().neighbors().size())\n').steps.at(-1)!.effects.message!.text).toBe('2');
+  });
+
+  it('edges() returns edge values with endpoints, weight and direction', () => {
+    const result = runSrc(
+      'es ← edges()\n' +
+      'e0 ← es.get(0)\n' + // A → B, weight 4, directed
+      'showMessage(e0.startVertex + "|" + e0.endVertex + "|" + e0.weight + "|" + e0.isDirected + "|" + es.size())\n',
+    );
+    expect(result.error).toBeNull();
+    expect(result.steps.at(-1)!.effects.message!.text).toBe('A|B|4|true|6');
+  });
+
   it('refuses to run a program with errors', () => {
     const broken = compileAndRun([{ id: 'main', name: 'main.algo', content: 'nope()\n' }], {
       entryId: 'main',

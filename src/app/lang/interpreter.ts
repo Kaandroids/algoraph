@@ -12,6 +12,7 @@ import type { CanvasEffects, CanvasMessage, DataSnapshot, LoopFrame, RunResult, 
 import { emptyEffects } from './trace';
 import { DATA_STRUCTURES, type DataNode, type DataStructureKind } from '../models/data-structure.model';
 import {
+  Edge,
   GraphValue,
   Namespace,
   RDataStructure,
@@ -68,6 +69,7 @@ function markType(value: Value | undefined): string {
 /** Coarse value category for a watched variable, so the panel can tint it. */
 function varKind(value: Value): string {
   if (value instanceof Vertex) return 'vertex';
+  if (value instanceof Edge) return 'edge';
   if (Array.isArray(value)) return 'list';
   if (value === null) return 'nil';
   if (typeof value === 'number') return 'number';
@@ -394,6 +396,21 @@ export class Interpreter {
     // member that needs arguments (`graph.neighbors`) surfaces a clear error from
     // its builtin instead of silently returning nothing.
     if (owner instanceof Namespace) return this.callBuiltin(expr.name, [], expr.line);
+    // Vertex properties — its identifier and kind.
+    if (owner instanceof Vertex) {
+      if (expr.name === 'name' || expr.name === 'label') return owner.label;
+      if (expr.name === 'type') return owner.type;
+      if (expr.name === 'id') return owner.id;
+      throw new RuntimeError(`A vertex has no property '${expr.name}' — did you mean ${expr.name}()? (line ${expr.line})`);
+    }
+    // Edge properties — endpoints, weight, direction (read without parentheses).
+    if (owner instanceof Edge) {
+      if (expr.name === 'startVertex') return owner.startVertex;
+      if (expr.name === 'endVertex') return owner.endVertex;
+      if (expr.name === 'weight') return owner.weight;
+      if (expr.name === 'isDirected') return owner.isDirected;
+      throw new RuntimeError(`An edge has no property '${expr.name}' (line ${expr.line})`);
+    }
     throw new RuntimeError(`'${expr.name}' must be called as a method (line ${expr.line})`);
   }
 
@@ -412,6 +429,11 @@ export class Interpreter {
       if (obj instanceof Namespace) return this.callBuiltin(expr.callee.name, args, expr.line);
       // Read-only methods on a plain list — e.g. graph.nodes().size(), neighbors(u).contains(v).
       if (Array.isArray(obj)) return this.arrayMethod(obj, expr.callee.name, args, expr.line);
+      // Vertex method sugar — `v.hasEdge(w)` runs the graph builtin with v as the first arg.
+      if (obj instanceof Vertex) return this.callBuiltin(expr.callee.name, [obj, ...args], expr.line);
+      if (obj instanceof Edge) {
+        throw new RuntimeError(`Read an edge's fields without parentheses, e.g. e.weight (line ${expr.line})`);
+      }
       throw new RuntimeError(`'${expr.callee.name}' is not a method of ${display(obj)} (line ${expr.line})`);
     }
     throw new RuntimeError(`Expression is not callable (line ${expr.line})`);

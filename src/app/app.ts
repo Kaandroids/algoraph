@@ -33,6 +33,7 @@ import { type LineNote } from './editor/line-notes';
 import {
   ApiGroup,
   DATA_STRUCTURE_API,
+  EDGE_API,
   GRAPH_NODE_API,
   GLOBAL_REFERENCE,
   memberName,
@@ -376,6 +377,23 @@ export class App {
       ),
     },
   ];
+
+  /** Edge reference card in the Graph library section (not addable — edges are made by linking ports). */
+  protected readonly edgeLibItem = {
+    label: 'Edge',
+    sub: 'A weighted link',
+    icon: 'link',
+    color: 'oklch(0.55 0.04 250)',
+    description:
+      'A connection between two vertices. Iterate the graph\'s edges with edges(), then read each one\'s ' +
+      'endpoints, weight and direction.',
+    groups: EDGE_API,
+  };
+  /** Whether the Edge reference shows under the current library search. */
+  protected readonly edgeVisible = computed(() => {
+    const q = this.librarySearch().trim().toLowerCase();
+    return !q || 'edge'.includes(q);
+  });
 
   // ── Canvas state — re-exposed from CanvasStore (facade) ───
   protected readonly nodes = this.canvas.nodes;

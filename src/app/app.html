@@ -94,13 +94,18 @@
         @if (!railCollapsed()) {
           <div class="ae-toolgroup-h">
             <span class="lbl">Graph</span>
-            <span class="cnt">{{ libraryItems().length }}</span>
+            <span class="cnt">{{ libraryItems().length + (activeView() === 'algorithm' && edgeVisible() ? 1 : 0) }}</span>
           </div>
         }
         <div class="ae-toolgroup-items">
           @for (item of libraryItems(); track item.kind) {
             <ng-container [ngTemplateOutlet]="libItem"
               [ngTemplateOutletContext]="{ $implicit: item, key: 'graph:' + item.kind, groups: graphGroups(item.kind), addable: true }" />
+          }
+          <!-- Edge is a reference card only (no node to drag) — algorithm view. -->
+          @if (activeView() === 'algorithm' && edgeVisible()) {
+            <ng-container [ngTemplateOutlet]="libItem"
+              [ngTemplateOutletContext]="{ $implicit: edgeLibItem, key: 'graph:edge', groups: edgeLibItem.groups, addable: false }" />
           }
         </div>
       </div>
