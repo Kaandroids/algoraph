@@ -9,8 +9,10 @@
  * hover) comes later. Notes are mirrored out to Angular via `notesChanged`.
  */
 import {
+  Decoration,
   EditorView,
   GutterMarker,
+  WidgetType,
   gutter,
   lineNumbers,
   showTooltip,
@@ -75,25 +77,97 @@ function noteTooltip(pos: number | null): Tooltip | null {
     create(view) {
       const dom = document.createElement('div');
       dom.className = 'cm-note-tooltip';
-      const ta = document.createElement('textarea');
-      ta.placeholder = 'Note for this line…';
-      ta.rows = 3;
+
       const lineNo = view.state.doc.lineAt(pos).number;
       const existing = view.state
         .field(notesField)
         .find((n) => view.state.doc.lineAt(n.from).number === lineNo);
+
+      const ta = document.createElement('textarea');
+      ta.placeholder = 'Note for this line…  (**bold**, *italic*, - list)';
+      ta.rows = 4;
       ta.value = existing?.text ?? '';
-      const hint = document.createElement('div');
+
+      // ── Formatting toolbar — buttons keep the textarea's focus (mousedown
+      //    preventDefault) so clicking them never blurs/commits the note. ──
+      const wrap = (before: string, after: string, placeholder: string) => {
+        const { selectionStart: a, selectionEnd: b, value } = ta;
+        const sel = value.slice(a, b) || placeholder;
+        ta.value = value.slice(0, a) + before + sel + after + value.slice(b);
+        ta.focus();
+        ta.selectionStart = a + before.length;
+        ta.selectionEnd = a + before.length + sel.length;
+      };
+      const prefixLine = (prefix: string) => {
+        const { selectionStart: a, value } = ta;
+        const start = value.lastIndexOf('\n', a - 1) + 1;
+        ta.value = value.slice(0, start) + prefix + value.slice(start);
+        ta.focus();
+        ta.selectionStart = ta.selectionEnd = a + prefix.length;
+      };
+      const tool = (label: string, title: string, run: () => void, cls = '') => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = `cm-note-tool ${cls}`.trim();
+        b.title = title;
+        b.textContent = label;
+        b.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          run();
+        });
+        return b;
+      };
+      const tools = document.createElement('div');
+      tools.className = 'cm-note-tools';
+      tools.append(
+        tool('B', 'Bold', () => wrap('**', '**', 'bold'), 'is-bold'),
+        tool('I', 'Italic', () => wrap('*', '*', 'italic'), 'is-italic'),
+        tool('•', 'List item', () => prefixLine('- ')),
+      );
+
+      let done = false;
+      const commit = () => {
+        if (done) return;
+        done = true;
+        view.dispatch({ effects: [saveNote.of({ from: pos, text: ta.value }), setEditing.of(null)] });
+      };
+
+      // ── Footer — hint + Clear + Save ──
+      const hint = document.createElement('span');
       hint.className = 'cm-note-hint';
-      hint.textContent = '⌘/Ctrl + ↵ to save · Esc to cancel';
-      dom.appendChild(ta);
-      dom.appendChild(hint);
+      hint.textContent = '⌘/Ctrl + ↵';
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'cm-note-btn';
+      clearBtn.textContent = 'Clear';
+      clearBtn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        ta.value = '';
+        ta.focus();
+      });
+      const saveBtn = document.createElement('button');
+      saveBtn.type = 'button';
+      saveBtn.className = 'cm-note-btn cm-note-btn-primary';
+      saveBtn.textContent = 'Save';
+      saveBtn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        commit();
+        view.focus();
+      });
+      const btns = document.createElement('div');
+      btns.className = 'cm-note-btns';
+      btns.append(clearBtn, saveBtn);
+      const foot = document.createElement('div');
+      foot.className = 'cm-note-foot';
+      foot.append(hint, btns);
+
+      dom.append(tools, ta, foot);
+
       setTimeout(() => {
         ta.focus();
         ta.select();
       }, 0);
-      const commit = () =>
-        view.dispatch({ effects: [saveNote.of({ from: pos, text: ta.value }), setEditing.of(null)] });
+
       ta.addEventListener('keydown', (e) => {
         e.stopPropagation();
         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -102,11 +176,18 @@ function noteTooltip(pos: number | null): Tooltip | null {
           view.focus();
         } else if (e.key === 'Escape') {
           e.preventDefault();
+          done = true; // cancel — don't let the deferred blur save afterwards
           view.dispatch({ effects: setEditing.of(null) });
           view.focus();
         }
       });
-      ta.addEventListener('blur', commit);
+      // Save on click-away (focus leaves the whole tooltip). Deferred so it never
+      // dispatches while a CodeMirror update is mid-flight.
+      dom.addEventListener('focusout', (e) => {
+        if (dom.contains(e.relatedTarget as Node | null)) return; // moving within the tooltip
+        setTimeout(() => commit(), 0);
+      });
+
       return { dom };
     },
   };
@@ -222,36 +303,107 @@ const noteTheme = EditorView.theme({
     cursor: 'grab',
   },
   '.cm-note-tooltip': {
-    padding: '7px',
+    padding: '8px',
     background: 'var(--bg)',
     border: '0.5px solid var(--border-strong)',
-    borderRadius: '10px',
-    boxShadow: '0 10px 28px -10px rgba(34, 28, 18, 0.3)',
+    borderRadius: '12px',
+    boxShadow: '0 14px 34px -12px rgba(34, 28, 18, 0.34)',
   },
-  '.cm-note-tooltip textarea': {
-    display: 'block',
-    width: '260px',
-    minHeight: '54px',
-    maxHeight: '170px',
-    padding: '6px 9px',
+  '.cm-note-tools': {
+    display: 'flex',
+    gap: '4px',
+    marginBottom: '7px',
+  },
+  '.cm-note-tool': {
+    width: '26px',
+    height: '26px',
+    display: 'grid',
+    placeItems: 'center',
     border: '0.5px solid var(--border)',
     borderRadius: '7px',
+    background: 'var(--bg-2)',
+    color: 'var(--fg-muted)',
+    fontFamily: 'var(--font-sans)',
+    fontSize: '13px',
+    cursor: 'pointer',
+  },
+  '.cm-note-tool:hover': { color: 'var(--accent)', borderColor: 'var(--accent)' },
+  '.cm-note-tool.is-bold': { fontWeight: '700' },
+  '.cm-note-tool.is-italic': { fontStyle: 'italic', fontFamily: 'var(--font-serif)' },
+  '.cm-note-tooltip textarea': {
+    display: 'block',
+    width: '320px',
+    minHeight: '96px',
+    maxHeight: '220px',
+    padding: '9px 11px',
+    border: '0.5px solid var(--border)',
+    borderRadius: '9px',
     background: 'var(--field-bg)',
     color: 'var(--fg)',
     font: 'inherit',
     fontFamily: 'var(--font-sans)',
-    fontSize: '12px',
-    lineHeight: '1.5',
+    fontSize: '13px',
+    lineHeight: '1.55',
     resize: 'vertical',
     outline: 'none',
   },
+  '.cm-note-tooltip textarea:focus': {
+    borderColor: 'var(--accent)',
+    boxShadow: '0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent)',
+  },
+  '.cm-note-foot': {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: '8px',
+  },
   '.cm-note-hint': {
-    marginTop: '5px',
-    fontSize: '10px',
+    fontSize: '10.5px',
     fontFamily: 'var(--font-sans)',
     color: 'var(--fg-subtle)',
-    textAlign: 'right',
   },
+  '.cm-note-btns': { display: 'flex', gap: '6px' },
+  '.cm-note-btn': {
+    padding: '5px 12px',
+    border: '0.5px solid var(--border)',
+    borderRadius: '8px',
+    background: 'var(--bg-2)',
+    color: 'var(--fg)',
+    fontFamily: 'var(--font-sans)',
+    fontSize: '12px',
+    fontWeight: '500',
+    cursor: 'pointer',
+  },
+  '.cm-note-btn:hover': { borderColor: 'var(--border-strong)', background: 'var(--bg)' },
+  '.cm-note-btn-primary': {
+    border: '0.5px solid transparent',
+    background: 'var(--accent)',
+    color: '#fff',
+  },
+  '.cm-note-btn-primary:hover': { filter: 'brightness(1.07)', background: 'var(--accent)' },
+  // Run view: a noted line is clickable; clicking opens the note card below it.
+  '.cm-note-line': { cursor: 'pointer' },
+  '.cm-note-line:hover': { background: 'color-mix(in srgb, var(--accent) 5%, transparent)' },
+  '.cm-note-block': {
+    margin: '3px 14px 8px 38px',
+    padding: '9px 12px 9px 13px',
+    fontFamily: 'var(--font-sans)',
+    fontSize: '12px',
+    lineHeight: '1.55',
+    color: 'var(--fg)',
+    background: 'var(--bg-2)',
+    border: '0.5px solid var(--border)',
+    borderLeft: '2.5px solid var(--accent)',
+    borderRadius: '9px',
+    boxShadow: '0 1px 3px rgba(34, 28, 18, 0.05)',
+  },
+  '.cm-note-block p': { margin: '0' },
+  '.cm-note-block p + p, .cm-note-block p + ul, .cm-note-block ul + p': { marginTop: '5px' },
+  '.cm-note-block strong': { fontWeight: '650', color: 'var(--fg)' },
+  '.cm-note-block em': { fontStyle: 'italic' },
+  '.cm-note-block ul': { margin: '0', paddingLeft: '17px' },
+  '.cm-note-block li': { marginBottom: '2px' },
+  '.cm-note-block li::marker': { color: 'var(--accent)' },
 });
 
 /** Line numbers + the note dot gutter + click-to-edit tooltip. Replaces `lineNumbers()`. */
@@ -265,8 +417,117 @@ export const lineNotes: Extension = [
   noteDnd,
 ];
 
-/** Read-only notes — dots only, with the note shown on hover (for the Run view). */
-export const lineNotesReadonly: Extension = [notesField, readGutter, lineNumbers(), noteTheme];
+// ── Click-to-expand notes (read-only Run view) ──────────────
+/** Toggle the inline note under a line, addressed by its line-start position. */
+const toggleNoteOpen = StateEffect.define<number>();
+
+/** Line-start positions whose note is expanded inline right now. */
+const expandedNotes = StateField.define<Set<number>>({
+  create: () => new Set(),
+  update(set, tr) {
+    let next = tr.docChanged ? new Set([...set].map((p) => tr.changes.mapPos(p, 1))) : set;
+    for (const e of tr.effects) {
+      if (e.is(toggleNoteOpen)) {
+        next = new Set(next);
+        if (next.has(e.value)) next.delete(e.value);
+        else next.add(e.value);
+      } else if (e.is(loadNotes)) {
+        next = new Set(); // a fresh document/notes set collapses everything
+      }
+    }
+    return next;
+  },
+});
+
+/** Escape HTML so user note text can never inject markup. */
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Inline marks on already-escaped text: `**bold**`, then `*italic*`. */
+function inlineMarks(s: string): string {
+  return s
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+}
+
+/**
+ * Render a note's lightweight markdown to safe HTML: `**bold**`, `*italic*` and
+ * `- ` bullet lists. Text is escaped first, so only our own tags reach the DOM.
+ */
+function renderNoteHtml(text: string): string {
+  const out: string[] = [];
+  let inList = false;
+  for (const line of text.split('\n')) {
+    const bullet = /^\s*[-*]\s+(.*)$/.exec(line);
+    if (bullet) {
+      if (!inList) { out.push('<ul>'); inList = true; }
+      out.push(`<li>${inlineMarks(escapeHtml(bullet[1]))}</li>`);
+    } else {
+      if (inList) { out.push('</ul>'); inList = false; }
+      if (line.trim()) out.push(`<p>${inlineMarks(escapeHtml(line))}</p>`);
+    }
+  }
+  if (inList) out.push('</ul>');
+  return out.join('');
+}
+
+/** The note text rendered as a formatted block beneath its line when expanded. */
+class NoteBlock extends WidgetType {
+  constructor(readonly text: string) {
+    super();
+  }
+  override eq(other: WidgetType) {
+    return other instanceof NoteBlock && other.text === this.text;
+  }
+  override toDOM() {
+    const dom = document.createElement('div');
+    dom.className = 'cm-note-block';
+    dom.innerHTML = renderNoteHtml(this.text);
+    return dom;
+  }
+}
+
+/** Mark noted lines (the click target) and drop a note block under expanded ones. */
+const noteBlocks = EditorView.decorations.compute([notesField, expandedNotes], (state) => {
+  const open = state.field(expandedNotes);
+  const notes = [...state.field(notesField)].sort((a, b) => a.from - b.from);
+  const builder = new RangeSetBuilder<Decoration>();
+  for (const n of notes) {
+    const line = state.doc.lineAt(n.from);
+    const isOpen = open.has(line.from);
+    builder.add(line.from, line.from, Decoration.line({ class: isOpen ? 'cm-note-line cm-note-open' : 'cm-note-line' }));
+    if (isOpen) {
+      builder.add(line.to, line.to, Decoration.widget({ widget: new NoteBlock(n.text), block: true, side: 1 }));
+    }
+  }
+  return builder.finish();
+});
+
+/** Click a noted line to expand/collapse its note inline (Run view). */
+const noteToggleClick = EditorView.domEventHandlers({
+  mousedown(event, view) {
+    if ((event.target as HTMLElement).closest('.cm-note-block')) return false; // clicks on the note itself
+    const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+    if (pos == null) return false;
+    const line = view.state.doc.lineAt(pos);
+    const noted = view.state.field(notesField).some((n) => view.state.doc.lineAt(n.from).number === line.number);
+    if (!noted) return false;
+    view.dispatch({ effects: toggleNoteOpen.of(line.from) });
+    return false;
+  },
+});
+
+/** Read-only notes — a dot marks each noted line; click the line to open the note below it. */
+export const lineNotesReadonly: Extension = [
+  notesField,
+  expandedNotes,
+  readGutter,
+  lineNumbers(),
+  noteBlocks,
+  noteToggleClick,
+  noteTheme,
+];
 
 /** Current notes, addressed by line number — for mirroring to Angular. */
 export function notesFromState(state: EditorView['state']): LineNote[] {

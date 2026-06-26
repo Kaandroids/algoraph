@@ -178,8 +178,10 @@ export class CodeEditorComponent {
       ],
     });
     this.view = new EditorView({ state, parent: this.host().nativeElement });
-    // Apply any current run highlight + diagnostics now that the view exists.
+    // Apply any current run highlight, diagnostics and notes now that the view exists.
+    // Notes must be loaded explicitly: the binding effect only fires on later changes,
+    // so a read-only editor (the Run rail) would otherwise never show the file's notes.
     this.applyActiveLine(this.activeLine());
-    this.view.dispatch({ effects: setDiagnostics.of(this.diagnostics()) });
+    this.view.dispatch({ effects: [setDiagnostics.of(this.diagnostics()), loadNotes.of(this.notes())] });
   }
 }
