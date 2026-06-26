@@ -212,6 +212,7 @@ export const GLOBAL_REFERENCE: {
         { sig: 'mark(vertex u) / unmark(vertex u)', desc: 'Toggle a highlight on u.', returns: 'void' },
         { sig: 'markEdge(vertex u, vertex v)', desc: 'Highlight an edge — for paths and trees.', returns: 'void' },
         { sig: 'setLabel(vertex u, string text)', desc: 'Show a value on u, e.g. its distance.', returns: 'void' },
+        { sig: 'scrollTo(vertex u)', desc: 'Pan the canvas to bring u into view, centring it.', returns: 'void' },
       ],
     },
     {
