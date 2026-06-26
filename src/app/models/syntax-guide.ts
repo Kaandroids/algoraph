@@ -107,16 +107,45 @@ export const SYNTAX_GUIDE: SyntaxSection[] = [
   {
     title: 'Visualization',
     intro:
-      'Drive the canvas so each step is visible. These mark the graph; they return nothing. ' +
-      'mark, unmark and scrollTo take one vertex, or two vertices to address the edge between them.',
+      'Drive the canvas so each step is visible. mark takes one vertex, or two vertices to address ' +
+      'the edge between them, plus an optional type (danger / warn / success / info) that recolours ' +
+      'the highlight. These return nothing.',
     items: [
-      { syntax: 'visit(u)', desc: 'Mark u settled — a green ring on the vertex.' },
-      { syntax: 'mark(u) · unmark(u)', desc: 'Toggle a bright "active" highlight on vertex u.' },
-      { syntax: 'mark(u, v) · unmark(u, v)', desc: 'Toggle the highlight on the edge u → v (markEdge is the same as mark(u, v)).' },
+      { syntax: 'mark(u) · mark(u, "danger")', desc: 'Highlight vertex u — accent by default, or a type: danger · warn · success · info.' },
+      { syntax: 'mark(u, v) · mark(u, v, "success")', desc: 'Highlight the edge u → v, with the same type options.' },
+      { syntax: 'unmark(u) · unmark(u, v)', desc: 'Remove a vertex or edge highlight.' },
       { syntax: 'setLabel(u, text)', desc: 'Pin a value on u, e.g. its distance.' },
       { syntax: 'scrollTo(u) · scrollTo(u, v)', desc: 'Pan the canvas to a vertex, or to the edge u → v.' },
-      { syntax: 'clearMarks()', desc: 'Clear every highlight and label — wipe the canvas back to its base state.' },
+      { syntax: 'clearMarks()', desc: 'Clear every highlight and label.' },
     ],
+  },
+  {
+    title: 'Building the canvas',
+    intro:
+      'Create and remove graph parts and data structures from code. Changes are a sandbox by ' +
+      'default — call saveCanvas() to keep them, otherwise the canvas is restored after the run. ' +
+      'Begin a generator with clearGraph() so re-running does not stack up duplicates.',
+    items: [
+      { syntax: 'createNode(x, y, name?)', desc: 'Add a vertex; auto-named N1, N2… without a name.' },
+      { syntax: 'deleteNode(u)', desc: 'Remove a vertex and every edge touching it.' },
+      { syntax: 'createEdge(u, v, weight?, directed?)', desc: 'Connect u → v (weight 1, directed by default).' },
+      { syntax: 'deleteEdge(u, v)', desc: 'Remove the edge u → v.' },
+      { syntax: 'createSet(x, y, name?) · createList · createMap …', desc: 'Drop a data structure; returns the live one.' },
+      { syntax: 'createMatrix(x, y, rows, cols, name?)', desc: 'Drop an R×C matrix of zeros.' },
+      { syntax: 'deleteDS(d)', desc: 'Remove a data structure.' },
+      { syntax: 'clearGraph() · clearCanvas()', desc: 'Wipe the graph · wipe everything (graph + structures).' },
+      { syntax: 'saveCanvas()', desc: 'Persist the current canvas so the changes survive the run.' },
+    ],
+    example:
+      '// init.algo — build a triangle, then keep it\n' +
+      'clearGraph()\n' +
+      'a ← createNode(120, 160, "A")\n' +
+      'b ← createNode(360, 160, "B")\n' +
+      'c ← createNode(240, 360, "C")\n' +
+      'createEdge(a, b, 4)\n' +
+      'createEdge(b, c, 2)\n' +
+      'createEdge(c, a, 7)\n' +
+      'saveCanvas()',
   },
   {
     title: 'Data structures',

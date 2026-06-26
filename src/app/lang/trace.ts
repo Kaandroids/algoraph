@@ -14,6 +14,18 @@ export interface VertexRef {
   label: string;
   /** Graph node kind — NODE / START / GOAL. */
   type: string;
+  /** Canvas position (so created vertices can be drawn and committed). */
+  x: number;
+  y: number;
+}
+
+/** An edge in a topology snapshot. */
+export interface EdgeSnapshot {
+  id: string;
+  src: string;
+  tgt: string;
+  weight: number;
+  directed: boolean;
 }
 
 /** Live graph the program runs against (vertex ids, directed/undirected edges). */
@@ -22,11 +34,20 @@ export interface GraphInput {
   edges: { src: string; tgt: string; weight: number; directed: boolean }[];
 }
 
+/** The graph topology at one step — the program may create/delete during a run. */
+export interface GraphSnapshot {
+  nodes: VertexRef[];
+  edges: EdgeSnapshot[];
+}
+
 /** A data structure as the panel renders it — mirrors the renderable `DataNode` fields. */
 export interface DataSnapshot {
   id: string;
   kind: DataStructureKind;
   label: string;
+  /** Canvas position (so created structures can be drawn and committed). */
+  x: number;
+  y: number;
   items: (string | number)[];
   entries: MapEntry[];
   heap: HeapEntry[];
@@ -40,12 +61,10 @@ export type ScrollTarget =
 
 /** What the algorithm has asked the canvas to show at a given step. */
 export interface CanvasEffects {
-  /** Vertices marked visited (a settled highlight). */
-  visited: string[];
-  /** Vertices currently active / being examined (a brighter highlight). */
-  active: string[];
-  /** Highlighted edges, keyed `"srcId->tgtId"`. */
-  markedEdges: string[];
+  /** Marked vertices → mark type (`''` default, or `success`/`danger`/`warn`/`info`). */
+  marks: Record<string, string>;
+  /** Marked edges, keyed `"srcId->tgtId"` → mark type. */
+  markedEdges: Record<string, string>;
   /** Per-vertex text labels, e.g. a distance. */
   labels: Record<string, string>;
   /** Vertices held by an enclosing `for each` right now — the iteration cursor(s). */
@@ -73,6 +92,8 @@ export interface StepSnapshot {
   fileId: string;
   /** 1-based line about to execute (0 once the program has finished). */
   line: number;
+  /** Graph topology as of this step (shared between steps that don't mutate it). */
+  graph: GraphSnapshot;
   data: DataSnapshot[];
   effects: CanvasEffects;
   /** The enclosing for-each loop's progress, or null outside any loop. */
@@ -83,6 +104,13 @@ export interface StepSnapshot {
   note?: string;
 }
 
+/** The canvas state an algorithm committed via `saveCanvas()`, ready to persist. */
+export interface SavedCanvas {
+  nodes: VertexRef[];
+  edges: EdgeSnapshot[];
+  data: { id: string; kind: DataStructureKind; label: string; x: number; y: number }[];
+}
+
 export interface RunResult {
   steps: StepSnapshot[];
   diagnostics: Diagnostic[];
@@ -90,8 +118,10 @@ export interface RunResult {
   error: string | null;
   /** Estimated asymptotic complexity (filled by the complexity pass). */
   bigO: { time: string; space: string };
+  /** Graph the program asked to persist (saveCanvas), or null to leave the canvas as-is. */
+  savedCanvas: SavedCanvas | null;
 }
 
 export function emptyEffects(): CanvasEffects {
-  return { visited: [], active: [], markedEdges: [], labels: {}, cursors: [], scrollTo: null };
+  return { marks: {}, markedEdges: {}, labels: {}, cursors: [], scrollTo: null };
 }

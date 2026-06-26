@@ -503,6 +503,7 @@
         (contentChange)="onEditorContent($event)"
         [globals]="editorGlobals()"
         [exports]="editorExports()"
+        [diagnostics]="editorDiagnostics()"
         [notes]="activeFileNotes()"
         (notesChange)="onNotesChange($event)" />
 
@@ -546,6 +547,20 @@
             </div>
           }
         </div>
+
+        <!-- Local — data structures this file's run creates in code -->
+        @if (localStructures().length) {
+          <div class="ag-insp-section">
+            <div class="ag-insp-title">Local <span class="ag-insp-note">this file</span></div>
+            @for (ls of localStructures(); track ls.name) {
+              <div class="ag-insp-row" [style.--nc]="dataColor(ls.kind)">
+                <span class="ag-insp-dot"></span>
+                <span class="ag-insp-name">{{ ls.name }}</span>
+                <span class="ag-insp-tag">{{ dataTypeLabel(ls.kind) }}</span>
+              </div>
+            }
+          </div>
+        }
 
         <!-- Exports — helpers other files expose to the algorithm -->
         @if (editorExports().length) {
@@ -664,13 +679,12 @@
             <f-circle-pattern [color]="'rgba(128,128,128,0.32)'" [radius]="22" />
           </f-background>
           <f-canvas fZoom [fZoomMinimum]="0.2" [fZoomMaximum]="3" [fWheelTrigger]="zoomOnPinch">
-            @for (node of nodes(); track node.id) {
+            @for (node of run.graphNodes(); track node.id) {
               <div fNode
                 [fNodeId]="node.id"
                 [fNodePosition]="node.position"
                 class="ae-node ae-node-ro"
-                [class.is-visited]="run.visitedSet().has(node.id)"
-                [class.is-active]="run.activeSet().has(node.id)"
+                [attr.data-mark]="run.markOf(node.id)"
                 [class.is-cursor]="run.cursorSet().has(node.id)"
                 [attr.data-type]="node.kind"
                 [style.--nc]="nodeColor(node.kind)">
@@ -696,7 +710,7 @@
               </div>
             }
 
-            @for (dn of runDataNodes(); track dn.id) {
+            @for (dn of run.runDataNodes(); track dn.id) {
               <div fNode
                 [fNodeId]="dn.id"
                 [fNodePosition]="dn.position"
@@ -712,14 +726,15 @@
                 </div>
               </div>
             }
-            @for (edge of edges(); track edge.id) {
+            @for (edge of run.graphEdges(); track edge.id) {
               <f-connection
                 [fConnectionId]="edge.id"
                 [fOutputId]="edge.outputId"
                 [fInputId]="edge.inputId"
                 [fType]="EFConnectionType.BEZIER"
                 [class.ag-undirected]="!edge.directed"
-                [class.is-marked]="edgeMarked(edge)">
+                [class.is-marked]="run.edgeMarkOf(edge) !== null"
+                [attr.data-mark]="run.edgeMarkOf(edge)">
                 <f-connection-marker-arrow [type]="EFMarkerType.END_ALL_STATES" />
                 <div fConnectionContent [position]="0.5" class="ag-edge-badge" [attr.data-edge]="edge.id">
                   <span class="ag-edge-weight ag-edge-weight-ro">{{ edge.weight }}</span>
@@ -783,15 +798,26 @@
       </div>
     </div>
 
-    <!-- ── Run: main.algo (right, collapsible, read-only) ────── -->
+    <!-- ── Run: entry file (right, collapsible, read-only) ───── -->
     <aside class="ag-coderail ag-runcode-rail" [class.collapsed]="runCodeCollapsed()">
       <ng-container [ngTemplateOutlet]="railHead"
-        [ngTemplateOutletContext]="{ eyebrow: 'Run', title: 'main.algo', vlabel: 'Code', noun: 'code', key: 'runcode', side: 'right', help: false }" />
+        [ngTemplateOutletContext]="{ eyebrow: 'Run', title: run.entryFile()?.name ?? 'main.algo', vlabel: 'Code', noun: 'code', key: 'runcode', side: 'right', help: false }" />
+
+      @if (!runCodeCollapsed() && files().length > 1) {
+        <div class="ag-run-entry">
+          <span class="ag-run-entry-label">Run file</span>
+          <select class="ag-run-entry-select" (change)="run.setEntry($any($event.target).value)">
+            @for (f of files(); track f.id) {
+              <option [value]="f.id" [selected]="f.id === run.entryId()">{{ f.name }}</option>
+            }
+          </select>
+        </div>
+      }
 
       <div class="ag-coderail-body">
         <app-code-editor class="ag-runcode-cm"
-          [content]="mainFile().content"
-          [notes]="mainFile().notes"
+          [content]="run.entryFile()?.content ?? ''"
+          [notes]="run.entryFile()?.notes ?? []"
           [activeLine]="run.currentLine()"
           [readOnly]="true" />
       </div>

@@ -8,9 +8,9 @@
  * the Run workspace's "main goes line by line, helpers are one step" model.
  */
 import type { Expr, FunctionDecl, Module, Stmt } from './ast';
-import type { CanvasEffects, DataSnapshot, LoopFrame, RunResult, ScrollTarget, StepSnapshot } from './trace';
+import type { CanvasEffects, DataSnapshot, LoopFrame, RunResult, SavedCanvas, ScrollTarget, StepSnapshot, VertexRef } from './trace';
 import { emptyEffects } from './trace';
-import type { DataNode } from '../models/data-structure.model';
+import { DATA_STRUCTURES, type DataNode, type DataStructureKind } from '../models/data-structure.model';
 import {
   GraphValue,
   Namespace,
@@ -24,13 +24,14 @@ import {
   display,
   keyOf,
   makeRuntimeDS,
+  makeRuntimeDSByKind,
   type Value,
 } from './values';
 
 /** Everything the interpreter needs that doesn't come from the source. */
 export interface RunInput {
   entryId: string;
-  graph: { vertices: Vertex[] | { id: string; label: string; type: string }[]; edges: { src: string; tgt: string; weight: number; directed: boolean }[] };
+  graph: { vertices: VertexRef[]; edges: { src: string; tgt: string; weight: number; directed: boolean }[] };
   data: DataNode[];
 }
 
@@ -54,6 +55,16 @@ class ReturnSignal {
   constructor(readonly value: Value) {}
 }
 
+/** A create*'s optional trailing `name` argument as a string, or undefined if omitted. */
+function optionalName(value: Value | undefined): string | undefined {
+  return value != null ? String(display(value)) : undefined;
+}
+
+/** A mark's optional `type` argument (`danger`/`warn`/…); `''` is the default highlight. */
+function markType(value: Value | undefined): string {
+  return typeof value === 'string' ? value : '';
+}
+
 export class Interpreter {
   private readonly steps: StepSnapshot[] = [];
   private opCount = 0;
@@ -67,14 +78,16 @@ export class Interpreter {
   private readonly graph: GraphValue;
   private readonly dsList: RDataStructure[];
   private readonly dsByLabel = new Map<string, RDataStructure>();
+  private nextDataId: number;
+  /** Graph the program asked to persist via saveCanvas() (last call wins), or null. */
+  private savedCanvas: SavedCanvas | null = null;
   private readonly functions: Map<string, FunctionDecl>;
   private readonly entryStmts: Stmt[];
   private readonly entryId: string;
 
   // Mutable canvas effects, snapshotted (and scroll consumed) on each step.
-  private visited = new Set<string>();
-  private active = new Set<string>();
-  private markedEdges = new Set<string>();
+  private marks = new Map<string, string>(); // vertex id → mark type
+  private markedEdges = new Map<string, string>(); // edge key → mark type
   private labels = new Map<string, string>();
   private scrollTo: ScrollTarget | null = null;
   // Stack of active `for each` loops, innermost last. Each frame drives the
@@ -92,12 +105,10 @@ export class Interpreter {
     this.entryId = input.entryId;
     this.functions = functions;
     this.entryStmts = entry.items.filter((i): i is Stmt => i.kind !== 'function');
-    this.graph = new GraphValue(
-      { vertices: input.graph.vertices as { id: string; label: string; type: string }[], edges: input.graph.edges },
-      this.charge,
-    );
+    this.graph = new GraphValue({ vertices: input.graph.vertices, edges: input.graph.edges }, this.charge);
     this.dsList = input.data.map((node) => makeRuntimeDS(node, this.charge));
     for (const ds of this.dsList) this.dsByLabel.set(ds.label, ds);
+    this.nextDataId = Math.max(0, ...input.data.map((d) => Number(/^ds(\d+)$/.exec(d.id)?.[1] ?? 0))) + 1;
   }
 
   run(): RunResult {
@@ -120,6 +131,7 @@ export class Interpreter {
       diagnostics: [],
       error: this.error,
       bigO: { time: 'O(?)', space: 'O(?)' },
+      savedCanvas: this.savedCanvas,
     };
   }
 
@@ -136,6 +148,7 @@ export class Interpreter {
     this.steps.push({
       fileId: this.entryId,
       line,
+      graph: this.graph.snapshot(),
       data: this.dsList.map((d) => d.snapshot()) as DataSnapshot[],
       effects: this.snapshotEffects(),
       loop: this.snapshotLoop(),
@@ -154,9 +167,8 @@ export class Interpreter {
 
   private snapshotEffects(): CanvasEffects {
     const effects = emptyEffects();
-    effects.visited = [...this.visited];
-    effects.active = [...this.active];
-    effects.markedEdges = [...this.markedEdges];
+    effects.marks = Object.fromEntries(this.marks);
+    effects.markedEdges = Object.fromEntries(this.markedEdges);
     effects.labels = Object.fromEntries(this.labels);
     effects.cursors = [...new Set(this.loopFrames.map((f) => f.cursorId).filter((id): id is string => id !== null))];
     effects.scrollTo = this.scrollTo;
@@ -385,8 +397,9 @@ export class Interpreter {
 
   private callBuiltin(name: string, args: Value[], line: number): Value {
     const v0 = () => this.asVertex(args[0], line);
-    // An edge is addressed by two vertices; `mark`/`unmark`/`scrollTo` overload on arity.
-    const isEdge = args.length >= 2;
+    // An edge is addressed by two vertices; mark/unmark/scrollTo overload on whether
+    // the second argument is a vertex (an edge) or not (a vertex + optional type).
+    const isEdge = args[1] instanceof Vertex;
     const edgeKey = () => `${v0().id}->${this.asVertex(args[1], line).id}`;
     switch (name) {
       case 'nodes': return this.graph.nodes();
@@ -399,18 +412,17 @@ export class Interpreter {
       case 'outDegree': return this.graph.degree(v0());
       case 'source': return this.graph.source();
       case 'goal': return this.graph.goal();
-      case 'visit': this.charge(1); this.visited.add(v0().id); return null;
       case 'mark':
+        // mark(u, type?) highlights a vertex; mark(u, v, type?) highlights an edge.
         this.charge(1);
-        if (isEdge) this.markedEdges.add(edgeKey());
-        else this.active.add(v0().id);
+        if (isEdge) this.markedEdges.set(edgeKey(), markType(args[2]));
+        else this.marks.set(v0().id, markType(args[1]));
         return null;
       case 'unmark':
         this.charge(1);
         if (isEdge) this.markedEdges.delete(edgeKey());
-        else this.active.delete(v0().id);
+        else this.marks.delete(v0().id);
         return null;
-      case 'markEdge': this.charge(1); this.markedEdges.add(edgeKey()); return null;
       case 'setLabel': this.charge(1); this.labels.set(v0().id, String(display(args[1]))); return null;
       case 'scrollTo':
         this.charge(1);
@@ -420,13 +432,84 @@ export class Interpreter {
         return null;
       case 'clearMarks':
         this.charge(1);
-        this.visited.clear();
-        this.active.clear();
+        this.marks.clear();
         this.markedEdges.clear();
         this.labels.clear();
         return null;
+      // ── Canvas editing — mutate the graph / data structures ──
+      case 'createNode':
+        return this.graph.createNode(Number(args[0]), Number(args[1]), optionalName(args[2]));
+      case 'deleteNode': this.graph.deleteNode(v0()); return null;
+      case 'createEdge':
+        this.graph.createEdge(
+          v0(),
+          this.asVertex(args[1], line),
+          args[2] != null ? Number(args[2]) : 1,
+          args[3] != null ? this.truthy(args[3]) : true,
+        );
+        return null;
+      case 'deleteEdge': this.graph.deleteEdge(v0(), this.asVertex(args[1], line)); return null;
+      case 'createList': return this.createDS('LIST', args);
+      case 'createStack': return this.createDS('STACK', args);
+      case 'createQueue': return this.createDS('QUEUE', args);
+      case 'createSet': return this.createDS('SET', args);
+      case 'createMap': return this.createDS('MAP', args);
+      case 'createPQueue': return this.createDS('PQUEUE', args);
+      case 'createMatrix':
+        return this.createDS('MATRIX', args, Number(args[2]), Number(args[3]), optionalName(args[4]));
+      case 'deleteDS': this.deleteDS(args[0]); return null;
+      case 'clearGraph': this.graph.clear(); return null;
+      case 'clearCanvas':
+        this.graph.clear();
+        this.dsList.length = 0;
+        this.dsByLabel.clear();
+        return null;
+      case 'saveCanvas': this.commitCanvas(); return null;
       default: throw new RuntimeError(`Unknown function '${name}' (line ${line})`);
     }
+  }
+
+  /** Create a data structure on the canvas and register it for lookup by label. */
+  private createDS(
+    kind: DataStructureKind,
+    args: Value[],
+    rows = 1,
+    cols = 1,
+    name = optionalName(args[2]),
+  ): RDataStructure {
+    this.charge(1);
+    const id = `ds${this.nextDataId++}`;
+    const label = name ?? this.uniqueDataLabel(DATA_STRUCTURES[kind].defaultLabel);
+    const ds = makeRuntimeDSByKind(kind, id, label, Number(args[0]), Number(args[1]), this.charge, rows, cols);
+    this.dsList.push(ds);
+    this.dsByLabel.set(label, ds);
+    return ds;
+  }
+
+  private deleteDS(value: Value): void {
+    this.charge(1);
+    if (!(value instanceof RDataStructure)) return;
+    const i = this.dsList.indexOf(value);
+    if (i >= 0) this.dsList.splice(i, 1);
+    this.dsByLabel.delete(value.label);
+  }
+
+  private uniqueDataLabel(base: string): string {
+    if (!this.dsByLabel.has(base)) return base;
+    let i = 2;
+    while (this.dsByLabel.has(`${base}${i}`)) i++;
+    return `${base}${i}`;
+  }
+
+  /** Capture the current graph + data structures for saveCanvas() to persist. */
+  private commitCanvas(): void {
+    this.charge(1);
+    const g = this.graph.snapshot();
+    this.savedCanvas = {
+      nodes: g.nodes.map((n) => ({ ...n })),
+      edges: g.edges.map((e) => ({ ...e })),
+      data: this.dsList.map((d) => ({ id: d.id, kind: d.kind, label: d.label, x: d.x, y: d.y })),
+    };
   }
 
   // ── Values & helpers ────────────────────────────────────────

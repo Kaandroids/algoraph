@@ -58,6 +58,17 @@ describe('compile (lex + parse + resolve)', () => {
     expect(diagnostics.some((d) => d.message.includes("Unknown function 'frobnicate'"))).toBe(true);
   });
 
+  it('errors when a data structure is created with a name that is not an identifier', () => {
+    const bad = compile([{ id: 'main', name: 'main.algo', content: 'createList(0, 0, "test List")\n' }]);
+    expect(bad.diagnostics.some((d) => d.severity === 'error' && d.message.includes('test List'))).toBe(true);
+    // A plain identifier name (or no name) is fine.
+    expect(compile([{ id: 'main', name: 'main.algo', content: 'createList(0, 0, "testList")\n' }]).diagnostics).toEqual(
+      [],
+    );
+    expect(compile([{ id: 'main', name: 'main.algo', content: 'createMatrix(0, 0, 2, 2, "bad name")\n' }]).diagnostics
+      .length).toBe(1);
+  });
+
   it('reports a duplicate export', () => {
     const files = [
       { id: 'a', name: 'a.algo', content: 'export function f() do end\n' },

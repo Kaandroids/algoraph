@@ -28,6 +28,7 @@ import {
 } from '@codemirror/autocomplete';
 import { algoraphLanguage, globalsFacet, exportsFacet, type EditorGlobal } from './dsl';
 import { runHighlight, setCurrentLine } from './run-highlight';
+import { diagnosticsHighlight, setDiagnostics, type EditorDiagnostic } from './diagnostics';
 import type { ExportRef } from '../models/exports';
 import {
   lineNotes,
@@ -74,6 +75,8 @@ export class CodeEditorComponent {
   readonly readOnly = input<boolean>(false);
   /** 1-based line the Run workspace is executing (null clears the highlight). */
   readonly activeLine = input<number | null>(null);
+  /** Compiler diagnostics for this file — underlined with the message on hover. */
+  readonly diagnostics = input<EditorDiagnostic[]>([]);
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('host');
   private readonly globalsComp = new Compartment();
   private readonly exportsComp = new Compartment();
@@ -116,6 +119,12 @@ export class CodeEditorComponent {
       const line = this.activeLine();
       this.applyActiveLine(line);
     });
+
+    // Compiler diagnostics changed → re-underline.
+    effect(() => {
+      const diagnostics = this.diagnostics();
+      this.view?.dispatch({ effects: setDiagnostics.of(diagnostics) });
+    });
   }
 
   /** Move the run highlight to a 1-based line (null clears it) and scroll to it. */
@@ -150,6 +159,7 @@ export class CodeEditorComponent {
         this.globalsComp.of(globalsFacet.of(this.globals())),
         this.exportsComp.of(exportsFacet.of(this.exports())),
         runHighlight(),
+        diagnosticsHighlight(),
         algoraphLanguage(),
         ...(ro
           ? [EditorState.readOnly.of(true), EditorView.editable.of(false), EditorView.lineWrapping]
@@ -168,7 +178,8 @@ export class CodeEditorComponent {
       ],
     });
     this.view = new EditorView({ state, parent: this.host().nativeElement });
-    // Apply any current run highlight now that the view (and its document) exist.
+    // Apply any current run highlight + diagnostics now that the view exists.
     this.applyActiveLine(this.activeLine());
+    this.view.dispatch({ effects: setDiagnostics.of(this.diagnostics()) });
   }
 }

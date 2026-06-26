@@ -59,13 +59,15 @@ export function resolve(modules: Module[], diagnostics: Diagnostic[]): ResolveRe
     }
   }
 
-  // Flag bare calls to names that are neither declared nor built in.
+  // Flag bare calls to unknown names, and data structures created with a name
+  // that can't be referenced in code (must be a plain identifier).
   const known = new Set([...functions.keys(), ...BUILTIN_FUNCTIONS]);
   for (const module of modules) {
     for (const item of module.items) {
       const body = item.kind === 'function' ? item.body : [item];
       walkStmts(body, (expr) => {
-        if (expr.kind === 'call' && expr.callee.kind === 'name' && !known.has(expr.callee.name)) {
+        if (expr.kind !== 'call') return;
+        if (expr.callee.kind === 'name' && !known.has(expr.callee.name)) {
           diagnostics.push({
             severity: 'error',
             message: `Unknown function '${expr.callee.name}'`,
@@ -73,12 +75,40 @@ export function resolve(modules: Module[], diagnostics: Diagnostic[]): ResolveRe
             line: expr.line,
           });
         }
+        const fname =
+          expr.callee.kind === 'name' || expr.callee.kind === 'member' ? expr.callee.name : null;
+        const nameArg = fname ? DS_CREATE_NAME_ARG[fname] : undefined;
+        if (nameArg !== undefined) {
+          const arg = expr.args[nameArg];
+          if (arg?.kind === 'str' && !IDENT.test(arg.value)) {
+            diagnostics.push({
+              severity: 'error',
+              message: `"${arg.value}" isn't a valid name — use letters, digits and _ (no spaces or symbols), or omit the name to auto-number it.`,
+              fileId: module.fileId,
+              line: expr.line,
+            });
+          }
+        }
       });
     }
   }
 
   return { exports, functions };
 }
+
+/** Data-structure `create*` functions → the index of their optional name argument. */
+const DS_CREATE_NAME_ARG: Record<string, number> = {
+  createList: 2,
+  createStack: 2,
+  createQueue: 2,
+  createSet: 2,
+  createMap: 2,
+  createPQueue: 2,
+  createMatrix: 4,
+};
+
+/** A name usable as a DSL identifier; anything else can't be referenced by name. */
+const IDENT = /^[A-Za-z_]\w*$/;
 
 // ── Minimal AST walk to visit every expression ────────────────
 function walkStmts(stmts: Stmt[], visit: (expr: Expr) => void): void {

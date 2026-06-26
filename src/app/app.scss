@@ -362,14 +362,19 @@
   fill: none;
 }
 
-/* An edge the running algorithm has highlighted (markEdge) — part of the tree. */
+/* An edge the running algorithm has marked — accent by default, recoloured by type. */
+:host ::ng-deep .f-connection.is-marked { --mark: var(--accent); }
+:host ::ng-deep .f-connection[data-mark='success'] { --mark: var(--success); }
+:host ::ng-deep .f-connection[data-mark='danger'] { --mark: var(--danger); }
+:host ::ng-deep .f-connection[data-mark='warn'] { --mark: var(--warning); }
+:host ::ng-deep .f-connection[data-mark='info'] { --mark: var(--tone-violet); }
 :host ::ng-deep .f-connection.is-marked path {
-  stroke: var(--accent);
+  stroke: var(--mark);
   stroke-width: 3.5;
   transition: stroke var(--run-anim, 450ms) ease, stroke-width var(--run-anim, 450ms) ease;
 }
 :host ::ng-deep .f-connection.is-marked .f-marker {
-  color: var(--accent);
+  color: var(--mark);
 }
 
 :host ::ng-deep .f-marker {
@@ -1047,6 +1052,37 @@
   min-height: 0;
 }
 
+/* Entry-file selector — pick which file the Run workspace executes. */
+.ag-run-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 0.5px solid var(--border);
+}
+.ag-run-entry-label {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+.ag-run-entry-select {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg);
+  background: var(--bg);
+  border: 0.5px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+.ag-run-entry-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* Data rail mirrors the right coderail onto the left edge, sized like the
    library rail on the other pages. */
 .ag-coderail-left {
@@ -1101,21 +1137,20 @@
     transform var(--run-anim) ease;
 }
 
-/* A settled vertex — a calm green ring. */
-.ae-node.ae-node-ro.is-visited {
-  border-color: color-mix(in srgb, var(--success) 55%, var(--border));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--success) 42%, transparent);
-}
-
-/* The vertex being processed right now — a bright accent glow, lifted. */
-.ae-node.ae-node-ro.is-active {
-  border-color: var(--accent);
+/* A marked vertex — accent by default; an optional mark type recolours the ring.
+   The single --mark variable drives the colour so each type only sets that. */
+.ae-node.ae-node-ro[data-mark] {
+  --mark: var(--accent);
+  border-color: var(--mark);
   box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--accent) 55%, transparent),
-    0 0 22px color-mix(in srgb, var(--accent) 45%, transparent);
-  transform: translateY(-1px) scale(1.03);
+    0 0 0 3px color-mix(in srgb, var(--mark) 52%, transparent),
+    0 0 18px color-mix(in srgb, var(--mark) 38%, transparent);
   z-index: 6;
 }
+.ae-node.ae-node-ro[data-mark='success'] { --mark: var(--success); }
+.ae-node.ae-node-ro[data-mark='danger'] { --mark: var(--danger); }
+.ae-node.ae-node-ro[data-mark='warn'] { --mark: var(--warning); }
+.ae-node.ae-node-ro[data-mark='info'] { --mark: var(--tone-violet); }
 
 /* The vertex an enclosing `for each` is iterating right now — a dashed, gently
    pulsing violet ring. Drawn with outline so it stacks on top of the visited /

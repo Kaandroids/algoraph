@@ -28,7 +28,10 @@ const ATOMS = new Set(['INFINITY', 'true', 'false', 'nil']);
 const BUILTINS = new Set([
   'neighbors', 'weight', 'hasEdge', 'degree', 'inDegree', 'outDegree',
   'source', 'goal', 'nodes', 'edges',
-  'visit', 'mark', 'unmark', 'markEdge', 'setLabel', 'scrollTo', 'clearMarks',
+  'mark', 'unmark', 'setLabel', 'scrollTo', 'clearMarks',
+  'createNode', 'deleteNode', 'createEdge', 'deleteEdge',
+  'createList', 'createStack', 'createQueue', 'createSet', 'createMap', 'createPQueue', 'createMatrix',
+  'deleteDS', 'clearGraph', 'clearCanvas', 'saveCanvas',
 ]);
 
 // ── Stream tokenizer (shared spirit with the future lexer) ──
@@ -120,7 +123,7 @@ function localNames(doc: string): string[] {
 export interface EditorGlobal {
   name: string;
   type: string;
-  members?: { label: string; detail?: string; info?: string }[];
+  members?: { label: string; detail?: string; info?: string; apply?: string }[];
 }
 
 /** Current globals — reconfigured from Angular whenever the canvas changes. */
@@ -151,6 +154,8 @@ function dslAutocomplete(context: CompletionContext): CompletionResult | null {
         type: 'method',
         detail: mm.detail ?? '',
         info: mm.info,
+        // Functions insert their signature (createNode(x, y, name)); properties just the name.
+        apply: mm.apply,
       })),
       validFor: /^\w*$/,
     };
@@ -168,6 +173,7 @@ function dslAutocomplete(context: CompletionContext): CompletionResult | null {
     type: 'function',
     detail: `(${e.params})`,
     info: `Exported helper · ${e.file}`,
+    apply: `${e.name}(${e.params})`, // insert the call with its parameter names
   }));
   const taken = new Set([...names, ...exported, ...ALL_COMPLETIONS].map((c) => c.label));
   const locals: Completion[] = localNames(context.state.doc.toString())
@@ -309,6 +315,15 @@ const postwerkTheme = EditorView.theme(
     '.cm-line.cm-run-current': {
       backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)',
       boxShadow: 'inset 3px 0 0 var(--accent)',
+    },
+    // Compiler diagnostics — a wavy underline, message on hover (title attribute).
+    '.cm-diag-error': {
+      textDecoration: 'underline wavy var(--danger)',
+      textDecorationSkipInk: 'none',
+    },
+    '.cm-diag-warn': {
+      textDecoration: 'underline wavy var(--warning)',
+      textDecorationSkipInk: 'none',
     },
     '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--fg-muted)' },
     '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--accent)' },

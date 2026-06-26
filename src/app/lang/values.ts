@@ -13,7 +13,7 @@ import type {
   HeapEntry,
   MapEntry,
 } from '../models/data-structure.model';
-import type { DataSnapshot, GraphInput, VertexRef } from './trace';
+import type { DataSnapshot, EdgeSnapshot, GraphSnapshot, VertexRef } from './trace';
 
 /** Cost accumulator — each charged operation adds to it. */
 export type Charge = (units: number) => void;
@@ -24,6 +24,8 @@ export class Vertex implements VertexRef {
     readonly id: string,
     readonly label: string,
     readonly type: string,
+    readonly x: number,
+    readonly y: number,
   ) {}
 }
 
@@ -78,40 +80,36 @@ export function display(value: Value): string | number {
 export class RuntimeError extends Error {}
 
 // ── Graph adapter ─────────────────────────────────────────────
+/** The live graph the program reads and (via create/delete) mutates. */
 export class GraphValue {
   private readonly byId = new Map<string, Vertex>();
-  private readonly adj = new Map<string, { vertex: Vertex; weight: number }[]>();
-  private readonly weights = new Map<string, number>();
+  private readonly edgeList: EdgeSnapshot[] = [];
+  private adj = new Map<string, { vertex: Vertex; weight: number }[]>();
+  private weights = new Map<string, number>();
+  private nextNode = 1;
+  private nextEdge = 1;
+  // Topology snapshot is cached and only rebuilt after a mutation, so steps that
+  // don't touch the graph share one object (cheap, and step-back stays trivial).
+  private dirty = true;
+  private snap: GraphSnapshot = { nodes: [], edges: [] };
 
   constructor(
-    graph: GraphInput,
+    graph: { vertices: VertexRef[]; edges: { src: string; tgt: string; weight: number; directed: boolean }[] },
     private readonly charge: Charge,
   ) {
-    for (const v of graph.vertices) {
-      const vertex = new Vertex(v.id, v.label, v.type);
-      this.byId.set(v.id, vertex);
-      this.adj.set(v.id, []);
-    }
-    for (const e of graph.edges) {
-      this.link(e.src, e.tgt, e.weight);
-      if (!e.directed) this.link(e.tgt, e.src, e.weight);
-    }
+    for (const v of graph.vertices) this.byId.set(v.id, new Vertex(v.id, v.label, v.type, v.x, v.y));
+    for (const e of graph.edges) this.edgeList.push({ id: `e${this.nextEdge++}`, ...e });
+    this.nextNode = maxIdNum([...this.byId.keys()], 'n') + 1;
+    this.reindex();
   }
 
-  private link(srcId: string, tgtId: string, weight: number): void {
-    const tgt = this.byId.get(tgtId);
-    const list = this.adj.get(srcId);
-    if (!tgt || !list) return;
-    list.push({ vertex: tgt, weight });
-    this.weights.set(`${srcId}->${tgtId}`, weight);
-  }
-
+  // ── Reads ───────────────────────────────────────────────────
   nodes(): Vertex[] {
     this.charge(this.byId.size);
     return [...this.byId.values()];
   }
   edges(): Vertex[][] {
-    this.charge(this.weights.size);
+    this.charge(this.edgeList.length);
     return [];
   }
   neighbors(u: Vertex): Vertex[] {
@@ -139,6 +137,94 @@ export class GraphValue {
     this.charge(1);
     return [...this.byId.values()].find((v) => v.type === 'GOAL') ?? null;
   }
+
+  // ── Mutations (createNode / createEdge / delete / clear) ─────
+  createNode(x: number, y: number, name?: string): Vertex {
+    this.charge(1);
+    const num = this.nextNode++;
+    const id = `n${num}`;
+    const v = new Vertex(id, name ?? this.uniqueLabel(`N${num}`), 'NODE', x, y);
+    this.byId.set(id, v);
+    this.adj.set(id, []);
+    this.dirty = true;
+    return v;
+  }
+  deleteNode(u: Vertex): void {
+    this.charge(1);
+    this.byId.delete(u.id);
+    for (let i = this.edgeList.length - 1; i >= 0; i--) {
+      const e = this.edgeList[i];
+      if (e.src === u.id || e.tgt === u.id) this.edgeList.splice(i, 1);
+    }
+    this.reindex();
+  }
+  createEdge(u: Vertex, v: Vertex, weight: number, directed: boolean): void {
+    this.charge(1);
+    this.edgeList.push({ id: `e${this.nextEdge++}`, src: u.id, tgt: v.id, weight, directed });
+    this.reindex();
+  }
+  deleteEdge(u: Vertex, v: Vertex): void {
+    this.charge(1);
+    for (let i = this.edgeList.length - 1; i >= 0; i--) {
+      const e = this.edgeList[i];
+      const hit = (e.src === u.id && e.tgt === v.id) || (!e.directed && e.src === v.id && e.tgt === u.id);
+      if (hit) this.edgeList.splice(i, 1);
+    }
+    this.reindex();
+  }
+  clear(): void {
+    this.charge(1);
+    this.byId.clear();
+    this.edgeList.length = 0;
+    this.reindex();
+  }
+
+  snapshot(): GraphSnapshot {
+    if (this.dirty) {
+      this.snap = {
+        nodes: [...this.byId.values()].map((v) => ({ id: v.id, label: v.label, type: v.type, x: v.x, y: v.y })),
+        edges: this.edgeList.map((e) => ({ ...e })),
+      };
+      this.dirty = false;
+    }
+    return this.snap;
+  }
+
+  // ── Internals ───────────────────────────────────────────────
+  private reindex(): void {
+    this.adj = new Map();
+    this.weights = new Map();
+    for (const id of this.byId.keys()) this.adj.set(id, []);
+    for (const e of this.edgeList) {
+      this.link(e.src, e.tgt, e.weight);
+      if (!e.directed) this.link(e.tgt, e.src, e.weight);
+    }
+    this.dirty = true;
+  }
+  private link(srcId: string, tgtId: string, weight: number): void {
+    const tgt = this.byId.get(tgtId);
+    const list = this.adj.get(srcId);
+    if (!tgt || !list) return;
+    list.push({ vertex: tgt, weight });
+    this.weights.set(`${srcId}->${tgtId}`, weight);
+  }
+  private uniqueLabel(base: string): string {
+    const used = new Set([...this.byId.values()].map((v) => v.label.toLowerCase()));
+    if (!used.has(base.toLowerCase())) return base;
+    let i = 2;
+    while (used.has(`${base}${i}`.toLowerCase())) i++;
+    return `${base}${i}`;
+  }
+}
+
+/** Highest numeric suffix among ids with the given prefix (`n3` → 3, else 0). */
+function maxIdNum(ids: string[], prefix: string): number {
+  let max = 0;
+  for (const id of ids) {
+    const m = new RegExp(`^${prefix}(\\d+)$`).exec(id);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return max;
 }
 
 // ── Data structures ───────────────────────────────────────────
@@ -148,6 +234,8 @@ export abstract class RDataStructure {
     readonly label: string,
     readonly kind: DataStructureKind,
     protected readonly charge: Charge,
+    readonly x: number,
+    readonly y: number,
   ) {}
 
   /** Dispatch a method call from `obj.method(args)`. */
@@ -166,7 +254,7 @@ export abstract class RDataStructure {
   }
 
   protected base(): Omit<DataSnapshot, 'items' | 'entries' | 'heap' | 'matrix'> {
-    return { id: this.id, kind: this.kind, label: this.label };
+    return { id: this.id, kind: this.kind, label: this.label, x: this.x, y: this.y };
   }
 }
 
@@ -336,8 +424,8 @@ export class RPQueue extends RDataStructure {
 }
 
 export class RMatrix extends RDataStructure {
-  constructor(id: string, label: string, charge: Charge, private grid: number[][]) {
-    super(id, label, 'MATRIX', charge);
+  constructor(id: string, label: string, charge: Charge, x: number, y: number, private grid: number[][]) {
+    super(id, label, 'MATRIX', charge, x, y);
   }
   call(method: string, args: Value[], line: number): Value {
     switch (method) {
@@ -370,19 +458,35 @@ export class RMatrix extends RDataStructure {
 
 /** Build a fresh, empty runtime structure for a canvas data node. */
 export function makeRuntimeDS(node: DataNode, charge: Charge): RDataStructure {
-  switch (node.kind) {
+  const { x, y } = node.position;
+  const rows = node.matrix.length || 1;
+  const cols = node.matrix[0]?.length || 1;
+  return makeRuntimeDSByKind(node.kind, node.id, node.label, x, y, charge, rows, cols);
+}
+
+/** Build a fresh, empty runtime structure from scratch — used by the `create*` builtins. */
+export function makeRuntimeDSByKind(
+  kind: DataStructureKind,
+  id: string,
+  label: string,
+  x: number,
+  y: number,
+  charge: Charge,
+  rows = 1,
+  cols = 1,
+): RDataStructure {
+  switch (kind) {
     case 'SET':
-      return new RSet(node.id, node.label, 'SET', charge);
+      return new RSet(id, label, 'SET', charge, x, y);
     case 'MAP':
-      return new RMap(node.id, node.label, 'MAP', charge);
+      return new RMap(id, label, 'MAP', charge, x, y);
     case 'PQUEUE':
-      return new RPQueue(node.id, node.label, 'PQUEUE', charge);
+      return new RPQueue(id, label, 'PQUEUE', charge, x, y);
     case 'MATRIX':
-      // Matrices are input data — kept (zeroed to the same shape) rather than emptied.
-      return new RMatrix(node.id, node.label, charge, node.matrix.map((r) => r.map(() => 0)));
+      return new RMatrix(id, label, charge, x, y, Array.from({ length: rows }, () => Array.from({ length: cols }, () => 0)));
     case 'LIST':
     case 'STACK':
     case 'QUEUE':
-      return new RList(node.id, node.label, node.kind, charge);
+      return new RList(id, label, kind, charge, x, y);
   }
 }

@@ -32,7 +32,7 @@ while not pq.isEmpty() do
   u ← pq.popMin()
   if u in visited then continue end
   visited.add(u)
-  visit(u)
+  mark(u, "success")
   scrollTo(u)
   setLabel(u, dist[u])
 
@@ -49,7 +49,7 @@ export function relax(u, v) do
   if alt < dist[v] then
     dist[v] ← alt
     pq.push(v, alt)
-    markEdge(u, v)
+    mark(u, v)
     setLabel(v, alt)
   end
 end

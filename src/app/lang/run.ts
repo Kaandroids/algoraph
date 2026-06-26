@@ -17,6 +17,7 @@ function failed(compiled: CompileResult, message: string): RunResult {
     diagnostics: compiled.diagnostics,
     error: message,
     bigO: { time: 'O(?)', space: 'O(?)' },
+    savedCanvas: null,
   };
 }
 

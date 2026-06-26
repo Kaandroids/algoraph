@@ -150,7 +150,7 @@ const GRAPH_WORKS_WITH: ApiMember[] = [
   { sig: 'weight(vertex u, vertex v)', desc: 'Weight of the edge u → v.', returns: 'number', cost: 'O(1)' },
   { sig: 'hasEdge(vertex u, vertex v)', desc: 'Whether an edge u → v exists.', returns: 'bool', cost: 'O(1)' },
   { sig: 'degree(vertex u)', desc: 'Number of edges incident to u.', returns: 'int', cost: 'O(1)' },
-  { sig: 'visit(vertex u)', desc: 'Mark u visited — highlights it on the canvas.', returns: 'void' },
+  { sig: 'mark(vertex u, string type?)', desc: 'Highlight u — type "danger" / "warn" / "success" / "info" recolours it (default accent).', returns: 'void' },
 ];
 
 export const GRAPH_NODE_API: Record<string, ApiGroup[]> = {
@@ -208,12 +208,32 @@ export const GLOBAL_REFERENCE: {
     {
       title: 'Visualization',
       members: [
-        { sig: 'visit(vertex u)', desc: 'Mark u visited (highlight).', returns: 'void' },
-        { sig: 'mark(vertex u) / unmark(vertex u)', desc: 'Toggle a highlight on a vertex — or an edge with mark(u, v).', returns: 'void' },
-        { sig: 'markEdge(vertex u, vertex v)', desc: 'Highlight the edge u → v — for paths and trees.', returns: 'void' },
+        { sig: 'mark(vertex u, string type?)', desc: 'Highlight a vertex. type "danger" / "warn" / "success" / "info" recolours it (default accent).', returns: 'void' },
+        { sig: 'mark(vertex u, vertex v, string type?)', desc: 'Highlight the edge u → v — same type options (danger / warn / success / info).', returns: 'void' },
+        { sig: 'unmark(vertex u) / unmark(vertex u, vertex v)', desc: 'Remove a vertex or edge highlight.', returns: 'void' },
         { sig: 'setLabel(vertex u, string text)', desc: 'Show a value on u, e.g. its distance.', returns: 'void' },
         { sig: 'scrollTo(vertex u)', desc: 'Pan to centre a vertex — or an edge with scrollTo(u, v).', returns: 'void' },
-        { sig: 'clearMarks()', desc: 'Clear every highlight and label — wipe the canvas to its base state.', returns: 'void' },
+        { sig: 'clearMarks()', desc: 'Clear every highlight and label.', returns: 'void' },
+      ],
+    },
+    {
+      title: 'Canvas editing',
+      members: [
+        { sig: 'createNode(number x, number y, string name?)', desc: 'Add a vertex at (x, y); auto-named N1, N2… when no name is given.', returns: 'vertex' },
+        { sig: 'deleteNode(vertex u)', desc: 'Remove a vertex and every edge touching it.', returns: 'void' },
+        { sig: 'createEdge(vertex u, vertex v, number weight?, bool directed?)', desc: 'Connect u → v (weight 1, directed by default).', returns: 'void' },
+        { sig: 'deleteEdge(vertex u, vertex v)', desc: 'Remove the edge u → v.', returns: 'void' },
+        { sig: 'createList(number x, number y, string name?)', desc: 'Drop a List on the canvas; returns the live structure.', returns: 'List' },
+        { sig: 'createStack(number x, number y, string name?)', desc: 'Drop a Stack.', returns: 'Stack' },
+        { sig: 'createQueue(number x, number y, string name?)', desc: 'Drop a Queue.', returns: 'Queue' },
+        { sig: 'createSet(number x, number y, string name?)', desc: 'Drop a Set.', returns: 'Set' },
+        { sig: 'createMap(number x, number y, string name?)', desc: 'Drop a Map.', returns: 'Map' },
+        { sig: 'createPQueue(number x, number y, string name?)', desc: 'Drop a priority queue.', returns: 'PQueue' },
+        { sig: 'createMatrix(number x, number y, int rows, int cols, string name?)', desc: 'Drop an R×C matrix of zeros.', returns: 'Matrix' },
+        { sig: 'deleteDS(structure d)', desc: 'Remove a data structure from the canvas.', returns: 'void' },
+        { sig: 'clearGraph()', desc: 'Remove all vertices and edges (data structures stay).', returns: 'void' },
+        { sig: 'clearCanvas()', desc: 'Remove everything — vertices, edges and data structures.', returns: 'void' },
+        { sig: 'saveCanvas()', desc: 'Persist the current canvas so the changes survive after the run.', returns: 'void' },
       ],
     },
     {
@@ -246,4 +266,23 @@ export function memberName(sig: string): string | null {
   const prop = /^([A-Za-z_]\w*)$/.exec(sig);
   if (prop) return prop[1];
   return null;
+}
+
+/**
+ * The text autocomplete inserts for a member. A call form fills the parameter
+ * names in as a template (`push(x)`, `createNode(x, y, name)`); a property
+ * inserts just its name. Returns null for non-member signatures.
+ */
+export function signatureApply(sig: string): string | null {
+  const name = memberName(sig);
+  if (!name) return null;
+  const paren = /\(([^)]*)\)/.exec(sig);
+  if (!paren) return name; // a property — insert just the name
+  const params = paren[1].trim();
+  if (!params) return `${name}()`;
+  const names = params.split(',').map((p) => {
+    const words = p.trim().replace(/\?$/, '').match(/[A-Za-z_]\w*/g);
+    return words ? words[words.length - 1] : p.trim();
+  });
+  return `${name}(${names.join(', ')})`;
 }

@@ -25,6 +25,10 @@ import {
 import { IconComponent } from './shared/icon.component';
 import { CodeEditorComponent } from './editor/code-editor.component';
 import { type EditorGlobal } from './editor/dsl';
+import { type EditorDiagnostic } from './editor/diagnostics';
+
+/** One autocomplete member entry (a namespace/data-structure method or property). */
+type EditorMember = NonNullable<EditorGlobal['members']>[number];
 import { type LineNote } from './editor/line-notes';
 import {
   ApiGroup,
@@ -32,11 +36,13 @@ import {
   GRAPH_NODE_API,
   GLOBAL_REFERENCE,
   memberName,
+  signatureApply,
 } from './node-api';
 import { type AlgoFile } from './models/algo-file.model';
 import { type ExportRef } from './models/exports';
 import { compile } from './lang/compile';
 import { estimateComplexity } from './lang/complexity';
+import { collectLocalStructures, type LocalStructure } from './lang/locals';
 import { SYNTAX_GUIDE } from './models/syntax-guide';
 import { FilesStore } from './stores/files.store';
 import { CanvasStore } from './stores/canvas.store';
@@ -237,13 +243,19 @@ export class App {
   protected readonly activeFile = this.fileStore.active;
   protected readonly activeLineCount = this.fileStore.activeLineCount;
   protected readonly activeFileNotes = this.fileStore.activeNotes;
-  protected readonly mainFile = this.fileStore.main;
 
   /** Parsed + resolved program — shared by the export list and the complexity estimate. */
   private readonly compiled = computed(() => compile(this.files()));
 
   /** Exported helpers across all files — listed in the overview and offered in autocomplete. */
   protected readonly editorExports = computed<ExportRef[]>(() => this.compiled().exports);
+
+  /** Compiler diagnostics for the active file — underlined in the editor. */
+  protected readonly editorDiagnostics = computed<EditorDiagnostic[]>(() =>
+    this.compiled()
+      .diagnostics.filter((d) => d.fileId === this.activeFileId())
+      .map((d) => ({ line: d.line, severity: d.severity, message: d.message })),
+  );
 
   /** Estimated Big-O of the entry algorithm, shown in the overview's Complexity card. */
   protected readonly complexity = computed(() => {
@@ -256,6 +268,16 @@ export class App {
     );
   });
 
+  /**
+   * Data structures the active file's run creates (static reachability scan) —
+   * shown in the overview's "Local" section and offered in autocomplete.
+   */
+  protected readonly localStructures = computed<LocalStructure[]>(() => {
+    const compiled = this.compiled();
+    const module = compiled.modules.find((m) => m.fileId === this.activeFileId());
+    return module ? collectLocalStructures(module, compiled.functions) : [];
+  });
+
   /** Names in scope for the editor's autocomplete — the graph, the canvas, and data structures. */
   protected readonly editorGlobals = computed<EditorGlobal[]>(() => {
     const structures = this.dataNodes().map((d) => ({
@@ -263,10 +285,20 @@ export class App {
       type: DATA_STRUCTURES[d.kind].tag,
       members: this.dataMembers(d.kind),
     }));
+    // Code-created structures, minus any whose name a placed structure already covers.
+    const placed = new Set(this.dataNodes().map((d) => d.label));
+    const locals = this.localStructures()
+      .filter((ls) => !placed.has(ls.name))
+      .map((ls) => ({ name: ls.name, type: DATA_STRUCTURES[ls.kind].tag, members: this.dataMembers(ls.kind) }));
     return [
       { name: 'graph', type: 'Graph', members: this.apiGroupMembers('Graph access') },
-      { name: 'canvas', type: 'Canvas', members: this.apiGroupMembers('Visualization') },
+      {
+        name: 'canvas',
+        type: 'Canvas',
+        members: [...this.apiGroupMembers('Visualization'), ...this.apiGroupMembers('Canvas editing')],
+      },
       ...structures,
+      ...locals,
     ];
   });
 
@@ -302,12 +334,15 @@ export class App {
     {
       key: 'canvas',
       label: 'Canvas',
-      sub: 'Highlight & visualise',
+      sub: 'Highlight, build & edit',
       icon: 'maximize',
       color: 'oklch(0.6 0.17 290)',
       description:
-        'The drawing surface — highlight vertices and edges to show what the algorithm is doing.',
-      groups: GLOBAL_REFERENCE.groups.filter((g) => g.title === 'Visualization'),
+        'The drawing surface — highlight vertices and edges, and create or delete graph parts and ' +
+        'data structures from code (saveCanvas to keep the changes).',
+      groups: GLOBAL_REFERENCE.groups.filter(
+        (g) => g.title === 'Visualization' || g.title === 'Canvas editing',
+      ),
     },
   ];
 
@@ -315,16 +350,6 @@ export class App {
   protected readonly nodes = this.canvas.nodes;
   protected readonly edges = this.canvas.edges;
   protected readonly dataNodes = this.canvas.dataNodes;
-
-  /** Run-canvas data structures: each node keeps its canvas position but shows the
-   *  live runtime contents (the same snapshot the Data panel uses), not builder data. */
-  protected readonly runDataNodes = computed<DataNode[]>(() => {
-    const live = new Map(this.run.dataState().map((d) => [d.id, d]));
-    return this.dataNodes().map((n) => {
-      const s = live.get(n.id);
-      return s ? { ...n, items: s.items, entries: s.entries, heap: s.heap, matrix: s.matrix } : n;
-    });
-  });
 
   protected readonly zoomLevel = signal(100);
   protected readonly panning = signal(false);
@@ -366,6 +391,10 @@ export class App {
     if (!id) return '';
     const name = this.nameDraft().trim();
     if (!name) return 'Name is required';
+    // Data structures are referenced by name in code, so they must be valid identifiers.
+    if (this.editNodeKind() === 'data' && !/^[A-Za-z_]\w*$/.test(name)) {
+      return 'Use letters, digits, _ — no spaces or symbols';
+    }
     if (this.canvas.usedNames(id).has(name.toLowerCase())) return 'Name already in use';
     return '';
   });
@@ -410,12 +439,6 @@ export class App {
   inputId(node: GNode): string {
     return `${node.id}-in`;
   }
-  /** Whether the algorithm has highlighted this edge at the current Run step. */
-  edgeMarked(edge: GEdge): boolean {
-    const src = edge.outputId.replace(/-out$/, '');
-    const tgt = edge.inputId.replace(/-in$/, '');
-    return this.run.markedSet().has(`${src}->${tgt}`);
-  }
   /** Template hooks for the per-kind vertex appearance (defined in the model). */
   protected readonly nodeIcon = nodeIcon;
   protected readonly nodeColor = nodeColor;
@@ -432,8 +455,8 @@ export class App {
     return DATA_STRUCTURES[kind].tag;
   }
   /** Autocomplete entries for a data structure's methods (from the API catalog). */
-  private dataMembers(kind: DataStructureKind): { label: string; detail?: string; info?: string }[] {
-    const out: { label: string; detail?: string; info?: string }[] = [];
+  private dataMembers(kind: DataStructureKind): EditorMember[] {
+    const out: EditorMember[] = [];
     const seen = new Set<string>();
     for (const group of DATA_STRUCTURE_API[kind]) {
       for (const m of group.members) {
@@ -444,6 +467,7 @@ export class App {
           label,
           detail: m.returns ? `: ${m.returns}` : undefined,
           info: m.cost ? `${m.desc} · ${m.cost}` : m.desc,
+          apply: signatureApply(m.sig) ?? undefined,
         });
       }
     }
@@ -451,8 +475,8 @@ export class App {
   }
 
   /** Autocomplete members for a global namespace (`graph.` / `canvas.`), from its API group. */
-  private apiGroupMembers(title: string): { label: string; detail?: string; info?: string }[] {
-    const out: { label: string; detail?: string; info?: string }[] = [];
+  private apiGroupMembers(title: string): EditorMember[] {
+    const out: EditorMember[] = [];
     const seen = new Set<string>();
     for (const m of GLOBAL_REFERENCE.groups.find((g) => g.title === title)?.members ?? []) {
       const label = memberName(m.sig);
@@ -462,6 +486,7 @@ export class App {
         label,
         detail: m.returns ? `: ${m.returns}` : undefined,
         info: m.cost ? `${m.desc} · ${m.cost}` : m.desc,
+        apply: signatureApply(m.sig) ?? undefined,
       });
     }
     return out;

@@ -12,11 +12,11 @@ const files = [
 // A → B(4), A → C(2), C → B(1), B → D(5), C → D(8), D → E(3).
 const graph = {
   vertices: [
-    { id: 'A', label: 'A', type: 'START' },
-    { id: 'B', label: 'B', type: 'NODE' },
-    { id: 'C', label: 'C', type: 'NODE' },
-    { id: 'D', label: 'D', type: 'NODE' },
-    { id: 'E', label: 'E', type: 'GOAL' },
+    { id: 'A', label: 'A', type: 'START', x: 0, y: 0 },
+    { id: 'B', label: 'B', type: 'NODE', x: 100, y: 0 },
+    { id: 'C', label: 'C', type: 'NODE', x: 200, y: 0 },
+    { id: 'D', label: 'D', type: 'NODE', x: 300, y: 0 },
+    { id: 'E', label: 'E', type: 'GOAL', x: 400, y: 0 },
   ],
   edges: [
     { src: 'A', tgt: 'B', weight: 4, directed: true },
@@ -36,6 +36,15 @@ const data = [
 
 function run() {
   return compileAndRun(files, { entryId: 'main', graph, data });
+}
+
+/** Run a one-file program against the fixture graph (optionally with data structures). */
+function runSrc(src: string, dataNodes: typeof data = []) {
+  return compileAndRun([{ id: 'main', name: 'main.algo', content: src }], {
+    entryId: 'main',
+    graph,
+    data: dataNodes,
+  });
 }
 
 function snapshotOf(steps: { data: DataSnapshot[] }, label: string): DataSnapshot {
@@ -80,14 +89,14 @@ describe('interpreter (Dijkstra seed)', () => {
   });
 
   it('supports graph.* and canvas.* namespaced builtins', () => {
-    const src = 'for each u in graph.nodes() do\n  canvas.visit(u)\nend\n';
+    const src = 'for each u in graph.nodes() do\n  canvas.mark(u)\nend\n';
     const result = compileAndRun([{ id: 'main', name: 'main.algo', content: src }], {
       entryId: 'main',
       graph,
       data: [],
     });
     expect(result.error).toBeNull();
-    expect(result.steps.at(-1)!.effects.visited.sort()).toEqual(['A', 'B', 'C', 'D', 'E']);
+    expect(Object.keys(result.steps.at(-1)!.effects.marks).sort()).toEqual(['A', 'B', 'C', 'D', 'E']);
   });
 
   it('reads zero-argument graph accessors as bare properties (no parens)', () => {
@@ -109,7 +118,7 @@ describe('interpreter (Dijkstra seed)', () => {
   });
 
   it('exposes the active loop frame — items and a walking index', () => {
-    const src = 'for each u in graph.nodes() do\n  visit(u)\nend\n';
+    const src = 'for each u in graph.nodes() do\n  mark(u)\nend\n';
     const result = compileAndRun([{ id: 'main', name: 'main.algo', content: src }], {
       entryId: 'main',
       graph,
@@ -133,7 +142,7 @@ describe('interpreter (Dijkstra seed)', () => {
       'bag.push(source())\n' +
       'bag.push(goal())\n' +
       'for each x in bag do\n' +
-      '  visit(x)\n' +
+      '  mark(x)\n' +
       'end\n';
     const result = compileAndRun([{ id: 'main', name: 'main.algo', content: src }], {
       entryId: 'main',
@@ -160,13 +169,13 @@ describe('interpreter (Dijkstra seed)', () => {
     });
     expect(result.error).toBeNull();
     // A → B and A → C are the Start vertex's out-edges.
-    expect([...result.steps.at(-1)!.effects.markedEdges].sort()).toEqual(['A->B', 'A->C']);
+    expect(Object.keys(result.steps.at(-1)!.effects.markedEdges).sort()).toEqual(['A->B', 'A->C']);
     const edgePans = result.steps.map((s) => s.effects.scrollTo).filter((t) => t?.kind === 'edge');
     expect(edgePans).toContainEqual({ kind: 'edge', from: 'A', to: 'B' });
   });
 
   it('auto-highlights the current loop vertex as an iteration cursor', () => {
-    const src = 'for each u in graph.nodes() do\n  visit(u)\nend\n';
+    const src = 'for each u in graph.nodes() do\n  mark(u)\nend\n';
     const result = compileAndRun([{ id: 'main', name: 'main.algo', content: src }], {
       entryId: 'main',
       graph,
@@ -185,7 +194,7 @@ describe('interpreter (Dijkstra seed)', () => {
     const src =
       'for each u in graph.nodes() do\n' +
       '  for each v in neighbors(u) do\n' +
-      '    markEdge(u, v)\n' +
+      '    mark(u, v)\n' +
       '  end\n' +
       'end\n';
     const result = compileAndRun([{ id: 'main', name: 'main.algo', content: src }], {
@@ -203,7 +212,7 @@ describe('interpreter (Dijkstra seed)', () => {
   it('clearMarks() wipes every highlight and label', () => {
     const src =
       'a ← source()\n' +
-      'visit(a)\n' +
+      'mark(a)\n' +
       'mark(a)\n' +
       'setLabel(a, "x")\n' +
       'for each b in neighbors(a) do\n' +
@@ -217,10 +226,68 @@ describe('interpreter (Dijkstra seed)', () => {
     });
     expect(result.error).toBeNull();
     const last = result.steps.at(-1)!;
-    expect(last.effects.visited).toEqual([]);
-    expect(last.effects.active).toEqual([]);
-    expect(last.effects.markedEdges).toEqual([]);
+    expect(last.effects.marks).toEqual({});
+    expect(last.effects.markedEdges).toEqual({});
     expect(last.effects.labels).toEqual({});
+  });
+
+  it('createNode adds vertices (auto-named) and createEdge connects them', () => {
+    const result = runSrc(
+      'clearGraph()\n' +
+        'a ← createNode(100, 200, "X")\n' +
+        'b ← createNode(300, 200)\n' +
+        'createEdge(a, b, 5)\n',
+    );
+    expect(result.error).toBeNull();
+    const last = result.steps.at(-1)!;
+    expect(last.graph.nodes.map((n) => n.label)).toEqual(['X', 'N2']); // 2nd is auto-named
+    expect(last.graph.nodes.find((n) => n.label === 'X')).toMatchObject({ x: 100, y: 200 });
+    expect(last.graph.edges).toHaveLength(1);
+    expect(last.graph.edges[0]).toMatchObject({ weight: 5, directed: true });
+  });
+
+  it('deleteNode removes the vertex and its incident edges', () => {
+    const result = runSrc(
+      'clearGraph()\n' +
+        'a ← createNode(0, 0, "A")\n' +
+        'b ← createNode(0, 0, "B")\n' +
+        'createEdge(a, b)\n' +
+        'deleteNode(a)\n',
+    );
+    expect(result.error).toBeNull();
+    const last = result.steps.at(-1)!;
+    expect(last.graph.nodes.map((n) => n.label)).toEqual(['B']);
+    expect(last.graph.edges).toHaveLength(0);
+  });
+
+  it('createSet/deleteDS and clearCanvas manage data structures', () => {
+    const created = runSrc('clearCanvas()\ns ← createSet(50, 60, "seen")\ns.add(1)\ns.add(2)\n');
+    expect(created.error).toBeNull();
+    const last = created.steps.at(-1)!;
+    expect(last.graph.nodes).toEqual([]); // clearCanvas wiped the graph too
+    expect(last.data).toHaveLength(1);
+    expect(last.data[0]).toMatchObject({ kind: 'SET', label: 'seen', x: 50, y: 60 });
+    expect([...last.data[0].items].sort()).toEqual([1, 2]);
+
+    const removed = runSrc('s ← createSet(0, 0, "tmp")\ndeleteDS(s)\n');
+    expect(removed.steps.at(-1)!.data).toEqual([]);
+  });
+
+  it('persists only when saveCanvas() is called', () => {
+    expect(runSrc('createNode(0, 0)\n').savedCanvas).toBeNull();
+    const saved = runSrc('clearGraph()\ncreateNode(10, 20, "P")\nsaveCanvas()\n').savedCanvas;
+    expect(saved).not.toBeNull();
+    expect(saved!.nodes.map((n) => n.label)).toEqual(['P']);
+  });
+
+  it('mark takes an optional type that recolours vertices and edges', () => {
+    const result = runSrc('a ← source()\nb ← goal()\nmark(a, "danger")\nmark(a, b, "success")\n');
+    expect(result.error).toBeNull();
+    const eff = result.steps.at(-1)!.effects;
+    expect(eff.marks['A']).toBe('danger');
+    expect(eff.markedEdges['A->E']).toBe('success'); // source = A, goal = E
+    // A plain mark carries the empty (default) type.
+    expect(runSrc('mark(source())\n').steps.at(-1)!.effects.marks['A']).toBe('');
   });
 
   it('refuses to run a program with errors', () => {
