@@ -37,6 +37,7 @@ import { type AlgoFile } from './models/algo-file.model';
 import { type ExportRef } from './models/exports';
 import { compile } from './lang/compile';
 import { estimateComplexity } from './lang/complexity';
+import { SYNTAX_GUIDE } from './models/syntax-guide';
 import { FilesStore } from './stores/files.store';
 import { CanvasStore } from './stores/canvas.store';
 import { RunStore } from './stores/run.store';
@@ -161,14 +162,18 @@ export class App {
     );
   });
 
-  /** Names in scope for the editor's autocomplete — the graph + canvas data structures. */
+  /** Names in scope for the editor's autocomplete — the graph, the canvas, and data structures. */
   protected readonly editorGlobals = computed<EditorGlobal[]>(() => {
     const structures = this.dataNodes().map((d) => ({
       name: d.label,
       type: DATA_STRUCTURES[d.kind].tag,
       members: this.dataMembers(d.kind),
     }));
-    return [{ name: 'graph', type: 'Graph' }, ...structures];
+    return [
+      { name: 'graph', type: 'Graph', members: this.apiGroupMembers('Graph access') },
+      { name: 'canvas', type: 'Canvas', members: this.apiGroupMembers('Visualization') },
+      ...structures,
+    ];
   });
 
   // ── Node palette (tool library rail) ──────────────────────
@@ -266,6 +271,10 @@ export class App {
   // Info modal — graph node / data-structure reference (description, methods next)
   protected readonly infoCard = signal<NodeInfo | null>(null);
 
+  // Syntax-guide modal — DSL reference with worked examples, opened from the library rail.
+  protected readonly syntaxGuide = SYNTAX_GUIDE;
+  protected readonly syntaxOpen = signal(false);
+
   private currentCanvasPos = { x: 0, y: 0 };
   private ctxCanvasPos = { x: 0, y: 0 };
   private panStart = { x: 0, y: 0 };
@@ -335,6 +344,23 @@ export class App {
           info: m.cost ? `${m.desc} · ${m.cost}` : m.desc,
         });
       }
+    }
+    return out;
+  }
+
+  /** Autocomplete members for a global namespace (`graph.` / `canvas.`), from its API group. */
+  private apiGroupMembers(title: string): { label: string; detail?: string; info?: string }[] {
+    const out: { label: string; detail?: string; info?: string }[] = [];
+    const seen = new Set<string>();
+    for (const m of GLOBAL_REFERENCE.groups.find((g) => g.title === title)?.members ?? []) {
+      const label = memberName(m.sig);
+      if (!label || seen.has(label)) continue;
+      seen.add(label);
+      out.push({
+        label,
+        detail: m.returns ? `: ${m.returns}` : undefined,
+        info: m.cost ? `${m.desc} · ${m.cost}` : m.desc,
+      });
     }
     return out;
   }
@@ -465,6 +491,16 @@ export class App {
 
   closeNodeInfo(): void {
     this.infoCard.set(null);
+  }
+
+  /** Open / close the pseudocode syntax-guide modal (library rail "?"). */
+  openSyntax(event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.syntaxOpen.set(true);
+  }
+  closeSyntax(): void {
+    this.syntaxOpen.set(false);
   }
 
   /** Rename live; an empty or duplicate draft surfaces an error and leaves the model untouched. */
@@ -706,6 +742,7 @@ export class App {
       this.closeEdgeEditor();
       this.closeNodeEditor();
       this.closeNodeInfo();
+      this.closeSyntax();
       this.tipsOpen.set(false);
       return;
     }

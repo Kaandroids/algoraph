@@ -1369,3 +1369,139 @@
     background: color-mix(in srgb, oklch(0.55 0.2 25) 10%, var(--bg-2));
   }
 }
+
+/* ── Pseudocode syntax-guide modal ────────────────────────── */
+.ag-syntax-modal {
+  --nc: var(--accent);
+  width: min(760px, 100%);
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  animation: ds-modal-pop 0.16s ease-out;
+  overflow: hidden;
+}
+
+.ag-syntax-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px 14px;
+  border-bottom: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.ag-syntax-icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--nc);
+  color: #fff;
+
+  app-icon { width: 18px; height: 18px; }
+}
+
+.ag-syntax-titles {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ag-syntax-eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--nc);
+}
+
+.ag-syntax-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.ag-syntax-body {
+  overflow-y: auto;
+  padding: 4px 18px 18px;
+}
+
+.ag-syntax-section {
+  padding: 15px 0;
+  border-bottom: 0.5px solid var(--border);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.ag-syntax-section-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.ag-syntax-intro {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--fg-muted);
+}
+
+.ag-syntax-items {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 12px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.ag-syntax-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 38%) 1fr;
+  gap: 14px;
+  align-items: baseline;
+}
+
+.ag-syntax-token {
+  justify-self: start;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--field-bg));
+  border: 0.5px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+
+.ag-syntax-desc {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+
+.ag-syntax-example {
+  margin: 4px 0 0;
+  padding: 12px 14px;
+  background: var(--bg-2);
+  border: 0.5px solid var(--border);
+  border-radius: 9px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--fg);
+  white-space: pre;
+  overflow-x: auto;
+}

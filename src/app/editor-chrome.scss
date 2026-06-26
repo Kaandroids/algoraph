@@ -165,6 +165,8 @@
   flex-direction: column;
   line-height: 1.18;
   min-width: 0;
+  /* Grow so the help "?" and the toggle group together at the right edge. */
+  flex: 1;
 }
 
 .ae-toolrail-eyebrow {

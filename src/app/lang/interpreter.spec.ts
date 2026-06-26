@@ -79,6 +79,17 @@ describe('interpreter (Dijkstra seed)', () => {
     }
   });
 
+  it('supports graph.* and canvas.* namespaced builtins', () => {
+    const src = 'for each u in graph.nodes() do\n  canvas.visit(u)\nend\n';
+    const result = compileAndRun([{ id: 'main', name: 'main.algo', content: src }], {
+      entryId: 'main',
+      graph,
+      data: [],
+    });
+    expect(result.error).toBeNull();
+    expect(result.steps.at(-1)!.effects.visited.sort()).toEqual(['A', 'B', 'C', 'D', 'E']);
+  });
+
   it('refuses to run a program with errors', () => {
     const broken = compileAndRun([{ id: 'main', name: 'main.algo', content: 'nope()\n' }], {
       entryId: 'main',

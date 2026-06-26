@@ -35,6 +35,12 @@
         <span class="ae-toolrail-eyebrow">Library</span>
         <span class="ae-toolrail-title">Nodes</span>
       </div>
+      @if (activeView() === 'algorithm' && !railCollapsed()) {
+        <button class="ae-toolrail-help" type="button" (click)="openSyntax($event)"
+          aria-label="Pseudocode syntax guide">
+          <app-icon name="help" />
+        </button>
+      }
       <button class="ae-toolrail-toggle" (click)="toggleRail()" aria-label="Toggle library">
         <app-icon name="chevronRight" />
       </button>
@@ -584,6 +590,12 @@
               [title]="nodes().length + ' vertices · ' + edges().length + ' edges'">{{ nodes().length }}V · {{ edges().length }}E</span>
             <span class="ag-insp-tag">Graph</span>
           </div>
+          <div class="ag-insp-row" style="--nc: var(--tone-violet)">
+            <span class="ag-insp-dot"></span>
+            <span class="ag-insp-name">canvas</span>
+            <span class="ag-insp-size"></span>
+            <span class="ag-insp-tag">Canvas</span>
+          </div>
           @for (dn of dataNodes(); track dn.id) {
             <div class="ag-insp-row" [style.--nc]="dataColor(dn.kind)">
               <span class="ag-insp-dot"></span>
@@ -829,6 +841,47 @@
       <div class="ds-modal-body">
         <p class="ds-modal-desc">{{ info.description }}</p>
         <ng-container [ngTemplateOutlet]="apiGroups" [ngTemplateOutletContext]="{ $implicit: info.groups }" />
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Pseudocode syntax guide (opened from the library rail "?") ── -->
+@if (syntaxOpen()) {
+  <div class="ds-modal-backdrop" (click)="closeSyntax()">
+    <div class="ag-syntax-modal" (click)="$event.stopPropagation()">
+      <div class="ag-syntax-head">
+        <span class="ag-syntax-icon"><app-icon name="code" /></span>
+        <div class="ag-syntax-titles">
+          <span class="ag-syntax-eyebrow">Pseudocode</span>
+          <span class="ag-syntax-title">Syntax guide</span>
+        </div>
+        <button class="ds-modal-close" type="button" (click)="closeSyntax()" aria-label="Close">
+          <app-icon name="x" />
+        </button>
+      </div>
+      <div class="ag-syntax-body">
+        @for (sec of syntaxGuide; track sec.title) {
+          <section class="ag-syntax-section">
+            <h3 class="ag-syntax-section-title">{{ sec.title }}</h3>
+            @if (sec.intro) {
+              <p class="ag-syntax-intro">{{ sec.intro }}</p>
+            }
+            @if (sec.items?.length) {
+              <div class="ag-syntax-items">
+                @for (it of sec.items; track it.syntax) {
+                  <div class="ag-syntax-row">
+                    <code class="ag-syntax-token">{{ it.syntax }}</code>
+                    <span class="ag-syntax-desc">{{ it.desc }}</span>
+                  </div>
+                }
+              </div>
+            }
+            @if (sec.example) {
+              <pre class="ag-syntax-example">{{ sec.example }}</pre>
+            }
+          </section>
+        }
       </div>
     </div>
   </div>

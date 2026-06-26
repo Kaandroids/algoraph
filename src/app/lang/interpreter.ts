@@ -13,6 +13,7 @@ import { emptyEffects } from './trace';
 import type { DataNode } from '../models/data-structure.model';
 import {
   GraphValue,
+  Namespace,
   RDataStructure,
   RList,
   RMap,
@@ -303,6 +304,8 @@ export class Interpreter {
     if (expr.callee.kind === 'member') {
       const obj = this.evalExpr(expr.callee.object);
       if (obj instanceof RDataStructure) return obj.call(expr.callee.name, args, expr.line);
+      // `graph.nodes()` / `canvas.visit(u)` — namespaced forms of the global builtins.
+      if (obj instanceof Namespace) return this.callBuiltin(expr.callee.name, args, expr.line);
       throw new RuntimeError(`'${expr.callee.name}' is not a method of ${display(obj)} (line ${expr.line})`);
     }
     throw new RuntimeError(`Expression is not callable (line ${expr.line})`);
@@ -356,6 +359,7 @@ export class Interpreter {
     if (this.scope.has(name)) return this.scope.get(name) as Value;
     const ds = this.dsByLabel.get(name);
     if (ds) return ds;
+    if (name === 'graph' || name === 'canvas') return new Namespace(name);
     throw new RuntimeError(`'${name}' is not defined (line ${line})`);
   }
 

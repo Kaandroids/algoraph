@@ -35,6 +35,11 @@ export class RangeValue {
   ) {}
 }
 
+/** A global namespace (`graph` / `canvas`) whose methods dispatch to the builtins. */
+export class Namespace {
+  constructor(readonly name: string) {}
+}
+
 export type Value =
   | number
   | string
@@ -43,6 +48,7 @@ export type Value =
   | Vertex
   | RangeValue
   | RDataStructure
+  | Namespace
   | Value[];
 
 const log2 = (n: number): number => (n <= 1 ? 1 : Math.ceil(Math.log2(n)));
