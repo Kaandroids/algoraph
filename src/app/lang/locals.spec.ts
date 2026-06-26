@@ -69,15 +69,4 @@ describe('local structure scan', () => {
       'q:QUEUE',
     ]);
   });
-
-  it('marks panel.* as global; scratch.* and create* stay file-local', () => {
-    const compiled = compile([
-      { id: 'main', name: 'main.algo', content: 'panel.map("P")\nscratch.set("S")\ncreateList(0, 0, "L")\n' },
-    ]);
-    const module = compiled.modules.find((m) => m.fileId === 'main')!;
-    const byName = Object.fromEntries(
-      collectLocalStructures(module, compiled.functions).map((l) => [l.name, l.global]),
-    );
-    expect(byName).toEqual({ P: true, S: false, L: false });
-  });
 });
