@@ -43,10 +43,12 @@
   border-radius: 6px;
 }
 
-/* ── List / Array — cells with index labels ───────────────── */
+/* ── List / Array — cells with index labels; wraps to a new row ───────── */
 .ds-array {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+  max-width: 256px;
 }
 
 .ds-array-cell {

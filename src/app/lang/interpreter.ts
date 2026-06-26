@@ -8,7 +8,7 @@
  * the Run workspace's "main goes line by line, helpers are one step" model.
  */
 import type { Expr, FunctionDecl, Module, Stmt } from './ast';
-import type { CanvasEffects, DataSnapshot, LoopFrame, RunResult, SavedCanvas, ScrollTarget, StepSnapshot, VertexRef } from './trace';
+import type { CanvasEffects, CanvasMessage, DataSnapshot, LoopFrame, RunResult, SavedCanvas, ScrollTarget, StepSnapshot, VertexRef } from './trace';
 import { emptyEffects } from './trace';
 import { DATA_STRUCTURES, type DataNode, type DataStructureKind } from '../models/data-structure.model';
 import {
@@ -89,6 +89,7 @@ export class Interpreter {
   private marks = new Map<string, string>(); // vertex id → mark type
   private markedEdges = new Map<string, string>(); // edge key → mark type
   private labels = new Map<string, string>();
+  private message: CanvasMessage | null = null; // snackbar, persists until changed
   private scrollTo: ScrollTarget | null = null;
   // Stack of active `for each` loops, innermost last. Each frame drives the
   // iteration popup and (when its element is a vertex) the canvas cursor + pan,
@@ -171,6 +172,7 @@ export class Interpreter {
     effects.markedEdges = Object.fromEntries(this.markedEdges);
     effects.labels = Object.fromEntries(this.labels);
     effects.cursors = [...new Set(this.loopFrames.map((f) => f.cursorId).filter((id): id is string => id !== null))];
+    effects.message = this.message;
     effects.scrollTo = this.scrollTo;
     return effects;
   }
@@ -428,6 +430,13 @@ export class Interpreter {
         else this.marks.delete(v0().id);
         return null;
       case 'setLabel': this.charge(1); this.labels.set(v0().id, String(display(args[1]))); return null;
+      case 'showMessage': {
+        // A snackbar; empty text clears it. Stays until the next showMessage.
+        this.charge(1);
+        const text = String(display(args[0]));
+        this.message = text ? { text, type: markType(args[1]) } : null;
+        return null;
+      }
       case 'scrollTo':
         this.charge(1);
         this.scrollTo = isEdge

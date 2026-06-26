@@ -202,98 +202,6 @@
   }
 }
 
-/* ── Legend ───────────────────────────────────────────────── */
-.ae-legend {
-  position: absolute;
-  bottom: 56px;
-  left: 14px;
-  z-index: 20;
-  pointer-events: auto;
-  background: var(--bg);
-  border: 0.5px solid var(--border);
-  border-radius: 9px;
-  padding: 10px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  box-shadow: 0 1px 2px rgba(34, 28, 18, 0.05);
-}
-
-.ae-legend-collapsed {
-  padding: 0;
-}
-
-.ae-legend-toggle {
-  appearance: none;
-  border: 0;
-  background: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  padding: 0;
-  color: var(--fg-subtle);
-
-  > * { pointer-events: none; }
-
-  .ae-legend-collapsed & {
-    padding: 8px 12px;
-  }
-
-  app-icon {
-    width: 14px;
-    height: 14px;
-    color: var(--fg-subtle);
-  }
-}
-
-.ae-legend-toggle:hover {
-  color: var(--fg-muted);
-  app-icon { color: var(--fg-muted); }
-}
-
-.ae-legend-title {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.ae-legend-items {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.ae-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  color: var(--fg-muted);
-  white-space: nowrap;
-}
-
-.ae-legend-shape {
-  width: 10px;
-  height: 10px;
-  flex-shrink: 0;
-}
-
-.ae-legend-circle {
-  border-radius: 50%;
-}
-
-.ae-legend-hollow {
-  background: transparent;
-  border: 2px solid var(--fg-muted);
-}
-
-.ae-legend-filled {
-  background: var(--fg-muted);
-  border: 2px solid var(--fg-muted);
-}
-
 /* ── Mini status (bottom-right) ───────────────────────────── */
 .ag-mini-status {
   position: absolute;
@@ -971,6 +879,50 @@
   flex-direction: column;
   background: var(--bg-2);
   overflow: hidden;
+}
+
+/* ── showMessage snackbar — bottom-centre of the stage, recoloured by type. ── */
+.ag-snackbar {
+  --msg: var(--accent);
+  position: absolute;
+  bottom: 88px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  max-width: 72%;
+  padding: 9px 16px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--msg) 13%, var(--bg));
+  border: 0.5px solid color-mix(in srgb, var(--msg) 45%, transparent);
+  color: var(--fg);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 12px 30px -14px rgba(34, 28, 18, 0.35);
+  animation: ag-snackbar-in 220ms ease;
+}
+.ag-snackbar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--msg);
+  flex: none;
+}
+.ag-snackbar[data-type='success'] { --msg: var(--success); }
+.ag-snackbar[data-type='danger'] { --msg: var(--danger); }
+.ag-snackbar[data-type='warn'] { --msg: var(--warning); }
+.ag-snackbar[data-type='info'] { --msg: var(--tone-violet); }
+@keyframes ag-snackbar-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 /* ── Iteration popup — the active for-each loop's order, floated at the right

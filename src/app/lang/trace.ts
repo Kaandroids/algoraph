@@ -59,6 +59,13 @@ export type ScrollTarget =
   | { kind: 'node'; id: string }
   | { kind: 'edge'; from: string; to: string };
 
+/** A snackbar the algorithm flashes on screen via `showMessage`. */
+export interface CanvasMessage {
+  text: string;
+  /** `''` default, or `success`/`danger`/`warn`/`info` — colours the snackbar. */
+  type: string;
+}
+
 /** What the algorithm has asked the canvas to show at a given step. */
 export interface CanvasEffects {
   /** Marked vertices → mark type (`''` default, or `success`/`danger`/`warn`/`info`). */
@@ -69,6 +76,8 @@ export interface CanvasEffects {
   labels: Record<string, string>;
   /** Vertices held by an enclosing `for each` right now — the iteration cursor(s). */
   cursors: string[];
+  /** A snackbar message to show, or null — persists until the next showMessage. */
+  message: CanvasMessage | null;
   /** A vertex or edge the canvas should pan to and centre (consumed once). */
   scrollTo: ScrollTarget | null;
 }
@@ -123,5 +132,5 @@ export interface RunResult {
 }
 
 export function emptyEffects(): CanvasEffects {
-  return { marks: {}, markedEdges: {}, labels: {}, cursors: [], scrollTo: null };
+  return { marks: {}, markedEdges: {}, labels: {}, cursors: [], message: null, scrollTo: null };
 }

@@ -63,6 +63,8 @@ export class RunStore {
   readonly edgeMarks = computed(() => this.effects().markedEdges);
   /** Vertices an enclosing `for each` currently holds — the iteration cursor. */
   readonly cursorSet = computed(() => new Set(this.effects().cursors));
+  /** The snackbar message to show at the current step, or null. */
+  readonly message = computed(() => this.effects().message);
 
   /** The mark type on a vertex at the current step (`''` default), or null when unmarked. */
   markOf(id: string): string | null {
@@ -76,6 +78,14 @@ export class RunStore {
   }
   /** The innermost active `for each` loop's progress, for the iteration popup. */
   readonly loop = computed(() => this.currentStep()?.loop ?? null);
+  /** Up to 5 popup rows windowed around the current index (long loops don't grow). */
+  readonly loopRows = computed<{ index: number; item: string }[]>(() => {
+    const lp = this.loop();
+    if (!lp) return [];
+    const window = 5;
+    const start = Math.max(0, Math.min(lp.index - 2, lp.items.length - window));
+    return lp.items.slice(start, start + window).map((item, k) => ({ index: start + k, item }));
+  });
   readonly labels = computed(() => this.effects().labels);
 
   // ── Run-canvas topology — drawn per step, so create/delete are visible ─────

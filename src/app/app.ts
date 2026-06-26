@@ -372,7 +372,6 @@ export class App {
   protected readonly runCodeCollapsed = signal(false);
   protected readonly librarySearch = signal('');
   protected readonly tipsOpen = signal(false);
-  protected readonly legendOpen = signal(true);
   private readonly selectedConnectionIds = signal<string[]>([]);
 
   // Context menus

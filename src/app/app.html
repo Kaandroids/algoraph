@@ -243,26 +243,6 @@
       </button>
     </div>
 
-    <!-- Legend -->
-    <div class="ae-legend f-drag-blocker" [class.ae-legend-collapsed]="!legendOpen()">
-      <button class="ae-legend-toggle" (click)="legendOpen.set(!legendOpen())">
-        <span class="ae-legend-title">Legend</span>
-        <app-icon [name]="legendOpen() ? 'chevronDown' : 'chevronUp'" />
-      </button>
-      @if (legendOpen()) {
-        <div class="ae-legend-items">
-          <div class="ae-legend-item">
-            <span class="ae-legend-shape ae-legend-circle ae-legend-hollow"></span>
-            <span>Input port</span>
-          </div>
-          <div class="ae-legend-item">
-            <span class="ae-legend-shape ae-legend-circle ae-legend-filled"></span>
-            <span>Output port</span>
-          </div>
-        </div>
-      }
-    </div>
-
     <!-- Mini status (bottom-right) -->
     <div class="ag-mini-status f-drag-blocker">
       <span class="grp"><app-icon name="grid" /> {{ nodes().length }} nodes</span>
@@ -758,13 +738,20 @@
             <span class="ag-loop-pop-count">{{ lp.index + 1 }} / {{ lp.items.length }}</span>
           </div>
           <div class="ag-loop-pop-list">
-            @for (item of lp.items; track $index) {
-              <div class="ag-loop-pop-row" [class.is-current]="$index === lp.index">
-                <span class="ag-loop-pop-i">{{ $index }}</span>
-                <span class="ag-loop-pop-v">{{ item }}</span>
+            @for (row of run.loopRows(); track row.index) {
+              <div class="ag-loop-pop-row" [class.is-current]="row.index === lp.index">
+                <span class="ag-loop-pop-i">{{ row.index }}</span>
+                <span class="ag-loop-pop-v">{{ row.item }}</span>
               </div>
             }
           </div>
+        </div>
+      }
+
+      <!-- showMessage snackbar — flashed by the algorithm, recoloured by type. -->
+      @if (run.message(); as msg) {
+        <div class="ag-snackbar" [attr.data-type]="msg.type">
+          <span class="ag-snackbar-dot"></span>{{ msg.text }}
         </div>
       }
 

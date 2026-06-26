@@ -302,6 +302,18 @@ describe('interpreter (Dijkstra seed)', () => {
     expect(runSrc('mark(source())\n').steps.at(-1)!.effects.marks['A']).toBe('');
   });
 
+  it('showMessage flashes a typed snackbar that persists until changed', () => {
+    const result = runSrc('showMessage("processing", "warn")\nmark(source())\nshowMessage("done", "success")\n');
+    expect(result.error).toBeNull();
+    const msgs = result.steps.map((s) => s.effects.message);
+    expect(msgs).toContainEqual({ text: 'processing', type: 'warn' }); // persists over the mark step
+    expect(result.steps.at(-1)!.effects.message).toEqual({ text: 'done', type: 'success' });
+  });
+
+  it('showMessage with empty text clears the snackbar', () => {
+    expect(runSrc('showMessage("hi")\nshowMessage("")\n').steps.at(-1)!.effects.message).toBeNull();
+  });
+
   it('refuses to run a program with errors', () => {
     const broken = compileAndRun([{ id: 'main', name: 'main.algo', content: 'nope()\n' }], {
       entryId: 'main',
