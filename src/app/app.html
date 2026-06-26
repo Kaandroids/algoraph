@@ -555,6 +555,7 @@
         [content]="activeFile().content"
         (contentChange)="onEditorContent($event)"
         [globals]="editorGlobals()"
+        [exports]="editorExports()"
         [notes]="activeFileNotes()"
         (notesChange)="onNotesChange($event)" />
 
@@ -592,6 +593,20 @@
             </div>
           }
         </div>
+
+        <!-- Exports — helpers other files expose to the algorithm -->
+        @if (editorExports().length) {
+          <div class="ag-insp-section">
+            <div class="ag-insp-title">Exports</div>
+            @for (ex of editorExports(); track ex.name) {
+              <div class="ag-insp-row" style="--nc: var(--tone-violet)">
+                <span class="ag-insp-dot"></span>
+                <span class="ag-insp-name">{{ ex.name }}({{ ex.params }})</span>
+                <span class="ag-insp-tag">{{ ex.file }}</span>
+              </div>
+            }
+          </div>
+        }
 
         <!-- Complexity (filled once the interpreter runs) -->
         <div class="ag-insp-section">

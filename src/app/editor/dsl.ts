@@ -18,6 +18,7 @@ import {
 import type { CompletionContext, CompletionResult, Completion } from '@codemirror/autocomplete';
 import { tags as t } from '@lezer/highlight';
 import { GLOBAL_REFERENCE } from '../node-api';
+import type { ExportRef } from '../models/exports';
 
 // ── Token sets ──────────────────────────────────────────────
 const KEYWORDS = new Set([
@@ -112,8 +113,14 @@ export const globalsFacet = Facet.define<EditorGlobal[], EditorGlobal[]>({
   combine: (values) => values.flat(),
 });
 
+/** Exported helpers in scope — reconfigured whenever a module file changes. */
+export const exportsFacet = Facet.define<ExportRef[], ExportRef[]>({
+  combine: (values) => values.flat(),
+});
+
 function dslAutocomplete(context: CompletionContext): CompletionResult | null {
   const globals = context.state.facet(globalsFacet);
+  const exports = context.state.facet(exportsFacet);
 
   // Member access: `ident.partial` → suggest that variable's methods.
   const dotted = context.matchBefore(/[A-Za-z_]\w*\.\w*/);
@@ -141,7 +148,17 @@ function dslAutocomplete(context: CompletionContext): CompletionResult | null {
     type: 'variable',
     detail: `: ${g.type}`,
   }));
-  return { from: word.from, options: [...names, ...ALL_COMPLETIONS], validFor: /^[\w]*$/ };
+  const exported: Completion[] = exports.map((e) => ({
+    label: e.name,
+    type: 'function',
+    detail: `(${e.params})`,
+    info: `Exported helper · ${e.file}`,
+  }));
+  return {
+    from: word.from,
+    options: [...names, ...exported, ...ALL_COMPLETIONS],
+    validFor: /^[\w]*$/,
+  };
 }
 
 // ── ASCII → Unicode while typing (<- ≤ ≥ ≠) ─────────────────

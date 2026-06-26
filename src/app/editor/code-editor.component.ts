@@ -26,7 +26,8 @@ import {
   closeBrackets,
   closeBracketsKeymap,
 } from '@codemirror/autocomplete';
-import { algoraphLanguage, globalsFacet, type EditorGlobal } from './dsl';
+import { algoraphLanguage, globalsFacet, exportsFacet, type EditorGlobal } from './dsl';
+import type { ExportRef } from '../models/exports';
 import {
   lineNotes,
   lineNotesReadonly,
@@ -63,6 +64,8 @@ export class CodeEditorComponent {
   readonly content = model<string>('');
   /** Names in scope (graph + canvas data structures) for autocomplete. */
   readonly globals = input<EditorGlobal[]>([]);
+  /** Exported helpers across all files, offered as call completions. */
+  readonly exports = input<ExportRef[]>([]);
   /** Per-line notes for the active file (addressed by line number). */
   readonly notes = input<LineNote[]>([]);
   readonly notesChange = output<LineNote[]>();
@@ -70,6 +73,7 @@ export class CodeEditorComponent {
   readonly readOnly = input<boolean>(false);
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('host');
   private readonly globalsComp = new Compartment();
+  private readonly exportsComp = new Compartment();
   private view?: EditorView;
 
   constructor() {
@@ -97,6 +101,12 @@ export class CodeEditorComponent {
       const globals = this.globals();
       this.view?.dispatch({ effects: this.globalsComp.reconfigure(globalsFacet.of(globals)) });
     });
+
+    // Exported helpers changed (a module edited) → reconfigure their facet.
+    effect(() => {
+      const exports = this.exports();
+      this.view?.dispatch({ effects: this.exportsComp.reconfigure(exportsFacet.of(exports)) });
+    });
   }
 
   private init(): void {
@@ -115,6 +125,7 @@ export class CodeEditorComponent {
         closeBrackets(),
         autocompletion(),
         this.globalsComp.of(globalsFacet.of(this.globals())),
+        this.exportsComp.of(exportsFacet.of(this.exports())),
         algoraphLanguage(),
         ...(ro
           ? [EditorState.readOnly.of(true), EditorView.editable.of(false), EditorView.lineWrapping]
