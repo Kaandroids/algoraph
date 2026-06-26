@@ -314,6 +314,48 @@ describe('interpreter (Dijkstra seed)', () => {
     expect(runSrc('showMessage("hi")\nshowMessage("")\n').steps.at(-1)!.effects.message).toBeNull();
   });
 
+  it('queries the plain list from graph.nodes()/neighbors() with size/contains/indexOf and []', () => {
+    const msg = (src: string) => runSrc(src).steps.at(-1)!.effects.message!.text;
+    expect(msg('showMessage("" + graph.nodes().size())\n')).toBe('5'); // five vertices
+    expect(msg('showMessage("" + neighbors(source()).size())\n')).toBe('2'); // A → B, A → C
+    expect(msg('showMessage("" + graph.nodes().contains(goal()))\n')).toBe('true');
+    expect(msg('showMessage("" + graph.nodes().isEmpty())\n')).toBe('false');
+    // A vertex pulled out of the list by index is still a usable vertex.
+    const r = runSrc('mark(neighbors(source())[0], "success")\n');
+    expect(r.error).toBeNull();
+    expect(Object.values(r.steps.at(-1)!.effects.marks)).toContain('success');
+  });
+
+  it('watches the running file\'s scalar variables with their current values', () => {
+    const src =
+      'count ← 0\n' +
+      'start ← source()\n' +
+      'for each u in neighbors(start) do\n' +
+      '  count ← count + 1\n' +
+      'end\n';
+    const result = runSrc(src);
+    expect(result.error).toBeNull();
+    // The final step sees every top-level binding with its end value and category.
+    const vars = result.steps.at(-1)!.vars;
+    const byName = Object.fromEntries(vars.map((v) => [v.name, v]));
+    expect(byName['count']).toEqual({ name: 'count', value: '2', kind: 'number' }); // A → B, A → C
+    expect(byName['start']).toEqual({ name: 'start', value: 'A', kind: 'vertex' });
+    expect(byName['u']).toMatchObject({ kind: 'vertex' }); // loop var lingers at its last value
+    // `count` climbs as the loop runs.
+    const counts = result.steps.map((s) => s.vars.find((v) => v.name === 'count')?.value);
+    expect(counts).toContain('1');
+    expect(counts).toContain('2');
+  });
+
+  it('keeps data structures out of the variable watch (they have their own panel)', () => {
+    // `pq` binds a created priority queue — it belongs to the data panel, not vars.
+    const result = runSrc('pq ← createPQueue(5, 5)\nn ← graph.nodes().size()\n');
+    expect(result.error).toBeNull();
+    const vars = result.steps.at(-1)!.vars;
+    expect(vars.find((v) => v.name === 'pq')).toBeUndefined();
+    expect(vars.find((v) => v.name === 'n')).toEqual({ name: 'n', value: '5', kind: 'number' });
+  });
+
   it('refuses to run a program with errors', () => {
     const broken = compileAndRun([{ id: 'main', name: 'main.algo', content: 'nope()\n' }], {
       entryId: 'main',

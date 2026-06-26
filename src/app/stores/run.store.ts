@@ -53,6 +53,8 @@ export class RunStore {
     return line > 0 ? line : null;
   });
   readonly dataState = computed(() => this.currentStep()?.data ?? []);
+  /** The running file's plain variables (name + current value), for the watch panel. */
+  readonly vars = computed(() => this.currentStep()?.vars ?? []);
   readonly effects = computed(() => this.currentStep()?.effects ?? emptyEffects());
   readonly ops = computed(() => this.currentStep()?.ops ?? 0);
 

@@ -8,7 +8,7 @@
  * the Run workspace's "main goes line by line, helpers are one step" model.
  */
 import type { Expr, FunctionDecl, Module, Stmt } from './ast';
-import type { CanvasEffects, CanvasMessage, DataSnapshot, LoopFrame, RunResult, SavedCanvas, ScrollTarget, StepSnapshot, VertexRef } from './trace';
+import type { CanvasEffects, CanvasMessage, DataSnapshot, LoopFrame, RunResult, SavedCanvas, ScrollTarget, StepSnapshot, VarSnapshot, VertexRef } from './trace';
 import { emptyEffects } from './trace';
 import { DATA_STRUCTURES, type DataNode, type DataStructureKind } from '../models/data-structure.model';
 import {
@@ -63,6 +63,17 @@ function optionalName(value: Value | undefined): string | undefined {
 /** A mark's optional `type` argument (`danger`/`warn`/…); `''` is the default highlight. */
 function markType(value: Value | undefined): string {
   return typeof value === 'string' ? value : '';
+}
+
+/** Coarse value category for a watched variable, so the panel can tint it. */
+function varKind(value: Value): string {
+  if (value instanceof Vertex) return 'vertex';
+  if (Array.isArray(value)) return 'list';
+  if (value === null) return 'nil';
+  if (typeof value === 'number') return 'number';
+  if (typeof value === 'boolean') return 'bool';
+  if (typeof value === 'string') return 'text';
+  return 'other';
 }
 
 export class Interpreter {
@@ -151,12 +162,34 @@ export class Interpreter {
       line,
       graph: this.graph.snapshot(),
       data: this.dsList.map((d) => d.snapshot()) as DataSnapshot[],
+      vars: this.snapshotVars(),
       effects: this.snapshotEffects(),
       loop: this.snapshotLoop(),
       ops: this.opCount,
       note,
     });
     this.scrollTo = null; // a pan is consumed by the step that shows it
+  }
+
+  /**
+   * The running file's plain variables and their current values. Data structures
+   * are excluded — they have their own panel — leaving scalars, vertices and the
+   * lists returned by graph queries. `this.scope` holds the entry file's top-level
+   * bindings (helper calls run in a swapped scope with stepping off), so every
+   * emitted step sees exactly the variables the user wrote in this file.
+   */
+  private snapshotVars(): VarSnapshot[] {
+    const out: VarSnapshot[] = [];
+    for (const [name, value] of this.scope) {
+      if (value instanceof RDataStructure) continue;
+      const text = String(display(value));
+      out.push({
+        name,
+        value: text.length > 42 ? `${text.slice(0, 41)}…` : text,
+        kind: varKind(value),
+      });
+    }
+    return out;
   }
 
   /** The innermost active loop's progress for this step (items shared, index copied). */
@@ -350,6 +383,7 @@ export class Interpreter {
     const idx = this.evalExpr(expr.index);
     if (obj instanceof RMap) return obj.get(idx);
     if (obj instanceof RList) return obj.get(Number(idx));
+    if (Array.isArray(obj)) { this.charge(1); return obj[Number(idx)] ?? null; }
     throw new RuntimeError(`Cannot index ${display(obj)} (line ${expr.line})`);
   }
 
@@ -376,9 +410,27 @@ export class Interpreter {
       if (obj instanceof RDataStructure) return obj.call(expr.callee.name, args, expr.line);
       // `graph.nodes()` / `canvas.visit(u)` — namespaced forms of the global builtins.
       if (obj instanceof Namespace) return this.callBuiltin(expr.callee.name, args, expr.line);
+      // Read-only methods on a plain list — e.g. graph.nodes().size(), neighbors(u).contains(v).
+      if (Array.isArray(obj)) return this.arrayMethod(obj, expr.callee.name, args, expr.line);
       throw new RuntimeError(`'${expr.callee.name}' is not a method of ${display(obj)} (line ${expr.line})`);
     }
     throw new RuntimeError(`Expression is not callable (line ${expr.line})`);
+  }
+
+  /**
+   * Read-only query methods on a plain list — the value returned by `graph.nodes()`,
+   * `neighbors(u)`, `m.keys()`, etc. These results aren't data structures (no `add`/
+   * `remove`), but you can still ask their size or membership, mirroring the DS API.
+   */
+  private arrayMethod(arr: Value[], method: string, args: Value[], line: number): Value {
+    switch (method) {
+      case 'size': this.charge(1); return arr.length;
+      case 'isEmpty': this.charge(1); return arr.length === 0;
+      case 'contains': this.charge(arr.length); return arr.some((x) => keyOf(x) === keyOf(args[0]));
+      case 'indexOf': this.charge(arr.length); return arr.findIndex((x) => keyOf(x) === keyOf(args[0]));
+      case 'get': this.charge(1); return arr[Number(args[0])] ?? null;
+    }
+    throw new RuntimeError(`'${method}' is not a method of a list (line ${line})`);
   }
 
   /** Step over a user function: run its body atomically, no inner steps. */

@@ -1079,6 +1079,60 @@
   color: var(--fg-subtle);
 }
 
+/* ── Run: variable watch (left panel) — scalars of the running file ── */
+.ag-watch-cap {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fg-subtle);
+  padding-top: 2px;
+}
+
+.ag-watch-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 12px 10px;
+  background: var(--bg-2);
+  border: 0.5px solid var(--border);
+  border-left: 3px solid var(--tone-violet);
+  border-radius: 10px;
+
+  .ag-watch-cap { padding: 0 0 3px; }
+}
+
+.ag-watch-row {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.ag-watch-name {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.ag-watch-eq {
+  flex-shrink: 0;
+  color: var(--fg-subtle);
+}
+
+.ag-watch-val {
+  color: var(--fg-muted);
+  word-break: break-word;
+
+  &[data-kind='number'] { color: var(--tone-violet); }
+  &[data-kind='vertex'] { color: var(--accent); font-weight: 600; }
+  &[data-kind='text'] { color: var(--success); }
+  &[data-kind='bool'],
+  &[data-kind='nil'] { color: var(--tone-amber); }
+}
+
 /* ── Run: read-only canvas (centre) — pan / zoom only ─────── */
 .ag-runcanvas {
   flex: 1;

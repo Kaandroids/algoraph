@@ -54,6 +54,20 @@ export interface DataSnapshot {
   matrix: number[][];
 }
 
+/**
+ * A plain (non-data-structure) variable of the running file with its current value.
+ * Data structures live in `DataSnapshot`; this tracks scalars — counters, the
+ * current vertex, a `dist` lookup, a `neighbors(u)` list — so the Run panel can
+ * watch them change step by step.
+ */
+export interface VarSnapshot {
+  name: string;
+  /** Pre-formatted display value, e.g. `7`, `C`, `[B, C]`, `nil`, `∞`. */
+  value: string;
+  /** Value category for tinting: vertex / number / text / bool / nil / list / other. */
+  kind: string;
+}
+
 /** Where `scrollTo` should pan: a single vertex, or the midpoint of an edge. */
 export type ScrollTarget =
   | { kind: 'node'; id: string }
@@ -104,6 +118,8 @@ export interface StepSnapshot {
   /** Graph topology as of this step (shared between steps that don't mutate it). */
   graph: GraphSnapshot;
   data: DataSnapshot[];
+  /** Plain variables of the running file (scalars, vertices, lists) and their values. */
+  vars: VarSnapshot[];
   effects: CanvasEffects;
   /** The enclosing for-each loop's progress, or null outside any loop. */
   loop: LoopFrame | null;

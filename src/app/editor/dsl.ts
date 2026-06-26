@@ -136,6 +136,35 @@ export const exportsFacet = Facet.define<ExportRef[], ExportRef[]>({
   combine: (values) => values.flat(),
 });
 
+/** Builtins/members that yield a plain `list<…>` — the targets of chained queries. */
+const LIST_RETURNING = new Set(['nodes', 'edges', 'neighbors', 'keys', 'values']);
+
+/** Read-only queries available on any `list<…>` result (mirrors `arrayMethod` in the interpreter). */
+const LIST_QUERY_METHODS: { label: string; detail: string; info: string; apply: string }[] = [
+  { label: 'size', detail: '(): int', info: 'Number of elements.', apply: 'size()' },
+  { label: 'isEmpty', detail: '(): bool', info: 'True when the list has no elements.', apply: 'isEmpty()' },
+  { label: 'contains', detail: '(value x): bool', info: 'True when x is in the list.', apply: 'contains(x)' },
+  { label: 'indexOf', detail: '(value x): int', info: 'Position of x, or -1 if absent.', apply: 'indexOf(x)' },
+  { label: 'get', detail: '(int i): value', info: 'The element at index i (same as list[i]).', apply: 'get(i)' },
+];
+
+/**
+ * Given text ending in a `)`, return the head identifier of that call — the name
+ * right before its matching `(` — so we can tell what `…()` returns. Walks the
+ * parens so nested arguments (`neighbors(foo(x))`) resolve to the outer call.
+ */
+function headCallName(text: string): string | null {
+  if (!text.endsWith(')')) return null;
+  let depth = 0;
+  let i = text.length - 1;
+  for (; i >= 0; i--) {
+    if (text[i] === ')') depth++;
+    else if (text[i] === '(' && --depth === 0) break;
+  }
+  if (i < 0) return null; // unbalanced — give up
+  return /([A-Za-z_]\w*)\s*$/.exec(text.slice(0, i))?.[1] ?? null;
+}
+
 function dslAutocomplete(context: CompletionContext): CompletionResult | null {
   const globals = context.state.facet(globalsFacet);
   const exports = context.state.facet(exportsFacet);
@@ -159,6 +188,28 @@ function dslAutocomplete(context: CompletionContext): CompletionResult | null {
       })),
       validFor: /^\w*$/,
     };
+  }
+
+  // Chained query: `<call>().partial` — when the call returns a list, complete its queries.
+  const chain = context.matchBefore(/\)\.\w*/);
+  if (chain) {
+    const line = context.state.doc.lineAt(context.pos);
+    const prefix = line.text.slice(0, context.pos - line.from);
+    const dot = prefix.lastIndexOf('.');
+    if (LIST_RETURNING.has(headCallName(prefix.slice(0, dot)) ?? '')) {
+      const partial = prefix.slice(dot + 1);
+      return {
+        from: context.pos - partial.length,
+        options: LIST_QUERY_METHODS.map((mm) => ({
+          label: mm.label,
+          type: 'method',
+          detail: mm.detail,
+          info: mm.info,
+          apply: mm.apply,
+        })),
+        validFor: /^\w*$/,
+      };
+    }
   }
 
   const word = context.matchBefore(/[\w]+/);

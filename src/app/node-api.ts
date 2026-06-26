@@ -14,6 +14,10 @@
  *
  * Type vocabulary: void · bool · int · number · value · vertex · edge · key ·
  * string · list<…>. `value` is an element whose type depends on what was stored.
+ *
+ * A `list<…>` result (e.g. `nodes()`, `neighbors(u)`, `m.keys()`) is read-only but
+ * still queryable: `.size()`, `.isEmpty()`, `.contains(x)`, `.indexOf(x)`, `.get(i)`
+ * and `[i]` indexing — so `graph.nodes().size()` works.
  */
 
 export interface ApiMember {

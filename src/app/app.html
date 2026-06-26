@@ -595,6 +595,20 @@
         [ngTemplateOutletContext]="{ eyebrow: 'State', title: 'Data', vlabel: 'Data', noun: 'data', key: 'data', side: 'left', help: false }" />
 
       <div class="ag-coderail-body ag-inspector-body">
+        <!-- Variables of the running file — watched with their live values. -->
+        @if (run.vars().length) {
+          <div class="ag-watch-group">
+            <div class="ag-watch-cap">Variables</div>
+            @for (v of run.vars(); track v.name) {
+              <div class="ag-watch-row">
+                <span class="ag-watch-name">{{ v.name }}</span>
+                <span class="ag-watch-eq">←</span>
+                <span class="ag-watch-val" [attr.data-kind]="v.kind">{{ v.value }}</span>
+              </div>
+            }
+          </div>
+        }
+        @if (run.dataState().length) { <div class="ag-watch-cap">Data structures</div> }
         @for (dn of run.dataState(); track dn.id) {
           <div class="ag-statevar" [style.--nc]="dataColor(dn.kind)">
             <div class="ag-statevar-head">
