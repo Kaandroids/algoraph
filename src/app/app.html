@@ -302,7 +302,7 @@
       <div class="ae-ctx-menu" [style.left.px]="nodeCtxMenuPos().x" [style.top.px]="nodeCtxMenuPos().y">
         <button class="ae-ctx-item" (click)="ctxEdit()">
           <span class="ae-ctx-icon" style="--pc: var(--fg-muted)"><app-icon name="edit" /></span>
-          <span>{{ nodeCtxKind() === 'data' ? 'Edit contents' : 'Rename' }}</span>
+          <span>{{ nodeCtxKind() === 'data' ? 'Edit' : 'Rename' }}</span>
         </button>
         <button class="ae-ctx-item" (click)="ctxDuplicate()">
           <span class="ae-ctx-icon" style="--pc: var(--fg-muted)"><app-icon name="copy" /></span>
@@ -359,79 +359,20 @@
         }
 
         @if (editNodeKind() === 'data' && editingDataNode(); as dn) {
-          <div class="ds-editor-sep"></div>
-
-          @switch (dn.kind) {
-            @case ('MAP') {
-              <div class="ds-editor-label">Entries (key → value)</div>
-              <div class="ds-kv-list">
-                @for (e of dn.entries; track $index; let i = $index) {
-                  <div class="ds-kv-row">
-                    <input class="ds-text-input" type="text" placeholder="key" [value]="e.key"
-                      (input)="setMapKey(i, $any($event.target).value)" />
-                    <span class="ds-kv-arrow"><app-icon name="arrowRight" /></span>
-                    <input class="ds-text-input" type="text" placeholder="value" [value]="e.value"
-                      (input)="setMapValue(i, $any($event.target).value)" />
-                    <button class="ds-row-del" type="button" (click)="removeMapEntry(i)" aria-label="Remove">
-                      <app-icon name="x" />
-                    </button>
-                  </div>
-                }
+          @if (dn.kind === 'MATRIX') {
+            <div class="ds-editor-sep"></div>
+            <div class="ds-editor-row">
+              <label>Size</label>
+              <div class="ds-dim">
+                <input class="ds-num-input" type="number" min="1" max="8" [value]="dn.matrix.length"
+                  (input)="setMatrixRows($any($event.target).valueAsNumber)" />
+                <span class="ds-dim-x">×</span>
+                <input class="ds-num-input" type="number" min="1" max="8" [value]="dn.matrix[0].length"
+                  (input)="setMatrixCols($any($event.target).valueAsNumber)" />
               </div>
-              <button class="ds-add-btn" type="button" (click)="addMapEntry()">
-                <app-icon name="plus" /> Add entry
-              </button>
-            }
-            @case ('PQUEUE') {
-              <div class="ds-editor-label">Items (value · priority)</div>
-              <div class="ds-kv-list">
-                @for (h of dn.heap; track $index; let i = $index) {
-                  <div class="ds-kv-row">
-                    <input class="ds-text-input" type="text" placeholder="value" [value]="h.value"
-                      (input)="setHeapValue(i, $any($event.target).value)" />
-                    <input class="ds-num-input" type="number" placeholder="prio" [value]="h.priority"
-                      (input)="setHeapPriority(i, $any($event.target).valueAsNumber)" />
-                    <button class="ds-row-del" type="button" (click)="removeHeapEntry(i)" aria-label="Remove">
-                      <app-icon name="x" />
-                    </button>
-                  </div>
-                }
-              </div>
-              <button class="ds-add-btn" type="button" (click)="addHeapEntry()">
-                <app-icon name="plus" /> Add item
-              </button>
-            }
-            @case ('MATRIX') {
-              <div class="ds-editor-row">
-                <label>Size</label>
-                <div class="ds-dim">
-                  <input class="ds-num-input" type="number" min="1" max="8" [value]="dn.matrix.length"
-                    (input)="setMatrixRows($any($event.target).valueAsNumber)" />
-                  <span class="ds-dim-x">×</span>
-                  <input class="ds-num-input" type="number" min="1" max="8" [value]="dn.matrix[0].length"
-                    (input)="setMatrixCols($any($event.target).valueAsNumber)" />
-                </div>
-              </div>
-              <div class="ds-medit" [style.grid-template-columns]="'repeat(' + dn.matrix[0].length + ', 40px)'">
-                @for (row of dn.matrix; track $index; let r = $index) {
-                  @for (cell of row; track $index; let c = $index) {
-                    <input class="ds-num-input ds-mcell" type="number" [value]="cell"
-                      (input)="setMatrixCell(r, c, $any($event.target).valueAsNumber)" />
-                  }
-                }
-              </div>
-            }
-            @default {
-              <div class="ds-editor-row">
-                <label>Values</label>
-                <input class="ds-text-input" type="text" placeholder="comma, separated, values"
-                  [value]="itemsDraft()" (input)="onItemsInput($any($event.target).value)" />
-              </div>
-              <div class="ds-editor-hint">
-                Comma-separated.{{ dn.kind === 'SET' ? ' Duplicates are dropped.' : '' }}
-              </div>
-            }
+            </div>
           }
+          <div class="ds-editor-hint">Contents start empty — the algorithm fills this structure as it runs.</div>
         }
 
         <button class="ag-edit-delete" type="button" (click)="deleteEditingNode()">
@@ -665,7 +606,8 @@
               @switch (dn.kind) {
                 @case ('MAP') {
                   @for (e of dn.entries; track $index) {
-                    <div class="ag-kv">
+                    <div class="ag-kv"
+                      [class.is-loop-item]="run.loop()?.dsId === dn.id && run.loop()?.index === $index">
                       <span class="ag-k">{{ e.key }}</span>
                       <span class="ag-kv-arrow">→</span>
                       <span class="ag-v">{{ e.value }}</span>
@@ -690,7 +632,19 @@
                   }
                 }
                 @default {
-                  <code class="ag-statevar-code">{{ formatItems(dn) }}</code>
+                  @if (dn.items.length) {
+                    <code class="ag-statevar-code ag-statevar-seq">
+                      <span class="ag-seq-br">{{ dn.kind === 'SET' ? '{' : '[' }}</span>
+                      @for (it of dn.items; track $index) {
+                        @if (!$first) { <span class="ag-seq-sep">, </span> }
+                        <span class="ag-seq-item"
+                          [class.is-loop-item]="run.loop()?.dsId === dn.id && run.loop()?.index === $index">{{ it }}</span>
+                      }
+                      <span class="ag-seq-br">{{ dn.kind === 'SET' ? '}' : ']' }}</span>
+                    </code>
+                  } @else {
+                    <span class="ag-statevar-empty">empty</span>
+                  }
                 }
               }
             </div>
@@ -717,6 +671,7 @@
                 class="ae-node ae-node-ro"
                 [class.is-visited]="run.visitedSet().has(node.id)"
                 [class.is-active]="run.activeSet().has(node.id)"
+                [class.is-cursor]="run.cursorSet().has(node.id)"
                 [attr.data-type]="node.kind"
                 [style.--nc]="nodeColor(node.kind)">
                 <div class="ae-node-header">
@@ -727,8 +682,10 @@
                   <span class="ae-port-end ae-port-in-end">
                     <div fNodeInput [fInputId]="inputId(node)" [fInputMultiple]="true"
                       class="ae-port-dot ae-port-circle ae-port-hollow ae-port-nc"></div>
+                    <span class="ae-port-label">in</span>
                   </span>
                   <span class="ae-port-end ae-port-out-end">
+                    <span class="ae-port-label">out</span>
                     <div fNodeOutput [fOutputId]="outputId(node)" [fOutputMultiple]="true"
                       class="ae-port-dot ae-port-circle ae-port-filled ae-port-nc"></div>
                   </span>
@@ -739,7 +696,7 @@
               </div>
             }
 
-            @for (dn of dataNodes(); track dn.id) {
+            @for (dn of runDataNodes(); track dn.id) {
               <div fNode
                 [fNodeId]="dn.id"
                 [fNodePosition]="dn.position"
@@ -764,7 +721,7 @@
                 [class.ag-undirected]="!edge.directed"
                 [class.is-marked]="edgeMarked(edge)">
                 <f-connection-marker-arrow [type]="EFMarkerType.END_ALL_STATES" />
-                <div fConnectionContent [position]="0.5" class="ag-edge-badge">
+                <div fConnectionContent [position]="0.5" class="ag-edge-badge" [attr.data-edge]="edge.id">
                   <span class="ag-edge-weight ag-edge-weight-ro">{{ edge.weight }}</span>
                 </div>
               </f-connection>
@@ -772,6 +729,24 @@
           </f-canvas>
         </f-flow>
       </div>
+
+      <!-- Iteration order — the active for-each loop's sequence, live-scrolled. -->
+      @if (run.loop(); as lp) {
+        <div class="ag-loop-pop">
+          <div class="ag-loop-pop-head">
+            <span class="ag-loop-pop-var">{{ lp.varName }}</span>
+            <span class="ag-loop-pop-count">{{ lp.index + 1 }} / {{ lp.items.length }}</span>
+          </div>
+          <div class="ag-loop-pop-list">
+            @for (item of lp.items; track $index) {
+              <div class="ag-loop-pop-row" [class.is-current]="$index === lp.index">
+                <span class="ag-loop-pop-i">{{ $index }}</span>
+                <span class="ag-loop-pop-v">{{ item }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
 
       @if (run.error(); as err) {
         <div class="ag-run-error">{{ err }}</div>

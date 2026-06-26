@@ -17,7 +17,6 @@ import {
 } from '@codemirror/language';
 import type { CompletionContext, CompletionResult, Completion } from '@codemirror/autocomplete';
 import { tags as t } from '@lezer/highlight';
-import { GLOBAL_REFERENCE } from '../node-api';
 import type { ExportRef } from '../models/exports';
 
 // ── Token sets ──────────────────────────────────────────────
@@ -29,7 +28,7 @@ const ATOMS = new Set(['INFINITY', 'true', 'false', 'nil']);
 const BUILTINS = new Set([
   'neighbors', 'weight', 'hasEdge', 'degree', 'inDegree', 'outDegree',
   'source', 'goal', 'nodes', 'edges',
-  'visit', 'mark', 'unmark', 'markEdge', 'setLabel',
+  'visit', 'mark', 'unmark', 'markEdge', 'setLabel', 'scrollTo', 'clearMarks',
 ]);
 
 // ── Stream tokenizer (shared spirit with the future lexer) ──
@@ -86,20 +85,36 @@ const KEYWORD_COMPLETIONS: Completion[] = [
   'for each', 'in', 'continue', 'break', 'and', 'or', 'not', 'INFINITY',
 ].map((label) => ({ label, type: label === 'INFINITY' ? 'constant' : 'keyword' }));
 
-const API_COMPLETIONS: Completion[] = GLOBAL_REFERENCE.groups
-  .filter((g) => g.title !== 'Language')
-  .flatMap((g) => g.members)
-  .map((m) => {
-    const name = /^[A-Za-z_]\w*/.exec(m.sig)?.[0] ?? m.sig;
-    return {
-      label: name,
-      type: 'function',
-      detail: m.returns ? `: ${m.returns}` : '',
-      info: m.cost ? `${m.desc}  ·  ${m.cost}` : m.desc,
-    } satisfies Completion;
-  });
+// Graph/visualization builtins are NOT offered bare — they live on the `graph`
+// and `canvas` namespaces and only surface after `graph.` / `canvas.` (see the
+// member-access branch below). Top-level completion is keywords + names in scope.
+const ALL_COMPLETIONS = [...KEYWORD_COMPLETIONS];
 
-const ALL_COMPLETIONS = [...KEYWORD_COMPLETIONS, ...API_COMPLETIONS];
+/**
+ * Identifiers the user has bound in this file — loop variables (`for each node
+ * in …`), assignment targets (`dist ← …`) and function parameters — so a name
+ * the code introduces completes like any built-in one. A lightweight scan, in
+ * the same spirit as the rest of this editor sugar.
+ */
+function localNames(doc: string): string[] {
+  const names = new Set<string>();
+  // `for [each] [type] name in …` — the captured group is the loop variable.
+  for (const m of doc.matchAll(/\bfor\s+(?:each\s+)?(?:[A-Za-z_]\w*\s+)?([A-Za-z_]\w*)\s+in\b/g)) {
+    names.add(m[1]);
+  }
+  // `name ← …` / `name[i] ← …` at the start of a line — an assignment target.
+  for (const m of doc.matchAll(/(?:^|\n)\s*([A-Za-z_]\w*)\s*(?:\[[^\]]*\])?\s*←/g)) {
+    names.add(m[1]);
+  }
+  // `function f(type a, b)` — each parameter (the last word of a `type name` pair).
+  for (const m of doc.matchAll(/\bfunction\s+[A-Za-z_]\w*\s*\(([^)]*)\)/g)) {
+    for (const raw of m[1].split(',')) {
+      const words = raw.trim().match(/[A-Za-z_]\w*/g);
+      if (words?.length) names.add(words[words.length - 1]);
+    }
+  }
+  return [...names];
+}
 
 /** A name in scope, fed in from the canvas (the graph + the placed data structures). */
 export interface EditorGlobal {
@@ -154,9 +169,13 @@ function dslAutocomplete(context: CompletionContext): CompletionResult | null {
     detail: `(${e.params})`,
     info: `Exported helper · ${e.file}`,
   }));
+  const taken = new Set([...names, ...exported, ...ALL_COMPLETIONS].map((c) => c.label));
+  const locals: Completion[] = localNames(context.state.doc.toString())
+    .filter((n) => !taken.has(n))
+    .map((label) => ({ label, type: 'variable' }));
   return {
     from: word.from,
-    options: [...names, ...exported, ...ALL_COMPLETIONS],
+    options: [...names, ...exported, ...locals, ...ALL_COMPLETIONS],
     validFor: /^[\w]*$/,
   };
 }

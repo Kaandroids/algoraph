@@ -53,7 +53,10 @@ export const SYNTAX_GUIDE: SyntaxSection[] = [
   },
   {
     title: 'Loops',
-    intro: 'Three loop forms. Use continue to skip to the next iteration and break to leave the loop.',
+    intro:
+      'Three loop forms. Use continue to skip to the next iteration and break to leave the loop. ' +
+      'In the Run workspace, the vertex a for-each loop is currently on is ringed automatically — ' +
+      'nested loops ring each level — so the iteration is visible without marking anything yourself.',
     items: [
       { syntax: 'while cond do … end', desc: 'Repeat while a condition holds.' },
       { syntax: 'for each x in C do … end', desc: 'Iterate the elements of a collection.' },
@@ -103,13 +106,16 @@ export const SYNTAX_GUIDE: SyntaxSection[] = [
   },
   {
     title: 'Visualization',
-    intro: 'Drive the canvas so each step is visible. These mark the graph; they return nothing.',
+    intro:
+      'Drive the canvas so each step is visible. These mark the graph; they return nothing. ' +
+      'mark, unmark and scrollTo take one vertex, or two vertices to address the edge between them.',
     items: [
       { syntax: 'visit(u)', desc: 'Mark u settled — a green ring on the vertex.' },
-      { syntax: 'mark(u) · unmark(u)', desc: 'Toggle a bright "active" highlight on u.' },
-      { syntax: 'markEdge(u, v)', desc: 'Highlight an edge — for paths and trees.' },
+      { syntax: 'mark(u) · unmark(u)', desc: 'Toggle a bright "active" highlight on vertex u.' },
+      { syntax: 'mark(u, v) · unmark(u, v)', desc: 'Toggle the highlight on the edge u → v (markEdge is the same as mark(u, v)).' },
       { syntax: 'setLabel(u, text)', desc: 'Pin a value on u, e.g. its distance.' },
-      { syntax: 'scrollTo(u)', desc: 'Pan the canvas to bring u into view.' },
+      { syntax: 'scrollTo(u) · scrollTo(u, v)', desc: 'Pan the canvas to a vertex, or to the edge u → v.' },
+      { syntax: 'clearMarks()', desc: 'Clear every highlight and label — wipe the canvas back to its base state.' },
     ],
   },
   {

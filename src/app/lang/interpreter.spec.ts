@@ -90,6 +90,139 @@ describe('interpreter (Dijkstra seed)', () => {
     expect(result.steps.at(-1)!.effects.visited.sort()).toEqual(['A', 'B', 'C', 'D', 'E']);
   });
 
+  it('reads zero-argument graph accessors as bare properties (no parens)', () => {
+    const src = 'for each node in graph.nodes do\n  canvas.scrollTo(node)\nend\n';
+    const result = compileAndRun([{ id: 'main', name: 'main.algo', content: src }], {
+      entryId: 'main',
+      graph,
+      data: [],
+    });
+    expect(result.error).toBeNull();
+    // Each iteration pans to its vertex (the loop auto-follows, plus the explicit
+    // scrollTo — same target, so collapse consecutive duplicates).
+    const panned = result.steps
+      .map((s) => s.effects.scrollTo)
+      .filter((t): t is NonNullable<typeof t> => t !== null)
+      .map((t) => (t.kind === 'node' ? t.id : `${t.from}->${t.to}`));
+    const distinct = panned.filter((v, i) => v !== panned[i - 1]);
+    expect(distinct).toEqual(['A', 'B', 'C', 'D', 'E']);
+  });
+
+  it('exposes the active loop frame — items and a walking index', () => {
+    const src = 'for each u in graph.nodes() do\n  visit(u)\nend\n';
+    const result = compileAndRun([{ id: 'main', name: 'main.algo', content: src }], {
+      entryId: 'main',
+      graph,
+      data: [],
+    });
+    expect(result.error).toBeNull();
+    const frame = result.steps.map((s) => s.loop).find(Boolean)!;
+    expect(frame.varName).toBe('u');
+    expect(frame.items).toEqual(['A', 'B', 'C', 'D', 'E']); // vertex labels, in order
+    expect(frame.dsId).toBeNull(); // graph.nodes() isn't a placed data structure
+    // The index advances 0..4 across the for-each line's steps (the 'start' frame
+    // sits on the same line but before any loop is pushed, so skip null frames).
+    const indices = result.steps.filter((s) => s.line === 1 && s.loop).map((s) => s.loop!.index);
+    expect(indices).toEqual([0, 1, 2, 3, 4]);
+    expect(result.steps.at(-1)!.loop).toBeNull(); // no frame once the loop is done
+  });
+
+  it('reports the data-structure id when a loop iterates one', () => {
+    const list = makeDataNode('LIST', 'ds-list', { x: 0, y: 0 }, 'bag');
+    const src =
+      'bag.push(source())\n' +
+      'bag.push(goal())\n' +
+      'for each x in bag do\n' +
+      '  visit(x)\n' +
+      'end\n';
+    const result = compileAndRun([{ id: 'main', name: 'main.algo', content: src }], {
+      entryId: 'main',
+      graph,
+      data: [list],
+    });
+    expect(result.error).toBeNull();
+    const frame = result.steps.map((s) => s.loop).find(Boolean)!;
+    expect(frame.dsId).toBe('ds-list');
+    expect(frame.items).toEqual(['A', 'E']); // source = A, goal = E
+  });
+
+  it('marks and scrolls to edges via the two-argument overloads', () => {
+    const src =
+      'a ← source()\n' +
+      'for each b in neighbors(a) do\n' +
+      '  mark(a, b)\n' +
+      '  scrollTo(a, b)\n' +
+      'end\n';
+    const result = compileAndRun([{ id: 'main', name: 'main.algo', content: src }], {
+      entryId: 'main',
+      graph,
+      data: [],
+    });
+    expect(result.error).toBeNull();
+    // A → B and A → C are the Start vertex's out-edges.
+    expect([...result.steps.at(-1)!.effects.markedEdges].sort()).toEqual(['A->B', 'A->C']);
+    const edgePans = result.steps.map((s) => s.effects.scrollTo).filter((t) => t?.kind === 'edge');
+    expect(edgePans).toContainEqual({ kind: 'edge', from: 'A', to: 'B' });
+  });
+
+  it('auto-highlights the current loop vertex as an iteration cursor', () => {
+    const src = 'for each u in graph.nodes() do\n  visit(u)\nend\n';
+    const result = compileAndRun([{ id: 'main', name: 'main.algo', content: src }], {
+      entryId: 'main',
+      graph,
+      data: [],
+    });
+    expect(result.error).toBeNull();
+    // Every vertex is the cursor on the step that iterates it.
+    const seen = new Set(result.steps.flatMap((s) => s.effects.cursors));
+    expect([...seen].sort()).toEqual(['A', 'B', 'C', 'D', 'E']);
+    // Each in-loop step carries exactly one cursor; the cursor clears once the loop ends.
+    expect(result.steps.every((s) => s.effects.cursors.length <= 1)).toBe(true);
+    expect(result.steps.at(-1)!.effects.cursors).toEqual([]);
+  });
+
+  it('rings each level of nested loops at once', () => {
+    const src =
+      'for each u in graph.nodes() do\n' +
+      '  for each v in neighbors(u) do\n' +
+      '    markEdge(u, v)\n' +
+      '  end\n' +
+      'end\n';
+    const result = compileAndRun([{ id: 'main', name: 'main.algo', content: src }], {
+      entryId: 'main',
+      graph,
+      data: [],
+    });
+    expect(result.error).toBeNull();
+    const nested = result.steps.find((s) => s.effects.cursors.length === 2);
+    expect(nested).toBeDefined();
+    // Outer A iterates first; its first out-neighbour is B.
+    expect(nested!.effects.cursors.sort()).toEqual(['A', 'B']);
+  });
+
+  it('clearMarks() wipes every highlight and label', () => {
+    const src =
+      'a ← source()\n' +
+      'visit(a)\n' +
+      'mark(a)\n' +
+      'setLabel(a, "x")\n' +
+      'for each b in neighbors(a) do\n' +
+      '  mark(a, b)\n' +
+      'end\n' +
+      'clearMarks()\n';
+    const result = compileAndRun([{ id: 'main', name: 'main.algo', content: src }], {
+      entryId: 'main',
+      graph,
+      data: [],
+    });
+    expect(result.error).toBeNull();
+    const last = result.steps.at(-1)!;
+    expect(last.effects.visited).toEqual([]);
+    expect(last.effects.active).toEqual([]);
+    expect(last.effects.markedEdges).toEqual([]);
+    expect(last.effects.labels).toEqual({});
+  });
+
   it('refuses to run a program with errors', () => {
     const broken = compileAndRun([{ id: 'main', name: 'main.algo', content: 'nope()\n' }], {
       entryId: 'main',

@@ -209,10 +209,11 @@ export const GLOBAL_REFERENCE: {
       title: 'Visualization',
       members: [
         { sig: 'visit(vertex u)', desc: 'Mark u visited (highlight).', returns: 'void' },
-        { sig: 'mark(vertex u) / unmark(vertex u)', desc: 'Toggle a highlight on u.', returns: 'void' },
-        { sig: 'markEdge(vertex u, vertex v)', desc: 'Highlight an edge — for paths and trees.', returns: 'void' },
+        { sig: 'mark(vertex u) / unmark(vertex u)', desc: 'Toggle a highlight on a vertex — or an edge with mark(u, v).', returns: 'void' },
+        { sig: 'markEdge(vertex u, vertex v)', desc: 'Highlight the edge u → v — for paths and trees.', returns: 'void' },
         { sig: 'setLabel(vertex u, string text)', desc: 'Show a value on u, e.g. its distance.', returns: 'void' },
-        { sig: 'scrollTo(vertex u)', desc: 'Pan the canvas to bring u into view, centring it.', returns: 'void' },
+        { sig: 'scrollTo(vertex u)', desc: 'Pan to centre a vertex — or an edge with scrollTo(u, v).', returns: 'void' },
+        { sig: 'clearMarks()', desc: 'Clear every highlight and label — wipe the canvas to its base state.', returns: 'void' },
       ],
     },
     {

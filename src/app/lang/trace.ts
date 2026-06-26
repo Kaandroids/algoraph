@@ -33,6 +33,11 @@ export interface DataSnapshot {
   matrix: number[][];
 }
 
+/** Where `scrollTo` should pan: a single vertex, or the midpoint of an edge. */
+export type ScrollTarget =
+  | { kind: 'node'; id: string }
+  | { kind: 'edge'; from: string; to: string };
+
 /** What the algorithm has asked the canvas to show at a given step. */
 export interface CanvasEffects {
   /** Vertices marked visited (a settled highlight). */
@@ -43,8 +48,24 @@ export interface CanvasEffects {
   markedEdges: string[];
   /** Per-vertex text labels, e.g. a distance. */
   labels: Record<string, string>;
-  /** A vertex the canvas should pan to and centre (consumed once). */
-  scrollTo: string | null;
+  /** Vertices held by an enclosing `for each` right now — the iteration cursor(s). */
+  cursors: string[];
+  /** A vertex or edge the canvas should pan to and centre (consumed once). */
+  scrollTo: ScrollTarget | null;
+}
+
+/** The innermost active `for each` loop's progress, shown in the iteration popup. */
+export interface LoopFrame {
+  /** Loop variable name, e.g. `node`. */
+  varName: string;
+  /** 1-based source line of the `for each` — the popup anchors here, fixed. */
+  line: number;
+  /** Display label of every element, in iteration order — the popup rows. */
+  items: string[];
+  /** 0-based index of the element being iterated right now. */
+  index: number;
+  /** When the loop iterates a data structure, its id — for the panel highlight. */
+  dsId: string | null;
 }
 
 export interface StepSnapshot {
@@ -54,6 +75,8 @@ export interface StepSnapshot {
   line: number;
   data: DataSnapshot[];
   effects: CanvasEffects;
+  /** The enclosing for-each loop's progress, or null outside any loop. */
+  loop: LoopFrame | null;
   /** Cumulative operation count up to and including this step. */
   ops: number;
   /** Optional human note, e.g. `call relax(A, B)`. */
@@ -70,5 +93,5 @@ export interface RunResult {
 }
 
 export function emptyEffects(): CanvasEffects {
-  return { visited: [], active: [], markedEdges: [], labels: {}, scrollTo: null };
+  return { visited: [], active: [], markedEdges: [], labels: {}, cursors: [], scrollTo: null };
 }

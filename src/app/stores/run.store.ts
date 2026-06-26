@@ -46,6 +46,10 @@ export class RunStore {
   readonly visitedSet = computed(() => new Set(this.effects().visited));
   readonly activeSet = computed(() => new Set(this.effects().active));
   readonly markedSet = computed(() => new Set(this.effects().markedEdges));
+  /** Vertices an enclosing `for each` currently holds — the iteration cursor. */
+  readonly cursorSet = computed(() => new Set(this.effects().cursors));
+  /** The innermost active `for each` loop's progress, for the iteration popup. */
+  readonly loop = computed(() => this.currentStep()?.loop ?? null);
   readonly labels = computed(() => this.effects().labels);
   /** Effect transition duration (ms), shortened as the playback speeds up. */
   readonly animMs = computed(() => Math.round(450 / this.speed()));

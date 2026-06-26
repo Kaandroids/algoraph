@@ -45,7 +45,6 @@ import {
   DATA_PALETTE,
   DATA_STRUCTURES,
   dataSize,
-  formatDataItems,
   type DataNode,
   type DataPaletteItem,
   type DataStructureKind,
@@ -119,18 +118,113 @@ export class App {
     if (this.activeView() === 'run') untracked(() => this.run.build());
   });
 
-  /** Pan the Run canvas when the algorithm calls `scrollTo(u)` on a step. */
+  /** Cleared/reset whenever a new `scrollTo` pan begins (see `followScroll`). */
+  private panTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Pan the Run canvas when the algorithm calls `scrollTo(…)` on a step — to a
+   * single vertex, or to the midpoint of an edge.
+   *
+   * Foblex's animated centring eases (`ease-in-out`) but only over 150 ms, which
+   * reads as a snap. We briefly tag the canvas with `is-scrolling`, whose CSS
+   * stretches the transform transition to a perceptible, speed-scaled duration
+   * with a pronounced ease-in-out curve, then drop the tag so manual panning and
+   * zooming stay instant.
+   */
   private readonly followScroll = effect(() => {
     const target = this.run.effects().scrollTo;
     if (!target || untracked(() => this.activeView()) !== 'run') return;
     untracked(() => {
+      const canvas = this.fCanvas();
+      if (!canvas) return;
+      const host = this.elRef.nativeElement.querySelector('.ag-runcanvas f-canvas') as HTMLElement | null;
+      if (host) {
+        const ms = Math.round(this.run.animMs() * 1.4); // a touch longer than the effect fades
+        host.style.setProperty('--run-pan', `${ms}ms`);
+        host.classList.add('is-scrolling');
+        if (this.panTimer !== null) clearTimeout(this.panTimer);
+        this.panTimer = setTimeout(() => host.classList.remove('is-scrolling'), ms + 120);
+      }
       try {
-        this.fCanvas()?.centerGroupOrNode(target, true);
+        if (target.kind === 'edge') this.panToEdge(canvas, target.from, target.to);
+        else canvas.centerGroupOrNode(target.id, true);
       } catch {
-        // The node may not be laid out yet; ignore and let the next step retry.
+        // A node may not be laid out yet; ignore and let the next step retry.
       }
     });
   });
+
+  /**
+   * Place the iteration popup beside the loop's `for each` line (fixed there for
+   * the loop's whole run — it does not follow the active line down into the body)
+   * and keep its current row in view. Anchors vertically to that source line in
+   * the code rail; falls back to centred when it can't be measured (e.g. the code
+   * rail is collapsed). Scrolls only the popup list, never the page.
+   */
+  private readonly placeLoopPopup = effect(() => {
+    const lp = this.run.loop();
+    if (!lp || untracked(() => this.activeView()) !== 'run') return;
+    untracked(() => {
+      requestAnimationFrame(() => {
+        const stage = this.elRef.nativeElement.querySelector('.ag-runstage') as HTMLElement | null;
+        const pop = this.elRef.nativeElement.querySelector('.ag-loop-pop') as HTMLElement | null;
+        if (!stage || !pop) return;
+
+        // Anchor to the `for each` line itself (1-based → nth rendered code line).
+        const lines = this.elRef.nativeElement.querySelectorAll('.ag-runcode-rail .cm-line');
+        const lineEl = lines[lp.line - 1] as HTMLElement | undefined;
+        if (lineEl) {
+          const s = stage.getBoundingClientRect();
+          const l = lineEl.getBoundingClientRect();
+          const half = pop.offsetHeight / 2;
+          const y = Math.max(half + 8, Math.min(s.height - half - 8, l.top + l.height / 2 - s.top));
+          pop.style.setProperty('--loop-top', `${y}px`);
+        } else {
+          pop.style.removeProperty('--loop-top');
+        }
+
+        // Keep the current row centred within the popup list.
+        const list = pop.querySelector('.ag-loop-pop-list') as HTMLElement | null;
+        const row = list?.querySelector('.ag-loop-pop-row.is-current') as HTMLElement | null;
+        if (list && row) {
+          list.scrollTo({ top: row.offsetTop - list.clientHeight / 2 + row.clientHeight / 2, behavior: 'smooth' });
+        }
+      });
+    });
+  });
+
+  /**
+   * Centre the canvas on an edge by its weight badge — the point the learner sees
+   * labelling the edge. Foblex only centres a node by id, so we pan by the screen
+   * delta that brings the badge to the viewport centre, which is exact at any zoom
+   * (panning adds straight to the transform's translation). Falls back to centring
+   * the head vertex if the edge or its badge isn't found.
+   */
+  private panToEdge(canvas: FCanvasComponent, from: string, to: string): void {
+    const edge = this.edges().find((e) => {
+      const s = e.outputId.replace(/-out$/, '');
+      const t = e.inputId.replace(/-in$/, '');
+      return (s === from && t === to) || (s === to && t === from);
+    });
+    const flow = this.elRef.nativeElement.querySelector('.ag-runcanvas f-flow') as HTMLElement | null;
+    const badge = edge
+      ? (this.elRef.nativeElement.querySelector(
+          `.ag-runcanvas .ag-edge-badge[data-edge="${edge.id}"]`,
+        ) as HTMLElement | null)
+      : null;
+    if (!flow || !badge) {
+      canvas.centerGroupOrNode(to, true);
+      return;
+    }
+    const b = badge.getBoundingClientRect();
+    const f = flow.getBoundingClientRect();
+    const pos = canvas.getPosition();
+    canvas._setPosition({
+      x: pos.x + (f.left + f.width / 2 - (b.left + b.width / 2)),
+      y: pos.y + (f.top + f.height / 2 - (b.top + b.height / 2)),
+    });
+    canvas.redraw();
+  }
 
   /** In algorithm mode, which library item's inline reference card is open (`graph:KIND` / `data:KIND`). */
   protected readonly expandedLib = signal<string | null>(null);
@@ -222,6 +316,16 @@ export class App {
   protected readonly edges = this.canvas.edges;
   protected readonly dataNodes = this.canvas.dataNodes;
 
+  /** Run-canvas data structures: each node keeps its canvas position but shows the
+   *  live runtime contents (the same snapshot the Data panel uses), not builder data. */
+  protected readonly runDataNodes = computed<DataNode[]>(() => {
+    const live = new Map(this.run.dataState().map((d) => [d.id, d]));
+    return this.dataNodes().map((n) => {
+      const s = live.get(n.id);
+      return s ? { ...n, items: s.items, entries: s.entries, heap: s.heap, matrix: s.matrix } : n;
+    });
+  });
+
   protected readonly zoomLevel = signal(100);
   protected readonly panning = signal(false);
   protected readonly railCollapsed = signal(false);
@@ -253,8 +357,6 @@ export class App {
   protected readonly editNodePos = signal<{ x: number; y: number }>({ x: 0, y: 0 });
   /** Live text of the name field — kept separate from the model so an invalid draft isn't reset. */
   protected readonly nameDraft = signal('');
-  /** Live text of the comma-separated values field (LIST · STACK · QUEUE · SET). */
-  protected readonly itemsDraft = signal('');
   protected readonly editingDataNode = computed(
     () => this.dataNodes().find((n) => n.id === this.editNodeId()) ?? null,
   );
@@ -366,7 +468,6 @@ export class App {
   }
 
   /** Template hooks for the data-structure presentation helpers (defined in the model). */
-  protected readonly formatItems = formatDataItems;
   protected readonly dataSizeLabel = dataSize;
   /** Stacks grow upward, so render the top (last pushed) element first. */
   reversed(items: (string | number)[]): (string | number)[] {
@@ -420,7 +521,6 @@ export class App {
     this.editNodeKind.set(kind);
     this.editNodePos.set(pos);
     this.nameDraft.set(node.label);
-    this.itemsDraft.set('items' in node ? node.items.join(', ') : '');
     this.editNodeId.set(id);
   }
 
@@ -518,50 +618,8 @@ export class App {
     this.canvas.updateDataNode(id, change);
   }
 
-  /** LIST · STACK · QUEUE · SET — parse the comma-separated field into items. */
-  onItemsInput(value: string): void {
-    this.itemsDraft.set(value);
-    const node = this.editingDataNode();
-    if (!node) return;
-    let items: (string | number)[] = value
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0)
-      .map((s) => (!Number.isNaN(Number(s)) ? Number(s) : s));
-    if (node.kind === 'SET') items = [...new Set(items)];
-    this.updateEditingData((n) => ({ ...n, items }));
-  }
-
-  // MAP entries
-  addMapEntry(): void {
-    this.updateEditingData((n) => ({ ...n, entries: [...n.entries, { key: '', value: '' }] }));
-  }
-  setMapKey(index: number, key: string): void {
-    this.updateEditingData((n) => ({ ...n, entries: n.entries.map((e, i) => (i === index ? { ...e, key } : e)) }));
-  }
-  setMapValue(index: number, value: string): void {
-    this.updateEditingData((n) => ({ ...n, entries: n.entries.map((e, i) => (i === index ? { ...e, value } : e)) }));
-  }
-  removeMapEntry(index: number): void {
-    this.updateEditingData((n) => ({ ...n, entries: n.entries.filter((_, i) => i !== index) }));
-  }
-
-  // Priority-queue items
-  addHeapEntry(): void {
-    this.updateEditingData((n) => ({ ...n, heap: [...n.heap, { value: '', priority: 0 }] }));
-  }
-  setHeapValue(index: number, value: string): void {
-    this.updateEditingData((n) => ({ ...n, heap: n.heap.map((h, i) => (i === index ? { ...h, value } : h)) }));
-  }
-  setHeapPriority(index: number, priority: number): void {
-    if (Number.isNaN(priority)) return;
-    this.updateEditingData((n) => ({ ...n, heap: n.heap.map((h, i) => (i === index ? { ...h, priority } : h)) }));
-  }
-  removeHeapEntry(index: number): void {
-    this.updateEditingData((n) => ({ ...n, heap: n.heap.filter((_, i) => i !== index) }));
-  }
-
-  // Matrix size + cells
+  // Matrix size — the one structural input; contents start empty and the
+  // algorithm fills every structure at runtime, so there is no manual data entry.
   private resizeMatrix(rows: number, cols: number): void {
     const R = Math.max(1, Math.min(8, Math.round(rows || 1)));
     const C = Math.max(1, Math.min(8, Math.round(cols || 1)));
@@ -577,13 +635,6 @@ export class App {
   setMatrixCols(cols: number): void {
     const node = this.editingDataNode();
     if (node) this.resizeMatrix(node.matrix.length, cols);
-  }
-  setMatrixCell(r: number, c: number, value: number): void {
-    if (Number.isNaN(value)) return;
-    this.updateEditingData((n) => ({
-      ...n,
-      matrix: n.matrix.map((row, i) => (i === r ? row.map((cell, j) => (j === c ? value : cell)) : row)),
-    }));
   }
 
   // ── Foblex events ─────────────────────────────────────────

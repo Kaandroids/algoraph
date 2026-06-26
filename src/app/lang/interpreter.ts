@@ -8,7 +8,7 @@
  * the Run workspace's "main goes line by line, helpers are one step" model.
  */
 import type { Expr, FunctionDecl, Module, Stmt } from './ast';
-import type { CanvasEffects, DataSnapshot, RunResult, StepSnapshot } from './trace';
+import type { CanvasEffects, DataSnapshot, LoopFrame, RunResult, ScrollTarget, StepSnapshot } from './trace';
 import { emptyEffects } from './trace';
 import type { DataNode } from '../models/data-structure.model';
 import {
@@ -35,6 +35,17 @@ export interface RunInput {
 }
 
 const MAX_STEPS = 100_000;
+
+/** A live `for each` loop on the interpreter's stack (snapshotted as a `LoopFrame`). */
+interface LoopFrameState {
+  varName: string;
+  line: number;
+  items: string[];
+  index: number;
+  dsId: string | null;
+  /** Current element's vertex id, if it is a vertex — drives the canvas cursor. */
+  cursorId: string | null;
+}
 
 // Control-flow signals, thrown to unwind loops and calls.
 class ContinueSignal {}
@@ -65,7 +76,11 @@ export class Interpreter {
   private active = new Set<string>();
   private markedEdges = new Set<string>();
   private labels = new Map<string, string>();
-  private scrollTo: string | null = null;
+  private scrollTo: ScrollTarget | null = null;
+  // Stack of active `for each` loops, innermost last. Each frame drives the
+  // iteration popup and (when its element is a vertex) the canvas cursor + pan,
+  // so a loop visualizes itself without the algorithm marking anything.
+  private readonly loopFrames: LoopFrameState[] = [];
 
   private scope = new Map<string, Value>();
 
@@ -123,10 +138,18 @@ export class Interpreter {
       line,
       data: this.dsList.map((d) => d.snapshot()) as DataSnapshot[],
       effects: this.snapshotEffects(),
+      loop: this.snapshotLoop(),
       ops: this.opCount,
       note,
     });
     this.scrollTo = null; // a pan is consumed by the step that shows it
+  }
+
+  /** The innermost active loop's progress for this step (items shared, index copied). */
+  private snapshotLoop(): LoopFrame | null {
+    const top = this.loopFrames[this.loopFrames.length - 1];
+    if (!top) return null;
+    return { varName: top.varName, line: top.line, items: top.items, index: top.index, dsId: top.dsId };
   }
 
   private snapshotEffects(): CanvasEffects {
@@ -135,6 +158,7 @@ export class Interpreter {
     effects.active = [...this.active];
     effects.markedEdges = [...this.markedEdges];
     effects.labels = Object.fromEntries(this.labels);
+    effects.cursors = [...new Set(this.loopFrames.map((f) => f.cursorId).filter((id): id is string => id !== null))];
     effects.scrollTo = this.scrollTo;
     return effects;
   }
@@ -176,17 +200,36 @@ export class Interpreter {
         }
         break;
       case 'forIn': {
-        const seq = this.toIterable(this.evalExpr(stmt.iterable));
-        for (const elem of seq) {
-          this.scope.set(stmt.varName, elem);
-          this.emit(stmt.line);
-          try {
-            this.execBlock(stmt.body);
-          } catch (e) {
-            if (e instanceof ContinueSignal) continue;
-            if (e instanceof BreakSignal) break;
-            throw e;
+        const iterable = this.evalExpr(stmt.iterable);
+        const seq = this.toIterable(iterable);
+        const frame: LoopFrameState = {
+          varName: stmt.varName,
+          line: stmt.line,
+          items: seq.map((v) => String(display(v))),
+          index: 0,
+          dsId: iterable instanceof RDataStructure ? iterable.id : null,
+          cursorId: null,
+        };
+        this.loopFrames.push(frame);
+        try {
+          for (let i = 0; i < seq.length; i++) {
+            const elem = seq[i];
+            this.scope.set(stmt.varName, elem);
+            frame.index = i;
+            // A vertex element becomes the canvas cursor and the canvas follows it.
+            frame.cursorId = elem instanceof Vertex ? elem.id : null;
+            if (elem instanceof Vertex) this.scrollTo = { kind: 'node', id: elem.id };
+            this.emit(stmt.line);
+            try {
+              this.execBlock(stmt.body);
+            } catch (e) {
+              if (e instanceof ContinueSignal) continue;
+              if (e instanceof BreakSignal) break;
+              throw e;
+            }
           }
+        } finally {
+          this.loopFrames.pop();
         }
         break;
       }
@@ -243,8 +286,7 @@ export class Interpreter {
       }
       case 'binary': return this.evalBinary(expr);
       case 'index': return this.evalIndex(expr);
-      case 'member':
-        throw new RuntimeError(`'${expr.name}' must be called as a method (line ${expr.line})`);
+      case 'member': return this.evalMember(expr);
       case 'call': return this.evalCall(expr);
     }
   }
@@ -293,6 +335,16 @@ export class Interpreter {
     throw new RuntimeError(`Cannot index ${display(obj)} (line ${expr.line})`);
   }
 
+  private evalMember(expr: Extract<Expr, { kind: 'member' }>): Value {
+    const owner = this.evalExpr(expr.object);
+    // A namespaced accessor used without parentheses — `graph.nodes`, `graph.source`.
+    // The zero-argument graph accessors read as properties (CLRS `G.V` style); a
+    // member that needs arguments (`graph.neighbors`) surfaces a clear error from
+    // its builtin instead of silently returning nothing.
+    if (owner instanceof Namespace) return this.callBuiltin(expr.name, [], expr.line);
+    throw new RuntimeError(`'${expr.name}' must be called as a method (line ${expr.line})`);
+  }
+
   private evalCall(expr: Extract<Expr, { kind: 'call' }>): Value {
     const args = expr.args.map((a) => this.evalExpr(a));
     if (expr.callee.kind === 'name') {
@@ -333,6 +385,9 @@ export class Interpreter {
 
   private callBuiltin(name: string, args: Value[], line: number): Value {
     const v0 = () => this.asVertex(args[0], line);
+    // An edge is addressed by two vertices; `mark`/`unmark`/`scrollTo` overload on arity.
+    const isEdge = args.length >= 2;
+    const edgeKey = () => `${v0().id}->${this.asVertex(args[1], line).id}`;
     switch (name) {
       case 'nodes': return this.graph.nodes();
       case 'edges': return this.graph.edges();
@@ -345,11 +400,31 @@ export class Interpreter {
       case 'source': return this.graph.source();
       case 'goal': return this.graph.goal();
       case 'visit': this.charge(1); this.visited.add(v0().id); return null;
-      case 'mark': this.charge(1); this.active.add(v0().id); return null;
-      case 'unmark': this.charge(1); this.active.delete(v0().id); return null;
-      case 'markEdge': this.charge(1); this.markedEdges.add(`${v0().id}->${this.asVertex(args[1], line).id}`); return null;
+      case 'mark':
+        this.charge(1);
+        if (isEdge) this.markedEdges.add(edgeKey());
+        else this.active.add(v0().id);
+        return null;
+      case 'unmark':
+        this.charge(1);
+        if (isEdge) this.markedEdges.delete(edgeKey());
+        else this.active.delete(v0().id);
+        return null;
+      case 'markEdge': this.charge(1); this.markedEdges.add(edgeKey()); return null;
       case 'setLabel': this.charge(1); this.labels.set(v0().id, String(display(args[1]))); return null;
-      case 'scrollTo': this.charge(1); this.scrollTo = v0().id; return null;
+      case 'scrollTo':
+        this.charge(1);
+        this.scrollTo = isEdge
+          ? { kind: 'edge', from: v0().id, to: this.asVertex(args[1], line).id }
+          : { kind: 'node', id: v0().id };
+        return null;
+      case 'clearMarks':
+        this.charge(1);
+        this.visited.clear();
+        this.active.clear();
+        this.markedEdges.clear();
+        this.labels.clear();
+        return null;
       default: throw new RuntimeError(`Unknown function '${name}' (line ${line})`);
     }
   }
