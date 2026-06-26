@@ -260,6 +260,8 @@ export abstract class RDataStructure {
     protected readonly charge: Charge,
     readonly x: number,
     readonly y: number,
+    /** Hidden "scratch" structures are off-canvas and untracked — never rendered or snapshotted. */
+    readonly hidden = false,
   ) {}
 
   /** Dispatch a method call from `obj.method(args)`. */
@@ -448,8 +450,8 @@ export class RPQueue extends RDataStructure {
 }
 
 export class RMatrix extends RDataStructure {
-  constructor(id: string, label: string, charge: Charge, x: number, y: number, private grid: number[][]) {
-    super(id, label, 'MATRIX', charge, x, y);
+  constructor(id: string, label: string, charge: Charge, x: number, y: number, private grid: number[][], hidden = false) {
+    super(id, label, 'MATRIX', charge, x, y, hidden);
   }
   call(method: string, args: Value[], line: number): Value {
     switch (method) {
@@ -498,19 +500,20 @@ export function makeRuntimeDSByKind(
   charge: Charge,
   rows = 1,
   cols = 1,
+  hidden = false,
 ): RDataStructure {
   switch (kind) {
     case 'SET':
-      return new RSet(id, label, 'SET', charge, x, y);
+      return new RSet(id, label, 'SET', charge, x, y, hidden);
     case 'MAP':
-      return new RMap(id, label, 'MAP', charge, x, y);
+      return new RMap(id, label, 'MAP', charge, x, y, hidden);
     case 'PQUEUE':
-      return new RPQueue(id, label, 'PQUEUE', charge, x, y);
+      return new RPQueue(id, label, 'PQUEUE', charge, x, y, hidden);
     case 'MATRIX':
-      return new RMatrix(id, label, charge, x, y, Array.from({ length: rows }, () => Array.from({ length: cols }, () => 0)));
+      return new RMatrix(id, label, charge, x, y, Array.from({ length: rows }, () => Array.from({ length: cols }, () => 0)), hidden);
     case 'LIST':
     case 'STACK':
     case 'QUEUE':
-      return new RList(id, label, kind, charge, x, y);
+      return new RList(id, label, kind, charge, x, y, hidden);
   }
 }

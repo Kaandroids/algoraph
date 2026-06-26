@@ -16,7 +16,8 @@ import type { ExportRef } from '../models/exports';
 /** Global graph / visualization functions callable by bare name. */
 const BUILTIN_FUNCTIONS: ReadonlySet<string> = new Set([
   ...GLOBAL_REFERENCE.groups
-    .filter((g) => g.title !== 'Language')
+    // 'Language' is syntax; 'Scratch structures' are `scratch.*` member calls, checked at runtime.
+    .filter((g) => g.title !== 'Language' && g.title !== 'Scratch structures')
     .flatMap((g) => g.members)
     .map((m) => memberName(m.sig))
     .filter((name): name is string => name !== null),

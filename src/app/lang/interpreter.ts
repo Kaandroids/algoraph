@@ -61,6 +61,17 @@ function optionalName(value: Value | undefined): string | undefined {
   return value != null ? String(display(value)) : undefined;
 }
 
+/** `scratch.<method>()` → the kind of hidden structure it builds. */
+const SCRATCH_KINDS: Record<string, DataStructureKind> = {
+  list: 'LIST',
+  stack: 'STACK',
+  queue: 'QUEUE',
+  set: 'SET',
+  map: 'MAP',
+  pqueue: 'PQUEUE',
+  matrix: 'MATRIX',
+};
+
 /** A mark's optional `type` argument (`danger`/`warn`/…); `''` is the default highlight. */
 function markType(value: Value | undefined): string {
   return typeof value === 'string' ? value : '';
@@ -163,7 +174,8 @@ export class Interpreter {
       fileId: this.entryId,
       line,
       graph: this.graph.snapshot(),
-      data: this.dsList.map((d) => d.snapshot()) as DataSnapshot[],
+      // Hidden scratch structures are bookkeeping — never drawn on the canvas or listed in the data panel.
+      data: this.dsList.filter((d) => !d.hidden).map((d) => d.snapshot()) as DataSnapshot[],
       vars: this.snapshotVars(),
       effects: this.snapshotEffects(),
       loop: this.snapshotLoop(),
@@ -425,8 +437,11 @@ export class Interpreter {
     if (expr.callee.kind === 'member') {
       const obj = this.evalExpr(expr.callee.object);
       if (obj instanceof RDataStructure) return obj.call(expr.callee.name, args, expr.line);
-      // `graph.nodes()` / `canvas.visit(u)` — namespaced forms of the global builtins.
-      if (obj instanceof Namespace) return this.callBuiltin(expr.callee.name, args, expr.line);
+      if (obj instanceof Namespace) {
+        // `scratch.map(…)` builds a hidden structure; graph./canvas. forward to the global builtins.
+        if (obj.name === 'scratch') return this.createScratchDS(expr.callee.name, args, expr.line);
+        return this.callBuiltin(expr.callee.name, args, expr.line);
+      }
       // Read-only methods on a plain list — e.g. graph.nodes().size(), neighbors(u).contains(v).
       if (Array.isArray(obj)) return this.arrayMethod(obj, expr.callee.name, args, expr.line);
       // Vertex method sugar — `v.hasEdge(w)` runs the graph builtin with v as the first arg.
@@ -565,10 +580,42 @@ export class Interpreter {
     cols = 1,
     name = optionalName(args[2]),
   ): RDataStructure {
+    return this.registerDS(kind, Number(args[0]), Number(args[1]), name, rows, cols, false);
+  }
+
+  /**
+   * Create a hidden "scratch" structure for an algorithm's private bookkeeping —
+   * off-canvas and untracked. Coordinate-free: `scratch.map("inDeg")`,
+   * `scratch.queue()`, `scratch.matrix(rows, cols)`.
+   */
+  private createScratchDS(method: string, args: Value[], line: number): RDataStructure {
+    const kind = SCRATCH_KINDS[method];
+    if (!kind) {
+      throw new RuntimeError(
+        `'scratch.${method}' is not a structure — try scratch.map / set / queue / stack / list / pqueue / matrix (line ${line})`,
+      );
+    }
+    const isMatrix = kind === 'MATRIX';
+    const rows = isMatrix ? Number(args[0]) : 1;
+    const cols = isMatrix ? Number(args[1]) : 1;
+    const name = optionalName(isMatrix ? args[2] : args[0]);
+    return this.registerDS(kind, 0, 0, name, rows, cols, true);
+  }
+
+  /** Mint an id + unique label, build the structure, and register it for lookup. */
+  private registerDS(
+    kind: DataStructureKind,
+    x: number,
+    y: number,
+    name: string | undefined,
+    rows: number,
+    cols: number,
+    hidden: boolean,
+  ): RDataStructure {
     this.charge(1);
     const id = `ds${this.nextDataId++}`;
     const label = this.uniqueDataLabel(name ?? DATA_STRUCTURES[kind].defaultLabel);
-    const ds = makeRuntimeDSByKind(kind, id, label, Number(args[0]), Number(args[1]), this.charge, rows, cols);
+    const ds = makeRuntimeDSByKind(kind, id, label, x, y, this.charge, rows, cols, hidden);
     this.dsList.push(ds);
     this.dsByLabel.set(label, ds);
     return ds;
@@ -596,7 +643,9 @@ export class Interpreter {
     this.savedCanvas = {
       nodes: g.nodes.map((n) => ({ ...n })),
       edges: g.edges.map((e) => ({ ...e })),
-      data: this.dsList.map((d) => ({ id: d.id, kind: d.kind, label: d.label, x: d.x, y: d.y })),
+      data: this.dsList
+        .filter((d) => !d.hidden)
+        .map((d) => ({ id: d.id, kind: d.kind, label: d.label, x: d.x, y: d.y })),
     };
   }
 
@@ -605,7 +654,7 @@ export class Interpreter {
     if (this.scope.has(name)) return this.scope.get(name) as Value;
     const ds = this.dsByLabel.get(name);
     if (ds) return ds;
-    if (name === 'graph' || name === 'canvas') return new Namespace(name);
+    if (name === 'graph' || name === 'canvas' || name === 'scratch') return new Namespace(name);
     throw new RuntimeError(`'${name}' is not defined (line ${line})`);
   }
 

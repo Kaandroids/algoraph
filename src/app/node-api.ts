@@ -261,6 +261,18 @@ export const GLOBAL_REFERENCE: {
       ],
     },
     {
+      title: 'Scratch structures',
+      members: [
+        { sig: 'scratch.list(string name?)', desc: 'A hidden List for private bookkeeping — never drawn on the canvas or shown in the run data panel.', returns: 'List', cost: 'O(1)' },
+        { sig: 'scratch.stack(string name?)', desc: 'A hidden Stack — off-canvas and untracked.', returns: 'Stack', cost: 'O(1)' },
+        { sig: 'scratch.queue(string name?)', desc: 'A hidden Queue — off-canvas and untracked.', returns: 'Queue', cost: 'O(1)' },
+        { sig: 'scratch.set(string name?)', desc: 'A hidden Set — off-canvas and untracked.', returns: 'Set', cost: 'O(1)' },
+        { sig: 'scratch.map(string name?)', desc: 'A hidden Map — off-canvas and untracked.', returns: 'Map', cost: 'O(1)' },
+        { sig: 'scratch.pqueue(string name?)', desc: 'A hidden priority queue — off-canvas and untracked.', returns: 'PQueue', cost: 'O(1)' },
+        { sig: 'scratch.matrix(int rows, int cols, string name?)', desc: 'A hidden rows×cols matrix of zeros — off-canvas and untracked.', returns: 'Matrix', cost: 'O(R·C)' },
+      ],
+    },
+    {
       title: 'Language',
       members: [
         { sig: 'x ← e', desc: 'Assignment.' },

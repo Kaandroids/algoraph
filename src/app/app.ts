@@ -329,6 +329,7 @@ export class App {
         type: 'Canvas',
         members: [...this.apiGroupMembers('Visualization'), ...this.apiGroupMembers('Canvas editing')],
       },
+      { name: 'scratch', type: 'Scratch', members: this.apiGroupMembers('Scratch structures') },
       ...structures,
       ...locals,
     ];
@@ -375,6 +376,18 @@ export class App {
       groups: GLOBAL_REFERENCE.groups.filter(
         (g) => g.title === 'Visualization' || g.title === 'Canvas editing',
       ),
+    },
+    {
+      key: 'scratch',
+      label: 'Scratch',
+      sub: 'Hidden working structures',
+      icon: 'eyeOff',
+      color: 'oklch(0.6 0.06 230)',
+      description:
+        'Off-canvas data structures for an algorithm\'s private bookkeeping — created with ' +
+        'scratch.map(), scratch.queue(), and friends. They behave like any structure but are ' +
+        'never drawn on the canvas or shown in the run data panel.',
+      groups: GLOBAL_REFERENCE.groups.filter((g) => g.title === 'Scratch structures'),
     },
   ];
 

@@ -396,3 +396,64 @@ describe('interpreter (Dijkstra seed)', () => {
     expect(broken.steps).toEqual([]);
   });
 });
+
+describe('scratch structures (hidden, off-canvas bookkeeping)', () => {
+  it('scratch.* builds a working structure, usable by its variable', () => {
+    const result = runSrc(
+      'a ← source()\n' +
+      'inDeg ← scratch.map("inDeg")\n' +
+      'inDeg[a] ← 7\n' +
+      'inDeg[a] ← inDeg[a] + 1\n' +
+      'showMessage("" + inDeg[a])\n',
+    );
+    expect(result.error).toBeNull();
+    expect(result.steps.at(-1)!.effects.message!.text).toBe('8');
+  });
+
+  it('never appears in the data panel, unlike a visible createMap', () => {
+    const visible = runSrc('m ← createMap(10, 20, "shown")\nm[source()] ← 1\n');
+    expect(visible.steps.at(-1)!.data.map((d) => d.label)).toEqual(['shown']);
+
+    const hidden = runSrc('m ← scratch.map("hidden")\nm[source()] ← 1\n');
+    expect(hidden.steps.every((s) => s.data.length === 0)).toBe(true);
+  });
+
+  it('keeps full FIFO/queue semantics while staying hidden', () => {
+    const result = runSrc(
+      'q ← scratch.queue()\n' +
+      'q.enqueue(source())\n' +
+      'q.enqueue(goal())\n' +
+      'showMessage(q.dequeue() + "|" + q.size())\n',
+    );
+    expect(result.error).toBeNull();
+    expect(result.steps.at(-1)!.effects.message!.text).toBe('A|1'); // A dequeues first, E remains
+  });
+
+  it('stays out of both the data panel and the variable watch', () => {
+    const result = runSrc('seen ← scratch.set()\nseen.add(1)\nn ← seen.size()\n');
+    expect(result.error).toBeNull();
+    const last = result.steps.at(-1)!;
+    expect(last.data).toEqual([]);
+    expect(last.vars.find((v) => v.name === 'seen')).toBeUndefined();
+    expect(last.vars.find((v) => v.name === 'n')).toMatchObject({ value: '1' });
+  });
+
+  it('scratch.matrix takes rows and cols', () => {
+    const result = runSrc('M ← scratch.matrix(2, 3)\nshowMessage(M.rows() + "x" + M.cols())\n');
+    expect(result.error).toBeNull();
+    expect(result.steps.at(-1)!.effects.message!.text).toBe('2x3');
+    expect(result.steps.at(-1)!.data).toEqual([]);
+  });
+
+  it('is not persisted by saveCanvas()', () => {
+    const saved = runSrc('clearGraph()\ninDeg ← scratch.map("inDeg")\ninDeg[source()] ← 1\nsaveCanvas()\n').savedCanvas;
+    expect(saved).not.toBeNull();
+    expect(saved!.data).toEqual([]); // the scratch map is left out of the saved canvas
+  });
+
+  it('rejects an unknown scratch structure kind with a helpful message', () => {
+    const result = runSrc('x ← scratch.heap()\n');
+    expect(result.error).toBeTruthy();
+    expect(result.error).toContain('scratch.heap');
+  });
+});
