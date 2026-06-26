@@ -16,7 +16,10 @@ export interface AlgoFile {
   notes: LineNote[];
 }
 
-/** Seed for the entry file — the algorithm the Run workspace steps through. */
+/**
+ * Sample Dijkstra entry file. The workspace itself starts with an empty
+ * `main.algo`; this constant is the reference algorithm the lang tests run.
+ */
 export const MAIN_SRC = `// Dijkstra — shortest paths from the Start vertex
 s ← source()
 for each vertex u in nodes() do
@@ -39,7 +42,7 @@ while not pq.isEmpty() do
 end
 `;
 
-/** Seed for a module file — exports a helper the entry calls. */
+/** Companion module for the Dijkstra sample — exports the relax helper (test fixture). */
 export const HELPERS_SRC = `// Edge relaxation — shared helper
 export function relax(u, v) do
   alt ← dist[u] + weight(u, v)

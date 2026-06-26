@@ -1,5 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
-import { type AlgoFile, HELPERS_SRC, MAIN_SRC } from '../models/algo-file.model';
+import { type AlgoFile } from '../models/algo-file.model';
 import type { LineNote } from '../editor/line-notes';
 
 /**
@@ -9,10 +9,8 @@ import type { LineNote } from '../editor/line-notes';
  */
 @Injectable({ providedIn: 'root' })
 export class FilesStore {
-  readonly files = signal<AlgoFile[]>([
-    { id: 'main', name: 'main.algo', content: MAIN_SRC, notes: [] },
-    { id: 'helpers', name: 'helpers.algo', content: HELPERS_SRC, notes: [] },
-  ]);
+  /** Start with just the empty entry file; the learner writes the algorithm. */
+  readonly files = signal<AlgoFile[]>([{ id: 'main', name: 'main.algo', content: '', notes: [] }]);
   readonly activeId = signal('main');
   /** Id of the tab being renamed inline (null = none); `main` is never renamable. */
   readonly renamingId = signal<string | null>(null);

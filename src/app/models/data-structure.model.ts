@@ -74,8 +74,6 @@ export interface DataStructureDescriptor {
   readonly description: string;
   /** Default variable name when the structure is dropped from the library. */
   readonly defaultLabel: string;
-  /** Seed a fresh node's contents with a small sample so the card is never empty. */
-  seed(node: DataNode): void;
   /** Current element count, formatted for the globals list (e.g. "3", "3×3"). */
   size(node: DataNode): string;
 }
@@ -91,7 +89,6 @@ export const DATA_STRUCTURES: Record<DataStructureKind, DataStructureDescriptor>
     defaultLabel: 'list',
     description:
       'An ordered sequence addressed by position. Reading or overwriting any index is O(1); inserting or removing in the middle shifts the following elements, so it costs O(n).',
-    seed: (node) => void (node.items = [5, 3, 8, 1, 4]),
     size: (node) => `${node.items.length}`,
   },
   STACK: {
@@ -103,7 +100,6 @@ export const DATA_STRUCTURES: Record<DataStructureKind, DataStructureDescriptor>
     defaultLabel: 'stack',
     description:
       'A last-in, first-out (LIFO) collection: you push onto the top and pop from the top, so only the most recently added element is reachable. Backs depth-first search and backtracking.',
-    seed: (node) => void (node.items = [4, 2, 7]),
     size: (node) => `${node.items.length}`,
   },
   QUEUE: {
@@ -115,7 +111,6 @@ export const DATA_STRUCTURES: Record<DataStructureKind, DataStructureDescriptor>
     defaultLabel: 'queue',
     description:
       'A first-in, first-out (FIFO) collection: you enqueue at the back and dequeue from the front, so elements leave in the order they arrived. It is the frontier of breadth-first search.',
-    seed: (node) => void (node.items = ['A', 'B', 'C', 'D']),
     size: (node) => `${node.items.length}`,
   },
   SET: {
@@ -127,7 +122,6 @@ export const DATA_STRUCTURES: Record<DataStructureKind, DataStructureDescriptor>
     defaultLabel: 'set',
     description:
       'An unordered collection of distinct elements. Adding an element and testing membership are amortized O(1). Graph traversals use it to remember which vertices have been visited.',
-    seed: (node) => void (node.items = ['A', 'C', 'F']),
     size: (node) => `${node.items.length}`,
   },
   MAP: {
@@ -139,12 +133,6 @@ export const DATA_STRUCTURES: Record<DataStructureKind, DataStructureDescriptor>
     defaultLabel: 'map',
     description:
       'A collection of key → value pairs (dictionary / hash map). Every key is unique and maps to a single value; lookups and updates are amortized O(1). Stores distances, predecessors, colours and similar per-vertex data.',
-    seed: (node) =>
-      void (node.entries = [
-        { key: 'A', value: 0 },
-        { key: 'B', value: 4 },
-        { key: 'C', value: 2 },
-      ]),
     size: (node) => `${node.entries.length}`,
   },
   PQUEUE: {
@@ -156,12 +144,6 @@ export const DATA_STRUCTURES: Record<DataStructureKind, DataStructureDescriptor>
     defaultLabel: 'pq',
     description:
       'A queue ordered by priority instead of arrival time. Removing the smallest (or largest) element takes O(log n) with a binary heap. It drives Dijkstra, Prim and A*.',
-    seed: (node) =>
-      void (node.heap = [
-        { value: 'A', priority: 0 },
-        { value: 'C', priority: 2 },
-        { value: 'B', priority: 4 },
-      ]),
     size: (node) => `${node.heap.length}`,
   },
   MATRIX: {
@@ -173,12 +155,6 @@ export const DATA_STRUCTURES: Record<DataStructureKind, DataStructureDescriptor>
     defaultLabel: 'matrix',
     description:
       'A two-dimensional grid of values indexed by row and column. As an adjacency matrix it records a weight for every pair of vertices in O(V²) space with O(1) access. Used by Floyd–Warshall.',
-    seed: (node) =>
-      void (node.matrix = [
-        [0, 4, 2],
-        [4, 0, 1],
-        [2, 1, 0],
-      ]),
     size: (node) => (node.matrix.length ? `${node.matrix.length}×${node.matrix[0].length}` : '0'),
   },
 };
@@ -192,16 +168,14 @@ export const DATA_PALETTE: DataPaletteItem[] = DATA_STRUCTURE_KINDS.map((kind) =
   return { kind, label: d.label, sub: d.sub, icon: d.icon, color: d.color, description: d.description };
 });
 
-/** Build a fresh data-structure node, seeded with sample contents. */
+/** Build a fresh, empty data-structure node — the algorithm fills it in. */
 export function makeDataNode(
   kind: DataStructureKind,
   id: string,
   position: { x: number; y: number },
   label: string = DATA_STRUCTURES[kind].defaultLabel,
 ): DataNode {
-  const node: DataNode = { id, kind, label, position, items: [], entries: [], heap: [], matrix: [] };
-  DATA_STRUCTURES[kind].seed(node);
-  return node;
+  return { id, kind, label, position, items: [], entries: [], heap: [], matrix: [] };
 }
 
 /** Current element count, formatted for the globals list. */

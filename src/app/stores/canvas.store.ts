@@ -29,29 +29,10 @@ export interface CanvasSnapshot {
  */
 @Injectable({ providedIn: 'root' })
 export class CanvasStore {
-  readonly nodes = signal<GNode[]>([
-    { id: 'A', kind: 'START', label: 'A', position: { x: 60, y: 140 } },
-    { id: 'B', kind: 'NODE', label: 'B', position: { x: 360, y: 60 } },
-    { id: 'C', kind: 'NODE', label: 'C', position: { x: 360, y: 320 } },
-    { id: 'D', kind: 'NODE', label: 'D', position: { x: 680, y: 200 } },
-    { id: 'E', kind: 'GOAL', label: 'E', position: { x: 980, y: 280 } },
-  ]);
-
-  readonly edges = signal<GEdge[]>([
-    { id: 'e1', outputId: 'A-out', inputId: 'B-in', weight: 4, directed: true },
-    { id: 'e2', outputId: 'A-out', inputId: 'C-in', weight: 2, directed: true },
-    { id: 'e3', outputId: 'C-out', inputId: 'B-in', weight: 1, directed: true },
-    { id: 'e4', outputId: 'B-out', inputId: 'D-in', weight: 5, directed: true },
-    { id: 'e5', outputId: 'C-out', inputId: 'D-in', weight: 8, directed: true },
-    { id: 'e6', outputId: 'D-out', inputId: 'E-in', weight: 3, directed: true },
-  ]);
-
-  /** Data-structure nodes — seeded to mirror the Dijkstra sample in the code rail. */
-  readonly dataNodes = signal<DataNode[]>([
-    makeDataNode('SET', 'ds-visited', { x: 60, y: 470 }, 'visited'),
-    makeDataNode('MAP', 'ds-dist', { x: 320, y: 470 }, 'dist'),
-    makeDataNode('PQUEUE', 'ds-pq', { x: 600, y: 470 }, 'pq'),
-  ]);
+  /** The canvas starts blank — the learner builds the graph and drops data structures. */
+  readonly nodes = signal<GNode[]>([]);
+  readonly edges = signal<GEdge[]>([]);
+  readonly dataNodes = signal<DataNode[]>([]);
 
   /** Per-kind breakdown shown in the overview panel. */
   readonly summary = computed(() => {
