@@ -141,11 +141,8 @@
             (dblclick)="onNodeDblClick($event, node.id, 'graph')">
 
             <div class="ae-node-header" fDragHandle>
-              <span class="ae-node-icon"><app-icon [name]="nodeIcon(node.kind)" /></span>
-              <div class="ae-node-header-text">
-                <span class="ae-node-type-label">{{ nodeTypeLabel(node.kind) }}</span>
-                <span class="ae-node-label">{{ node.label }}</span>
-              </div>
+              <ng-container [ngTemplateOutlet]="nodeHeading"
+                [ngTemplateOutletContext]="{ icon: nodeIcon(node.kind), type: nodeTypeLabel(node.kind), label: node.label }" />
             </div>
 
             <div class="ae-node-ports">
@@ -175,11 +172,8 @@
             (dblclick)="onNodeDblClick($event, dn.id, 'data')">
 
             <div class="ae-node-header" fDragHandle>
-              <span class="ae-node-icon"><app-icon [name]="dataIcon(dn.kind)" /></span>
-              <div class="ae-node-header-text">
-                <span class="ae-node-type-label">{{ dataTypeLabel(dn.kind) }}</span>
-                <span class="ae-node-label">{{ dn.label }}</span>
-              </div>
+              <ng-container [ngTemplateOutlet]="nodeHeading"
+                [ngTemplateOutletContext]="{ icon: dataIcon(dn.kind), type: dataTypeLabel(dn.kind), label: dn.label }" />
             </div>
 
             <div class="ds-body">
@@ -696,11 +690,8 @@
                 [attr.data-type]="node.kind"
                 [style.--nc]="nodeColor(node.kind)">
                 <div class="ae-node-header">
-                  <span class="ae-node-icon"><app-icon [name]="nodeIcon(node.kind)" /></span>
-                  <div class="ae-node-header-text">
-                    <span class="ae-node-type-label">{{ nodeTypeLabel(node.kind) }}</span>
-                    <span class="ae-node-label">{{ node.label }}</span>
-                  </div>
+                  <ng-container [ngTemplateOutlet]="nodeHeading"
+                    [ngTemplateOutletContext]="{ icon: nodeIcon(node.kind), type: nodeTypeLabel(node.kind), label: node.label }" />
                 </div>
                 <div class="ae-node-ports">
                   <span class="ae-port-end ae-port-in-end">
@@ -723,11 +714,8 @@
                 [attr.data-ds]="dn.kind"
                 [style.--nc]="dataColor(dn.kind)">
                 <div class="ae-node-header">
-                  <span class="ae-node-icon"><app-icon [name]="dataIcon(dn.kind)" /></span>
-                  <div class="ae-node-header-text">
-                    <span class="ae-node-type-label">{{ dataTypeLabel(dn.kind) }}</span>
-                    <span class="ae-node-label">{{ dn.label }}</span>
-                  </div>
+                  <ng-container [ngTemplateOutlet]="nodeHeading"
+                    [ngTemplateOutletContext]="{ icon: dataIcon(dn.kind), type: dataTypeLabel(dn.kind), label: dn.label }" />
                 </div>
                 <div class="ds-body">
                   <ng-container [ngTemplateOutlet]="dsBody" [ngTemplateOutletContext]="{ $implicit: dn }" />
@@ -852,6 +840,20 @@
     [attr.aria-label]="'Expand ' + noun">
     <span>{{ vlabel }}</span>
   </button>
+</ng-template>
+
+<!--
+  Shared node heading (icon + type + name) — identical for graph vertices and
+  data structures, on the editable canvas and the read-only Run canvas. The
+  wrapping `.ae-node-header` (and its `fDragHandle` on the canvas) stays per
+  view, since an attribute directive can't be toggled by a binding.
+-->
+<ng-template #nodeHeading let-icon="icon" let-type="type" let-label="label">
+  <span class="ae-node-icon"><app-icon [name]="icon" /></span>
+  <div class="ae-node-header-text">
+    <span class="ae-node-type-label">{{ type }}</span>
+    <span class="ae-node-label">{{ label }}</span>
+  </div>
 </ng-template>
 
 <!-- Shared data-structure body — rendered on the canvas and in the Run state panel. -->
