@@ -314,6 +314,14 @@ describe('interpreter (Dijkstra seed)', () => {
     expect(runSrc('showMessage("hi")\nshowMessage("")\n').steps.at(-1)!.effects.message).toBeNull();
   });
 
+  it('hideMessage dismisses the snackbar', () => {
+    const result = runSrc('showMessage("hi", "info")\nmark(source())\nhideMessage()\n');
+    expect(result.error).toBeNull();
+    // The message persists over the intermediate step, then is gone at the end.
+    expect(result.steps.map((s) => s.effects.message)).toContainEqual({ text: 'hi', type: 'info' });
+    expect(result.steps.at(-1)!.effects.message).toBeNull();
+  });
+
   it('queries the plain list from graph.nodes()/neighbors() with size/contains/indexOf and []', () => {
     const msg = (src: string) => runSrc(src).steps.at(-1)!.effects.message!.text;
     expect(msg('showMessage("" + graph.nodes().size())\n')).toBe('5'); // five vertices

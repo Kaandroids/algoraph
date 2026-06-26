@@ -28,7 +28,7 @@ const ATOMS = new Set(['INFINITY', 'true', 'false', 'nil']);
 const BUILTINS = new Set([
   'neighbors', 'weight', 'hasEdge', 'degree', 'inDegree', 'outDegree',
   'source', 'goal', 'nodes', 'edges',
-  'mark', 'unmark', 'setLabel', 'scrollTo', 'clearMarks', 'showMessage',
+  'mark', 'unmark', 'setLabel', 'scrollTo', 'clearMarks', 'showMessage', 'hideMessage',
   'createNode', 'deleteNode', 'createEdge', 'deleteEdge',
   'createList', 'createStack', 'createQueue', 'createSet', 'createMap', 'createPQueue', 'createMatrix',
   'deleteDS', 'clearGraph', 'clearCanvas', 'saveCanvas',

@@ -489,6 +489,7 @@ export class Interpreter {
         this.message = text ? { text, type: markType(args[1]) } : null;
         return null;
       }
+      case 'hideMessage': this.charge(1); this.message = null; return null;
       case 'scrollTo':
         this.charge(1);
         this.scrollTo = isEdge

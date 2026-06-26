@@ -118,6 +118,7 @@ export const SYNTAX_GUIDE: SyntaxSection[] = [
       { syntax: 'scrollTo(u) · scrollTo(u, v)', desc: 'Pan the canvas to a vertex, or to the edge u → v.' },
       { syntax: 'clearMarks()', desc: 'Clear every highlight and label.' },
       { syntax: 'showMessage(text) · showMessage(text, "warn")', desc: 'Flash a snackbar — same type options; empty text clears it.' },
+      { syntax: 'hideMessage()', desc: 'Dismiss the snackbar.' },
     ],
   },
   {
