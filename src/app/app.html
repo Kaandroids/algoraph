@@ -502,11 +502,6 @@
         [ngTemplateOutletContext]="{ eyebrow: 'Algorithm', title: 'Overview', vlabel: 'Overview', noun: 'overview', key: 'code', side: 'right', help: true }" />
 
       <div class="ag-coderail-body ag-inspector-body">
-        <!-- Run the file currently open in the editor -->
-        <button class="ag-run-active" type="button" (click)="runActive()">
-          <app-icon name="play" /> Run {{ activeFile().name }}
-        </button>
-
         <!-- Globals — the graph and data structures in scope -->
         <div class="ag-insp-section">
           <div class="ag-insp-title">Globals</div>
@@ -575,6 +570,11 @@
             <span class="ag-insp-val ag-insp-val-mono">{{ complexity().space }}</span>
           </div>
         </div>
+
+        <!-- Run the file currently open in the editor -->
+        <button class="ag-run-active" type="button" (click)="runActive()">
+          <app-icon name="play" /> Run {{ activeFile().name }}
+        </button>
       </div>
 
       <div class="ag-coderail-foot ag-inspector-foot">

@@ -479,6 +479,7 @@
 
 /* Run the open file — the primary action of the algorithm overview. */
 .ag-run-active {
+  margin-top: auto; /* sit at the bottom of the overview, above the footer */
   display: flex;
   align-items: center;
   justify-content: center;
