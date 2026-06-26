@@ -27,6 +27,7 @@ import {
   closeBracketsKeymap,
 } from '@codemirror/autocomplete';
 import { algoraphLanguage, globalsFacet, exportsFacet, type EditorGlobal } from './dsl';
+import { runHighlight, setCurrentLine } from './run-highlight';
 import type { ExportRef } from '../models/exports';
 import {
   lineNotes,
@@ -71,6 +72,8 @@ export class CodeEditorComponent {
   readonly notesChange = output<LineNote[]>();
   /** Read-only viewer (Run workspace) — no editing, notes shown on hover. */
   readonly readOnly = input<boolean>(false);
+  /** 1-based line the Run workspace is executing (null clears the highlight). */
+  readonly activeLine = input<number | null>(null);
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('host');
   private readonly globalsComp = new Compartment();
   private readonly exportsComp = new Compartment();
@@ -107,6 +110,26 @@ export class CodeEditorComponent {
       const exports = this.exports();
       this.view?.dispatch({ effects: this.exportsComp.reconfigure(exportsFacet.of(exports)) });
     });
+
+    // Run step changed → move the executing-line highlight and scroll to it.
+    effect(() => {
+      const line = this.activeLine();
+      this.applyActiveLine(line);
+    });
+  }
+
+  /** Move the run highlight to a 1-based line (null clears it) and scroll to it. */
+  private applyActiveLine(line: number | null): void {
+    const view = this.view;
+    if (!view) return;
+    const valid = line != null && line >= 1 && line <= view.state.doc.lines;
+    const pos = valid ? view.state.doc.line(line).from : null;
+    view.dispatch({
+      effects: [
+        setCurrentLine.of(valid ? line : null),
+        ...(pos != null ? [EditorView.scrollIntoView(pos, { y: 'center' })] : []),
+      ],
+    });
   }
 
   private init(): void {
@@ -126,6 +149,7 @@ export class CodeEditorComponent {
         autocompletion(),
         this.globalsComp.of(globalsFacet.of(this.globals())),
         this.exportsComp.of(exportsFacet.of(this.exports())),
+        runHighlight(),
         algoraphLanguage(),
         ...(ro
           ? [EditorState.readOnly.of(true), EditorView.editable.of(false), EditorView.lineWrapping]
@@ -144,5 +168,7 @@ export class CodeEditorComponent {
       ],
     });
     this.view = new EditorView({ state, parent: this.host().nativeElement });
+    // Apply any current run highlight now that the view (and its document) exist.
+    this.applyActiveLine(this.activeLine());
   }
 }

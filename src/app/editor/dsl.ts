@@ -286,6 +286,11 @@ const postwerkTheme = EditorView.theme(
     },
     '.cm-lineNumbers .cm-gutterElement': { padding: '0 10px 0 14px', minWidth: '34px' },
     '.cm-activeLine': { backgroundColor: 'color-mix(in srgb, var(--accent) 5%, transparent)' },
+    // The line the Run workspace is executing — a debugger-style cursor.
+    '.cm-line.cm-run-current': {
+      backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)',
+      boxShadow: 'inset 3px 0 0 var(--accent)',
+    },
     '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--fg-muted)' },
     '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--accent)' },
     '.cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection': {

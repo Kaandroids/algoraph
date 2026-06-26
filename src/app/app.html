@@ -797,6 +797,7 @@
         <app-code-editor class="ag-runcode-cm"
           [content]="mainFile().content"
           [notes]="mainFile().notes"
+          [activeLine]="run.currentLine()"
           [readOnly]="true" />
       </div>
     </aside>
