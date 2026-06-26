@@ -385,25 +385,44 @@ const noteTheme = EditorView.theme({
   '.cm-note-line': { cursor: 'pointer' },
   '.cm-note-line:hover': { background: 'color-mix(in srgb, var(--accent) 5%, transparent)' },
   '.cm-note-block': {
-    margin: '3px 14px 8px 38px',
-    padding: '9px 12px 9px 13px',
+    // Spacing as padding (not margin) so the gutter stays aligned with the text.
+    padding: '3px 14px 7px 36px',
+  },
+  '.cm-note-card': {
+    background: 'var(--bg)',
+    border: '0.5px solid var(--border-strong)',
+    borderRadius: '11px',
+    boxShadow: '0 8px 22px -12px rgba(34, 28, 18, 0.3)',
+    overflow: 'hidden',
     fontFamily: 'var(--font-sans)',
+  },
+  '.cm-note-block-head': {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '7px 12px',
+    background: 'color-mix(in srgb, var(--accent) 9%, transparent)',
+    borderBottom: '0.5px solid var(--border)',
+    fontSize: '9.5px',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    color: 'var(--accent)',
+  },
+  '.cm-note-block-head svg': { width: '12px', height: '12px' },
+  '.cm-note-block-body': {
+    padding: '10px 13px',
     fontSize: '12px',
     lineHeight: '1.55',
     color: 'var(--fg)',
-    background: 'var(--bg-2)',
-    border: '0.5px solid var(--border)',
-    borderLeft: '2.5px solid var(--accent)',
-    borderRadius: '9px',
-    boxShadow: '0 1px 3px rgba(34, 28, 18, 0.05)',
   },
-  '.cm-note-block p': { margin: '0' },
-  '.cm-note-block p + p, .cm-note-block p + ul, .cm-note-block ul + p': { marginTop: '5px' },
-  '.cm-note-block strong': { fontWeight: '650', color: 'var(--fg)' },
-  '.cm-note-block em': { fontStyle: 'italic' },
-  '.cm-note-block ul': { margin: '0', paddingLeft: '17px' },
-  '.cm-note-block li': { marginBottom: '2px' },
-  '.cm-note-block li::marker': { color: 'var(--accent)' },
+  '.cm-note-block-body p': { margin: '0' },
+  '.cm-note-block-body p + p, .cm-note-block-body p + ul, .cm-note-block-body ul + p': { marginTop: '5px' },
+  '.cm-note-block-body strong': { fontWeight: '650' },
+  '.cm-note-block-body em': { fontStyle: 'italic' },
+  '.cm-note-block-body ul': { margin: '0', paddingLeft: '17px' },
+  '.cm-note-block-body li': { marginBottom: '2px' },
+  '.cm-note-block-body li::marker': { color: 'var(--accent)' },
 });
 
 /** Line numbers + the note dot gutter + click-to-edit tooltip. Replaces `lineNumbers()`. */
@@ -481,9 +500,26 @@ class NoteBlock extends WidgetType {
     return other instanceof NoteBlock && other.text === this.text;
   }
   override toDOM() {
+    // Outer block carries only padding for spacing — margins on a block widget
+    // aren't measured by CodeMirror and shift the gutter out of line with the
+    // text below. The visible card lives in an inner wrapper.
     const dom = document.createElement('div');
     dom.className = 'cm-note-block';
-    dom.innerHTML = renderNoteHtml(this.text);
+    const card = document.createElement('div');
+    card.className = 'cm-note-card';
+    const head = document.createElement('div');
+    head.className = 'cm-note-block-head';
+    head.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>' +
+      '<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+      '<span>Note</span>';
+    const body = document.createElement('div');
+    body.className = 'cm-note-block-body';
+    body.innerHTML = renderNoteHtml(this.text);
+    card.append(head, body);
+    dom.append(card);
     return dom;
   }
 }
