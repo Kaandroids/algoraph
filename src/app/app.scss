@@ -479,7 +479,6 @@
 
 /* Run the open file — the primary action of the algorithm overview. */
 .ag-run-active {
-  margin-top: auto; /* sit at the bottom of the overview, above the footer */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -501,6 +500,23 @@
 }
 .ag-run-active app-icon {
   display: inline-flex;
+}
+
+/* Error from a Run-button press — shown above the Run button, cleared on edit. */
+.ag-run-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0 14px 9px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--danger) 40%, transparent);
+
+  app-icon { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
 }
 
 .ag-insp-title {
@@ -621,49 +637,9 @@
   color: var(--fg-subtle);
 }
 
-/* Import / export footer */
+/* Algorithm overview footer — holds the Run button. */
 .ag-inspector-foot {
   gap: 8px;
-}
-
-.ag-io-btn {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 34px;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--fg);
-  background: var(--field-bg);
-  border: 0.5px solid var(--border-strong);
-  border-radius: 9px;
-  cursor: pointer;
-  transition: color 0.12s, border-color 0.12s, background 0.12s, box-shadow 0.12s;
-
-  app-icon { width: 14px; height: 14px; color: currentColor; }
-
-  &:hover {
-    color: var(--accent);
-    border-color: var(--accent);
-  }
-
-  &.primary {
-    color: var(--bg-panel-fg);
-    background: var(--bg-panel);
-    border-color: transparent;
-
-    /* Crisp white download glyph — a touch brighter than the paper label, clean on the dark ink button. */
-    app-icon { color: #fff; }
-
-    &:hover {
-      color: var(--bg-panel-fg);
-      background: color-mix(in srgb, var(--bg-panel) 88%, #000);
-      box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.25);
-    }
-  }
 }
 
 .ag-coderail-foot {

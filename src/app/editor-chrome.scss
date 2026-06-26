@@ -104,12 +104,59 @@
   align-items: center;
   gap: 12px;
   min-width: 0;
+  flex: 1; /* equal side weights keep the centred switcher truly centred */
+}
+
+/* Centre section — the Canvas / Algorithm / Run switcher. */
+.ae-toolbar-center {
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .ae-toolbar-right {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+/* Right section — Import / Export / Standard library / Doc actions. */
+.ae-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ae-action-btn {
+  appearance: none;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 0.5px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+
+  app-icon { width: 14px; height: 14px; color: var(--fg-subtle); }
+
+  &:hover {
+    color: var(--fg);
+    border-color: var(--border);
+    background: var(--bg-2);
+
+    app-icon { color: var(--accent); }
+  }
 }
 
 .ae-toolbar-name {

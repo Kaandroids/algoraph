@@ -124,6 +124,16 @@ export class App {
     if (this.activeView() === 'run') untracked(() => this.run.build());
   });
 
+  /** Error from the last Run-button press, shown in the algorithm overview (null = clean). */
+  protected readonly runError = signal<string | null>(null);
+
+  /** A run error is stale once the code changes — clear it on the next recompile. */
+  private readonly clearRunError = effect(() => {
+    this.activeFileId();
+    this.compiled();
+    untracked(() => this.runError.set(null));
+  });
+
   /** Cleared/reset whenever a new `scrollTo` pan begins (see `followScroll`). */
   private panTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -264,10 +274,15 @@ export class App {
       .map((d) => ({ line: d.line, severity: d.severity, message: d.message })),
   );
 
-  /** Run the file open in the editor: make it the entry, then switch to the Run view. */
+  /**
+   * Run the file open in the editor in place — compile + execute it without
+   * leaving the editor. On an error (compile or runtime) surface it below the
+   * Run button; on success it just runs (debug output comes later).
+   */
   runActive(): void {
     this.run.entryId.set(this.activeFileId());
-    this.setView('run');
+    this.run.build(); // compile + run now
+    this.runError.set(this.run.error()); // null when clean, message on failure
   }
 
   /** Estimated Big-O of the entry algorithm, shown in the overview's Complexity card. */
@@ -1005,5 +1020,15 @@ export class App {
       }
     };
     reader.readAsText(file);
+  }
+
+  /** Load the bundled standard-library algorithms/data structures. (Content TBD.) */
+  loadStandardLibrary(): void {
+    // Placeholder — the standard library and its loader land in a follow-up.
+  }
+
+  /** Open the documentation. (Content TBD.) */
+  openDocs(): void {
+    // Placeholder — the docs target lands in a follow-up.
   }
 }

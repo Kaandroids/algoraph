@@ -8,7 +8,7 @@
       <span class="ae-status-label">Editor</span>
     </span>
   </div>
-  <div class="ae-toolbar-right">
+  <div class="ae-toolbar-center">
     <div class="ae-tabs">
       <button class="ae-tab" [class.active]="activeView() === 'canvas'" (click)="setView('canvas')">
         <app-icon name="workflow" /><span>Canvas</span>
@@ -18,6 +18,22 @@
       </button>
       <button class="ae-tab" [class.active]="activeView() === 'run'" (click)="setView('run')">
         <app-icon name="play" /><span>Run</span>
+      </button>
+    </div>
+  </div>
+  <div class="ae-toolbar-right">
+    <div class="ae-toolbar-actions">
+      <button class="ae-action-btn" type="button" (click)="triggerImport()" title="Import a canvas">
+        <app-icon name="upload" /><span>Import</span>
+      </button>
+      <button class="ae-action-btn" type="button" (click)="exportCanvas()" title="Export the canvas">
+        <app-icon name="download" /><span>Export</span>
+      </button>
+      <button class="ae-action-btn" type="button" (click)="loadStandardLibrary()" title="Load the standard library">
+        <app-icon name="layers" /><span>Standard library</span>
+      </button>
+      <button class="ae-action-btn" type="button" (click)="openDocs()" title="Documentation">
+        <app-icon name="help" /><span>Doc</span>
       </button>
     </div>
   </div>
@@ -435,14 +451,6 @@
       </div>
     </div>
 
-    <div class="ag-coderail-foot ag-inspector-foot">
-      <button class="ag-io-btn" type="button" (click)="triggerImport()">
-        <app-icon name="upload" /> Import
-      </button>
-      <button class="ag-io-btn primary" type="button" (click)="exportCanvas()">
-        <app-icon name="download" /> Export
-      </button>
-    </div>
   </aside>
   }
 
@@ -571,18 +579,17 @@
           </div>
         </div>
 
-        <!-- Run the file currently open in the editor -->
-        <button class="ag-run-active" type="button" (click)="runActive()">
-          <app-icon name="play" /> Run {{ activeFile().name }}
-        </button>
       </div>
 
+      <!-- Run the file currently open in the editor -->
+      @if (runError(); as err) {
+        <div class="ag-run-error" role="alert">
+          <app-icon name="x" /><span>{{ err }}</span>
+        </div>
+      }
       <div class="ag-coderail-foot ag-inspector-foot">
-        <button class="ag-io-btn" type="button" (click)="triggerImport()">
-          <app-icon name="upload" /> Import
-        </button>
-        <button class="ag-io-btn primary" type="button" (click)="exportCanvas()">
-          <app-icon name="download" /> Export
+        <button class="ag-run-active" type="button" (click)="runActive()">
+          <app-icon name="play" /> Run {{ activeFile().name }}
         </button>
       </div>
     </aside>
