@@ -302,13 +302,17 @@ export class App {
 
   /**
    * Data structures the active file's run creates (static reachability scan) —
-   * shown in the overview's "Local" section and offered in autocomplete.
+   * offered in autocomplete and split across the overview's Globals / Local sections.
    */
-  protected readonly localStructures = computed<LocalStructure[]>(() => {
+  protected readonly codeStructures = computed<LocalStructure[]>(() => {
     const compiled = this.compiled();
     const module = compiled.modules.find((m) => m.fileId === this.activeFileId());
     return module ? collectLocalStructures(module, compiled.functions) : [];
   });
+  /** Code-created structures shown under "Local" — everything except panel.* (those surface as globals). */
+  protected readonly localStructures = computed(() => this.codeStructures().filter((s) => !s.global));
+  /** panel.* structures — created in code but surfaced under "Globals" (they show in the run data panel). */
+  protected readonly globalStructures = computed(() => this.codeStructures().filter((s) => s.global));
 
   /** Names in scope for the editor's autocomplete — the graph, the canvas, and data structures. */
   protected readonly editorGlobals = computed<EditorGlobal[]>(() => {
@@ -317,9 +321,9 @@ export class App {
       type: DATA_STRUCTURES[d.kind].tag,
       members: this.dataMembers(d.kind),
     }));
-    // Code-created structures, minus any whose name a placed structure already covers.
+    // Code-created structures (canvas, scratch and panel), minus any a placed structure already covers.
     const placed = new Set(this.dataNodes().map((d) => d.label));
-    const locals = this.localStructures()
+    const locals = this.codeStructures()
       .filter((ls) => !placed.has(ls.name))
       .map((ls) => ({ name: ls.name, type: DATA_STRUCTURES[ls.kind].tag, members: this.dataMembers(ls.kind) }));
     return [

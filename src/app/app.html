@@ -536,6 +536,15 @@
               <span class="ag-insp-tag">{{ dataTypeLabel(dn.kind) }}</span>
             </div>
           }
+          <!-- panel.* structures — created in code, off-canvas, but watchable in the run data panel. -->
+          @for (gs of globalStructures(); track gs.name) {
+            <div class="ag-insp-row" [style.--nc]="dataColor(gs.kind)">
+              <span class="ag-insp-dot"></span>
+              <span class="ag-insp-name">{{ gs.name }}</span>
+              <span class="ag-insp-size"></span>
+              <span class="ag-insp-tag">{{ dataTypeLabel(gs.kind) }}</span>
+            </div>
+          }
         </div>
 
         <!-- Local — data structures this file's run creates in code -->
