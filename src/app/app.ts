@@ -36,6 +36,7 @@ import {
 import { type AlgoFile } from './models/algo-file.model';
 import { type ExportRef } from './models/exports';
 import { compile } from './lang/compile';
+import { estimateComplexity } from './lang/complexity';
 import { FilesStore } from './stores/files.store';
 import { CanvasStore } from './stores/canvas.store';
 import { RunStore } from './stores/run.store';
@@ -143,8 +144,22 @@ export class App {
   protected readonly activeFileNotes = this.fileStore.activeNotes;
   protected readonly mainFile = this.fileStore.main;
 
+  /** Parsed + resolved program — shared by the export list and the complexity estimate. */
+  private readonly compiled = computed(() => compile(this.files()));
+
   /** Exported helpers across all files — listed in the overview and offered in autocomplete. */
-  protected readonly editorExports = computed<ExportRef[]>(() => compile(this.files()).exports);
+  protected readonly editorExports = computed<ExportRef[]>(() => this.compiled().exports);
+
+  /** Estimated Big-O of the entry algorithm, shown in the overview's Complexity card. */
+  protected readonly complexity = computed(() => {
+    const program = this.compiled();
+    const dsKinds = new Map(this.dataNodes().map((d) => [d.label, d.kind] as const));
+    return estimateComplexity(
+      program.modules.find((m) => m.fileId === 'main'),
+      program.functions,
+      dsKinds,
+    );
+  });
 
   /** Names in scope for the editor's autocomplete — the graph + canvas data structures. */
   protected readonly editorGlobals = computed<EditorGlobal[]>(() => {

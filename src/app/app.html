@@ -608,18 +608,18 @@
           </div>
         }
 
-        <!-- Complexity (filled once the interpreter runs) -->
+        <!-- Complexity — a static estimate from the algorithm's loop structure -->
         <div class="ag-insp-section">
-          <div class="ag-insp-title">Complexity</div>
+          <div class="ag-insp-title">Complexity <span class="ag-insp-note">estimate</span></div>
           <div class="ag-insp-line" style="--nc: var(--accent)">
             <span class="ag-insp-ic"><app-icon name="reset" /></span>
             <span class="ag-insp-key">Time</span>
-            <span class="ag-insp-val ag-insp-val-mono">O(?)</span>
+            <span class="ag-insp-val ag-insp-val-mono">{{ complexity().time }}</span>
           </div>
           <div class="ag-insp-line" style="--nc: var(--tone-violet)">
             <span class="ag-insp-ic"><app-icon name="layers" /></span>
             <span class="ag-insp-key">Space</span>
-            <span class="ag-insp-val ag-insp-val-mono">O(?)</span>
+            <span class="ag-insp-val ag-insp-val-mono">{{ complexity().space }}</span>
           </div>
         </div>
       </div>
@@ -786,6 +786,7 @@
         </div>
         <div class="ag-transport-track">
           <span class="ag-transport-step">Step {{ run.stepNumber() }} / {{ run.lastStep() }}</span>
+          <span class="ag-transport-ops" title="Operations counted so far">{{ run.ops() }} ops</span>
           <div class="ag-transport-bar">
             <div class="ag-transport-fill" [style.width.%]="run.progress() * 100"></div>
           </div>
