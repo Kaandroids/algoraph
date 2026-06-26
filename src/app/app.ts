@@ -8,6 +8,7 @@ import {
   inject,
   signal,
   viewChild,
+  type WritableSignal,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import {
@@ -63,6 +64,9 @@ interface NodeInfo {
   description: string;
   groups: ApiGroup[];
 }
+
+/** The collapsible inspector rails, keyed for the shared `#railHead` chrome. */
+type InspectorRail = 'code' | 'data' | 'runcode';
 
 @Component({
   selector: 'app-root',
@@ -699,17 +703,24 @@ export class App {
   }
 
   // ── Rails ─────────────────────────────────────────────────
+  /** The library rail on the far left — collapsed independently of the inspectors. */
   toggleRail(): void {
     this.railCollapsed.update((v) => !v);
   }
-  toggleCodeRail(): void {
-    this.codeRailCollapsed.update((v) => !v);
-  }
-  toggleRunData(): void {
-    this.runDataCollapsed.update((v) => !v);
-  }
-  toggleRunCode(): void {
-    this.runCodeCollapsed.update((v) => !v);
+
+  /**
+   * Collapse signal for each inspector rail, keyed by the `#railHead` template.
+   * `code` is shared by the Canvas and Algorithm overviews (only one shows at a time).
+   */
+  private readonly inspectorRails: Record<InspectorRail, WritableSignal<boolean>> = {
+    code: this.codeRailCollapsed,
+    data: this.runDataCollapsed,
+    runcode: this.runCodeCollapsed,
+  };
+
+  /** Toggle one inspector rail by its key — drives the shared rail chrome. */
+  toggleInspector(key: InspectorRail): void {
+    this.inspectorRails[key].update((v) => !v);
   }
 
   // ── View switch (graph builder ↔ algorithm editor) ────────

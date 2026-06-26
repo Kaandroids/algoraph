@@ -444,24 +444,8 @@
 
   <!-- ── Canvas overview rail (right, collapsible) ─────────── -->
   <aside class="ag-coderail ag-inspector" [class.collapsed]="codeRailCollapsed()">
-    <div class="ag-coderail-head">
-      <button class="ae-toolrail-toggle ag-coderail-toggle" (click)="toggleCodeRail()"
-        aria-label="Collapse overview">
-        <app-icon name="chevronRight" />
-      </button>
-      <div class="ae-toolrail-titles">
-        <span class="ae-toolrail-eyebrow">Canvas</span>
-        <span class="ae-toolrail-title">Overview</span>
-      </div>
-      <button class="ae-toolrail-help" type="button" (click)="openGlobalInfo($event)"
-        aria-label="Pseudocode reference">
-        <app-icon name="help" />
-      </button>
-    </div>
-
-    <button class="ag-coderail-vlabel" (click)="toggleCodeRail()" aria-label="Expand overview">
-      <span>Overview</span>
-    </button>
+    <ng-container [ngTemplateOutlet]="railHead"
+      [ngTemplateOutletContext]="{ eyebrow: 'Canvas', title: 'Overview', vlabel: 'Overview', noun: 'overview', key: 'code', side: 'right', help: true }" />
 
     <div class="ag-coderail-body ag-inspector-body">
       <!-- Summary -->
@@ -591,24 +575,8 @@
 
     <!-- ── Algorithm overview rail (right, collapsible) ─────── -->
     <aside class="ag-coderail ag-inspector" [class.collapsed]="codeRailCollapsed()">
-      <div class="ag-coderail-head">
-        <button class="ae-toolrail-toggle ag-coderail-toggle" (click)="toggleCodeRail()"
-          aria-label="Collapse overview">
-          <app-icon name="chevronRight" />
-        </button>
-        <div class="ae-toolrail-titles">
-          <span class="ae-toolrail-eyebrow">Algorithm</span>
-          <span class="ae-toolrail-title">Overview</span>
-        </div>
-        <button class="ae-toolrail-help" type="button" (click)="openGlobalInfo($event)"
-          aria-label="Pseudocode reference">
-          <app-icon name="help" />
-        </button>
-      </div>
-
-      <button class="ag-coderail-vlabel" (click)="toggleCodeRail()" aria-label="Expand overview">
-        <span>Overview</span>
-      </button>
+      <ng-container [ngTemplateOutlet]="railHead"
+        [ngTemplateOutletContext]="{ eyebrow: 'Algorithm', title: 'Overview', vlabel: 'Overview', noun: 'overview', key: 'code', side: 'right', help: true }" />
 
       <div class="ag-coderail-body ag-inspector-body">
         <!-- Globals — the graph and data structures in scope -->
@@ -661,19 +629,9 @@
   @if (activeView() === 'run') {
     <!-- ── Run: data structures (left, collapsible) ──────────── -->
     <aside class="ag-coderail ag-coderail-left ag-inspector" [class.collapsed]="runDataCollapsed()">
-      <div class="ag-coderail-head">
-        <div class="ae-toolrail-titles">
-          <span class="ae-toolrail-eyebrow">State</span>
-          <span class="ae-toolrail-title">Data</span>
-        </div>
-        <button class="ae-toolrail-toggle ag-coderail-toggle" (click)="toggleRunData()"
-          aria-label="Collapse data">
-          <app-icon name="chevronLeft" />
-        </button>
-      </div>
-      <button class="ag-coderail-vlabel" (click)="toggleRunData()" aria-label="Expand data">
-        <span>Data</span>
-      </button>
+      <ng-container [ngTemplateOutlet]="railHead"
+        [ngTemplateOutletContext]="{ eyebrow: 'State', title: 'Data', vlabel: 'Data', noun: 'data', key: 'data', side: 'left', help: false }" />
+
       <div class="ag-coderail-body ag-inspector-body">
         @for (dn of dataNodes(); track dn.id) {
           <div class="ag-statevar" [style.--nc]="dataColor(dn.kind)">
@@ -818,19 +776,9 @@
 
     <!-- ── Run: main.algo (right, collapsible, read-only) ────── -->
     <aside class="ag-coderail ag-runcode-rail" [class.collapsed]="runCodeCollapsed()">
-      <div class="ag-coderail-head">
-        <button class="ae-toolrail-toggle ag-coderail-toggle" (click)="toggleRunCode()"
-          aria-label="Collapse code">
-          <app-icon name="chevronRight" />
-        </button>
-        <div class="ae-toolrail-titles">
-          <span class="ae-toolrail-eyebrow">Run</span>
-          <span class="ae-toolrail-title">main.algo</span>
-        </div>
-      </div>
-      <button class="ag-coderail-vlabel" (click)="toggleRunCode()" aria-label="Expand code">
-        <span>Code</span>
-      </button>
+      <ng-container [ngTemplateOutlet]="railHead"
+        [ngTemplateOutletContext]="{ eyebrow: 'Run', title: 'main.algo', vlabel: 'Code', noun: 'code', key: 'runcode', side: 'right', help: false }" />
+
       <div class="ag-coderail-body">
         <app-code-editor class="ag-runcode-cm"
           [content]="mainFile().content"
@@ -866,6 +814,45 @@
 <!-- Hidden file picker shared by the Import button in either workspace. -->
 <input #importInput type="file" accept="application/json,.json" hidden
   (change)="onImportFile($event)" />
+
+<!--
+  Shared chrome for the collapsible inspector rails (Canvas/Algorithm overview,
+  Run state, Run code). Renders the head — toggle, eyebrow + title, optional
+  help — plus the vertical label shown while collapsed. `side` places the toggle
+  and picks the chevron; `key` selects which rail the toggle drives.
+-->
+<ng-template #railHead let-eyebrow="eyebrow" let-title="title" let-vlabel="vlabel"
+  let-noun="noun" let-key="key" let-side="side" let-help="help">
+  <div class="ag-coderail-head">
+    @if (side === 'right') {
+      <button class="ae-toolrail-toggle ag-coderail-toggle" (click)="toggleInspector(key)"
+        [attr.aria-label]="'Collapse ' + noun">
+        <app-icon name="chevronRight" />
+      </button>
+    }
+    <div class="ae-toolrail-titles">
+      <span class="ae-toolrail-eyebrow">{{ eyebrow }}</span>
+      <span class="ae-toolrail-title">{{ title }}</span>
+    </div>
+    @if (help) {
+      <button class="ae-toolrail-help" type="button" (click)="openGlobalInfo($event)"
+        aria-label="Pseudocode reference">
+        <app-icon name="help" />
+      </button>
+    }
+    @if (side === 'left') {
+      <button class="ae-toolrail-toggle ag-coderail-toggle" (click)="toggleInspector(key)"
+        [attr.aria-label]="'Collapse ' + noun">
+        <app-icon name="chevronLeft" />
+      </button>
+    }
+  </div>
+
+  <button class="ag-coderail-vlabel" (click)="toggleInspector(key)"
+    [attr.aria-label]="'Expand ' + noun">
+    <span>{{ vlabel }}</span>
+  </button>
+</ng-template>
 
 <!-- Shared data-structure body — rendered on the canvas and in the Run state panel. -->
 <ng-template #dsBody let-dn>
