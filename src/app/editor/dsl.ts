@@ -139,14 +139,57 @@ export const exportsFacet = Facet.define<ExportRef[], ExportRef[]>({
 /** Builtins/members that yield a plain `list<…>` — the targets of chained queries. */
 const LIST_RETURNING = new Set(['nodes', 'edges', 'neighbors', 'keys', 'values']);
 
+type MemberSpec = { label: string; detail: string; info: string; apply: string };
+
 /** Read-only queries available on any `list<…>` result (mirrors `arrayMethod` in the interpreter). */
-const LIST_QUERY_METHODS: { label: string; detail: string; info: string; apply: string }[] = [
+const LIST_QUERY_METHODS: MemberSpec[] = [
   { label: 'size', detail: '(): int', info: 'Number of elements.', apply: 'size()' },
   { label: 'isEmpty', detail: '(): bool', info: 'True when the list has no elements.', apply: 'isEmpty()' },
   { label: 'contains', detail: '(value x): bool', info: 'True when x is in the list.', apply: 'contains(x)' },
   { label: 'indexOf', detail: '(value x): int', info: 'Position of x, or -1 if absent.', apply: 'indexOf(x)' },
   { label: 'get', detail: '(int i): value', info: 'The element at index i (same as list[i]).', apply: 'get(i)' },
 ];
+
+/** Calls that return a single vertex — their `().` chains complete vertex members. */
+const VERTEX_RETURNING = new Set(['source', 'goal', 'createNode']);
+
+/** Methods + properties on a vertex value (mirrors the Vertex reference card). */
+const VERTEX_MEMBERS: MemberSpec[] = [
+  { label: 'neighbors', detail: '(): list<vertex>', info: 'Vertices reachable from v by one edge.', apply: 'neighbors()' },
+  { label: 'degree', detail: '(): int', info: 'Number of edges incident to v.', apply: 'degree()' },
+  { label: 'hasEdge', detail: '(vertex w): bool', info: 'Whether an edge v → w exists.', apply: 'hasEdge(w)' },
+  { label: 'weight', detail: '(vertex w): number', info: 'Weight of the edge v → w.', apply: 'weight(w)' },
+  { label: 'name', detail: ': string', info: 'The vertex name.', apply: 'name' },
+  { label: 'type', detail: ': string', info: 'The vertex kind (NODE / START / GOAL).', apply: 'type' },
+];
+
+/** Properties on an edge value (mirrors the Edge reference card). */
+const EDGE_MEMBERS: MemberSpec[] = [
+  { label: 'startVertex', detail: ': vertex', info: 'The source endpoint.', apply: 'startVertex' },
+  { label: 'endVertex', detail: ': vertex', info: 'The target endpoint.', apply: 'endVertex' },
+  { label: 'weight', detail: ': number', info: 'The edge weight.', apply: 'weight' },
+  { label: 'isDirected', detail: ': bool', info: 'True for a one-way edge.', apply: 'isDirected' },
+];
+
+const memberOptions = (members: MemberSpec[]): Completion[] =>
+  members.map((mm) => ({ label: mm.label, type: 'method', detail: mm.detail, info: mm.info, apply: mm.apply }));
+
+/**
+ * Lightweight type inference for local variables — just enough to complete `v.` / `e.`.
+ * `for each x in nodes()/neighbors(…)` or `x ← source()/goal()/createNode(…)` makes x a
+ * vertex; `for each x in edges()` makes it an edge.
+ */
+function localTypes(doc: string): Map<string, 'vertex' | 'edge'> {
+  const types = new Map<string, 'vertex' | 'edge'>();
+  for (const m of doc.matchAll(/\bfor\s+(?:each\s+)?(?:[A-Za-z_]\w*\s+)?([A-Za-z_]\w*)\s+in\s+(.+)/g)) {
+    if (/\bedges\s*\(/.test(m[2])) types.set(m[1], 'edge');
+    else if (/\bnodes\s*\(|neighbors\s*\(/.test(m[2])) types.set(m[1], 'vertex');
+  }
+  for (const m of doc.matchAll(/(?:^|\n)\s*([A-Za-z_]\w*)\s*←\s*(.+)/g)) {
+    if (/^\s*(?:graph\.)?(?:source|goal|createNode)\s*\(/.test(m[2])) types.set(m[1], 'vertex');
+  }
+  return types;
+}
 
 /**
  * Given text ending in a `)`, return the head identifier of that call — the name
@@ -174,42 +217,39 @@ function dslAutocomplete(context: CompletionContext): CompletionResult | null {
   if (dotted) {
     const m = /^([A-Za-z_]\w*)\.(\w*)$/.exec(dotted.text);
     if (!m) return null;
+    const from = dotted.from + m[1].length + 1;
     const owner = globals.find((g) => g.name === m[1]);
-    if (!owner?.members?.length) return null;
-    return {
-      from: dotted.from + m[1].length + 1,
-      options: owner.members.map((mm) => ({
-        label: mm.label,
-        type: 'method',
-        detail: mm.detail ?? '',
-        info: mm.info,
-        // Functions insert their signature (createNode(x, y, name)); properties just the name.
-        apply: mm.apply,
-      })),
-      validFor: /^\w*$/,
-    };
-  }
-
-  // Chained query: `<call>().partial` — when the call returns a list, complete its queries.
-  const chain = context.matchBefore(/\)\.\w*/);
-  if (chain) {
-    const line = context.state.doc.lineAt(context.pos);
-    const prefix = line.text.slice(0, context.pos - line.from);
-    const dot = prefix.lastIndexOf('.');
-    if (LIST_RETURNING.has(headCallName(prefix.slice(0, dot)) ?? '')) {
-      const partial = prefix.slice(dot + 1);
+    if (owner?.members?.length) {
       return {
-        from: context.pos - partial.length,
-        options: LIST_QUERY_METHODS.map((mm) => ({
+        from,
+        options: owner.members.map((mm) => ({
           label: mm.label,
           type: 'method',
-          detail: mm.detail,
+          detail: mm.detail ?? '',
           info: mm.info,
+          // Functions insert their signature (createNode(x, y, name)); properties just the name.
           apply: mm.apply,
         })),
         validFor: /^\w*$/,
       };
     }
+    // A loop/assignment variable inferred to be a vertex or edge gets its members.
+    const kind = localTypes(context.state.doc.toString()).get(m[1]);
+    if (kind === 'vertex') return { from, options: memberOptions(VERTEX_MEMBERS), validFor: /^\w*$/ };
+    if (kind === 'edge') return { from, options: memberOptions(EDGE_MEMBERS), validFor: /^\w*$/ };
+    return null;
+  }
+
+  // Chained query: `<call>().partial` — complete by what the call returns (list or vertex).
+  const chain = context.matchBefore(/\)\.\w*/);
+  if (chain) {
+    const line = context.state.doc.lineAt(context.pos);
+    const prefix = line.text.slice(0, context.pos - line.from);
+    const dot = prefix.lastIndexOf('.');
+    const head = headCallName(prefix.slice(0, dot)) ?? '';
+    const from = context.pos - prefix.slice(dot + 1).length;
+    if (LIST_RETURNING.has(head)) return { from, options: memberOptions(LIST_QUERY_METHODS), validFor: /^\w*$/ };
+    if (VERTEX_RETURNING.has(head)) return { from, options: memberOptions(VERTEX_MEMBERS), validFor: /^\w*$/ };
   }
 
   const word = context.matchBefore(/[\w]+/);
