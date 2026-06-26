@@ -1,0 +1,16 @@
+{
+  "algorithm": [
+    {
+      "name": "Dijkstra — shortest paths",
+      "description": "Greedy single-source shortest paths with a priority queue. Builds its own dist / visited / pq.",
+      "file": "algorithm/dijkstra.algo"
+    }
+  ],
+  "canvas": [
+    {
+      "name": "Weighted digraph",
+      "description": "A small 5-vertex weighted directed graph (A…E) to run algorithms against.",
+      "file": "canvas/weighted-digraph.json"
+    }
+  ]
+}

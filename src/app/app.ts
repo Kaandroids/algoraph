@@ -47,6 +47,7 @@ import { SYNTAX_GUIDE } from './models/syntax-guide';
 import { FilesStore } from './stores/files.store';
 import { CanvasStore } from './stores/canvas.store';
 import { RunStore } from './stores/run.store';
+import { LibraryStore, type LibraryEntry, type LibraryIndex } from './stores/library.store';
 import {
   DATA_PALETTE,
   DATA_STRUCTURES,
@@ -96,6 +97,8 @@ export class App {
   protected readonly fileStore = inject(FilesStore);
   /** Step-by-step execution state for the Run workspace. */
   protected readonly run = inject(RunStore);
+  /** The bundled library of ready-made algorithms and canvases. */
+  private readonly library = inject(LibraryStore);
   private readonly fCanvas = viewChild(FCanvasComponent);
   private readonly importInput = viewChild<ElementRef<HTMLInputElement>>('importInput');
   private readonly renameInput = viewChild<ElementRef<HTMLInputElement>>('renameInput');
@@ -989,15 +992,53 @@ export class App {
   /** Per-kind breakdown shown in the right-hand overview panel. */
   protected readonly canvasSummary = this.canvas.summary;
 
-  /** Download the whole canvas (graph + data structures) as a JSON file. */
-  exportCanvas(): void {
-    const blob = new Blob([JSON.stringify(this.canvas.snapshot(), null, 2)], {
-      type: 'application/json',
-    });
+  // ── Export modal ──────────────────────────────────────────
+  protected readonly exportOpen = signal(false);
+  /** Which pane of the export modal is showing: the two choices, or the file picker. */
+  protected readonly exportMode = signal<'choose' | 'algorithm'>('choose');
+
+  /** Open the export modal at its choice screen (canvas vs. algorithm). */
+  openExport(): void {
+    this.exportMode.set('choose');
+    this.exportOpen.set(true);
+  }
+
+  closeExport(): void {
+    this.exportOpen.set(false);
+  }
+
+  /** Export the whole canvas (graph + data structures) as a JSON file. */
+  exportCanvasFile(): void {
+    this.download('algoraph-canvas.json', JSON.stringify(this.canvas.snapshot(), null, 2), 'application/json');
+    this.closeExport();
+  }
+
+  /** Export an algorithm: with a single file, download it straight away; otherwise pick. */
+  chooseAlgorithmExport(): void {
+    const files = this.fileStore.files();
+    if (files.length === 1) this.exportAlgoFile(files[0]);
+    else this.exportMode.set('algorithm');
+  }
+
+  /** Download one algorithm file as `.algo`. */
+  exportAlgoFile(file: AlgoFile): void {
+    this.download(file.name, file.content, 'text/plain;charset=utf-8');
+    this.closeExport();
+  }
+
+  /** A short caption for an algorithm file in the export picker. */
+  fileMeta(file: AlgoFile): string {
+    const lines = file.content ? file.content.split('\n').length : 0;
+    return file.id === 'main' ? `Entry file · ${lines} lines` : `${lines} lines`;
+  }
+
+  /** Trigger a browser download of in-memory text. */
+  private download(name: string, text: string, type: string): void {
+    const blob = new Blob([text], { type });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'algoraph-canvas.json';
+    a.download = name;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -1006,25 +1047,74 @@ export class App {
     this.importInput()?.nativeElement.click();
   }
 
+  /** Open a file from the computer: a `.algo` becomes a new editor file, a `.json` loads the canvas. */
   onImportFile(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = ''; // let the same file be re-imported later
     if (!file) return;
+    const isAlgo = /\.algo$/i.test(file.name);
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        this.canvas.load(JSON.parse(reader.result as string));
-      } catch {
-        // Invalid JSON — ignored for now (a toast can surface this later).
+      const text = reader.result as string;
+      if (isAlgo) {
+        this.fileStore.addFile(file.name, text);
+        this.setView('algorithm');
+      } else {
+        try {
+          this.canvas.load(JSON.parse(text));
+          this.setView('canvas');
+        } catch {
+          // Invalid JSON — ignored for now (a toast can surface this later).
+        }
       }
     };
     reader.readAsText(file);
   }
 
-  /** Load the bundled standard-library algorithms/data structures. (Content TBD.) */
-  loadStandardLibrary(): void {
-    // Placeholder — the standard library and its loader land in a follow-up.
+  // ── Import modal ──────────────────────────────────────────
+  protected readonly importOpen = signal(false);
+  /** Which pane of the import modal is showing: the two choices, or the library browser. */
+  protected readonly importMode = signal<'choose' | 'library'>('choose');
+  protected readonly libraryIndex = signal<LibraryIndex | null>(null);
+
+  /** Open the import modal at its choice screen (library vs. own file). */
+  openImport(): void {
+    this.importMode.set('choose');
+    this.importOpen.set(true);
+  }
+
+  closeImport(): void {
+    this.importOpen.set(false);
+  }
+
+  /** Switch to the library browser, lazily fetching the manifest the first time. */
+  async openLibrary(): Promise<void> {
+    this.importMode.set('library');
+    if (!this.libraryIndex()) this.libraryIndex.set(await this.library.index());
+  }
+
+  /** "From a file" — hand off to the OS file picker. */
+  chooseFile(): void {
+    this.closeImport();
+    this.triggerImport();
+  }
+
+  /** Import a library item: a canvas loads onto the board, an algorithm opens as a new file. */
+  async importLibrary(kind: 'algorithm' | 'canvas', item: LibraryEntry): Promise<void> {
+    const text = await this.library.file(item.file);
+    if (kind === 'canvas') {
+      try {
+        this.canvas.load(JSON.parse(text));
+        this.setView('canvas');
+      } catch {
+        // Malformed library canvas — ignore (these are bundled, so this shouldn't happen).
+      }
+    } else {
+      this.fileStore.addFile(item.file.split('/').pop() ?? 'imported.algo', text);
+      this.setView('algorithm');
+    }
+    this.closeImport();
   }
 
   /** Open the documentation. (Content TBD.) */

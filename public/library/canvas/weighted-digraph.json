@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "nodes": [
+    { "id": "n1", "kind": "START", "label": "A", "position": { "x": 120, "y": 260 } },
+    { "id": "n2", "kind": "NODE", "label": "B", "position": { "x": 380, "y": 120 } },
+    { "id": "n3", "kind": "NODE", "label": "C", "position": { "x": 380, "y": 400 } },
+    { "id": "n4", "kind": "NODE", "label": "D", "position": { "x": 640, "y": 260 } },
+    { "id": "n5", "kind": "GOAL", "label": "E", "position": { "x": 900, "y": 260 } }
+  ],
+  "edges": [
+    { "id": "e1", "outputId": "n1-out", "inputId": "n2-in", "weight": 4, "directed": true },
+    { "id": "e2", "outputId": "n1-out", "inputId": "n3-in", "weight": 2, "directed": true },
+    { "id": "e3", "outputId": "n3-out", "inputId": "n2-in", "weight": 1, "directed": true },
+    { "id": "e4", "outputId": "n2-out", "inputId": "n4-in", "weight": 5, "directed": true },
+    { "id": "e5", "outputId": "n3-out", "inputId": "n4-in", "weight": 8, "directed": true },
+    { "id": "e6", "outputId": "n4-out", "inputId": "n5-in", "weight": 3, "directed": true }
+  ],
+  "dataNodes": []
+}

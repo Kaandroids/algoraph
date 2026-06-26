@@ -23,14 +23,11 @@
   </div>
   <div class="ae-toolbar-right">
     <div class="ae-toolbar-actions">
-      <button class="ae-action-btn" type="button" (click)="triggerImport()" title="Import a canvas">
+      <button class="ae-action-btn" type="button" (click)="openImport()" title="Import an algorithm or canvas">
         <app-icon name="upload" /><span>Import</span>
       </button>
-      <button class="ae-action-btn" type="button" (click)="exportCanvas()" title="Export the canvas">
+      <button class="ae-action-btn" type="button" (click)="openExport()" title="Export an algorithm or canvas">
         <app-icon name="download" /><span>Export</span>
-      </button>
-      <button class="ae-action-btn" type="button" (click)="loadStandardLibrary()" title="Load the standard library">
-        <app-icon name="layers" /><span>Standard library</span>
       </button>
       <button class="ae-action-btn" type="button" (click)="openDocs()" title="Documentation">
         <app-icon name="help" /><span>Doc</span>
@@ -902,8 +899,130 @@
   </div>
 }
 
+<!-- ── Import: choose the library or your own file ── -->
+@if (importOpen()) {
+  <div class="ds-modal-backdrop" (click)="closeImport()">
+    <div class="ds-modal ag-import-modal" style="--nc: var(--accent)" (click)="$event.stopPropagation()">
+      <div class="ds-modal-head">
+        <span class="ds-modal-icon"><app-icon name="upload" /></span>
+        <div class="ds-modal-titles">
+          <span class="ds-modal-eyebrow">Import</span>
+          <span class="ds-modal-title">{{ importMode() === 'library' ? 'From the library' : 'Add to your workspace' }}</span>
+        </div>
+        <button class="ds-modal-close" type="button" (click)="closeImport()" aria-label="Close">
+          <app-icon name="x" />
+        </button>
+      </div>
+
+      <div class="ds-modal-body">
+        @if (importMode() === 'choose') {
+          <div class="ag-import-choices">
+            <button class="ag-import-choice" type="button" (click)="openLibrary()">
+              <span class="ag-import-choice-ic"><app-icon name="layers" /></span>
+              <span class="ag-import-choice-t">From the library</span>
+              <span class="ag-import-choice-d">Pick a ready-made algorithm or canvas.</span>
+            </button>
+            <button class="ag-import-choice" type="button" (click)="chooseFile()">
+              <span class="ag-import-choice-ic"><app-icon name="upload" /></span>
+              <span class="ag-import-choice-t">From a file</span>
+              <span class="ag-import-choice-d">Open a .algo or canvas .json from your computer.</span>
+            </button>
+          </div>
+        } @else {
+          <button class="ag-import-back" type="button" (click)="importMode.set('choose')">
+            <app-icon name="chevronLeft" /> Back
+          </button>
+          @if (libraryIndex(); as lib) {
+            @if (lib.algorithm.length) {
+              <div class="ag-lib-section">
+                <div class="ag-lib-cap">Algorithms</div>
+                @for (it of lib.algorithm; track it.file) {
+                  <button class="ag-lib-item" type="button" (click)="importLibrary('algorithm', it)">
+                    <span class="ag-lib-item-ic" data-kind="algorithm"><app-icon name="code" /></span>
+                    <span class="ag-lib-item-main">
+                      <span class="ag-lib-item-name">{{ it.name }}</span>
+                      <span class="ag-lib-item-desc">{{ it.description }}</span>
+                    </span>
+                  </button>
+                }
+              </div>
+            }
+            @if (lib.canvas.length) {
+              <div class="ag-lib-section">
+                <div class="ag-lib-cap">Canvases</div>
+                @for (it of lib.canvas; track it.file) {
+                  <button class="ag-lib-item" type="button" (click)="importLibrary('canvas', it)">
+                    <span class="ag-lib-item-ic" data-kind="canvas"><app-icon name="workflow" /></span>
+                    <span class="ag-lib-item-main">
+                      <span class="ag-lib-item-name">{{ it.name }}</span>
+                      <span class="ag-lib-item-desc">{{ it.description }}</span>
+                    </span>
+                  </button>
+                }
+              </div>
+            }
+          } @else {
+            <div class="ag-lib-loading">Loading the library…</div>
+          }
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Export: canvas (.json) or an algorithm (.algo) ── -->
+@if (exportOpen()) {
+  <div class="ds-modal-backdrop" (click)="closeExport()">
+    <div class="ds-modal ag-import-modal" style="--nc: var(--accent)" (click)="$event.stopPropagation()">
+      <div class="ds-modal-head">
+        <span class="ds-modal-icon"><app-icon name="download" /></span>
+        <div class="ds-modal-titles">
+          <span class="ds-modal-eyebrow">Export</span>
+          <span class="ds-modal-title">{{ exportMode() === 'algorithm' ? 'Pick a file' : 'What do you want to export?' }}</span>
+        </div>
+        <button class="ds-modal-close" type="button" (click)="closeExport()" aria-label="Close">
+          <app-icon name="x" />
+        </button>
+      </div>
+
+      <div class="ds-modal-body">
+        @if (exportMode() === 'choose') {
+          <div class="ag-import-choices">
+            <button class="ag-import-choice" type="button" (click)="exportCanvasFile()">
+              <span class="ag-import-choice-ic" style="background: var(--tone-violet)"><app-icon name="workflow" /></span>
+              <span class="ag-import-choice-t">Canvas</span>
+              <span class="ag-import-choice-d">Download the board (graph + data structures) as .json.</span>
+            </button>
+            <button class="ag-import-choice" type="button" (click)="chooseAlgorithmExport()">
+              <span class="ag-import-choice-ic"><app-icon name="code" /></span>
+              <span class="ag-import-choice-t">Algorithm</span>
+              <span class="ag-import-choice-d">Download a pseudocode .algo source file.</span>
+            </button>
+          </div>
+        } @else {
+          <button class="ag-import-back" type="button" (click)="exportMode.set('choose')">
+            <app-icon name="chevronLeft" /> Back
+          </button>
+          <div class="ag-lib-section">
+            <div class="ag-lib-cap">Algorithm files</div>
+            @for (f of fileStore.files(); track f.id) {
+              <button class="ag-lib-item" type="button" (click)="exportAlgoFile(f)">
+                <span class="ag-lib-item-ic" data-kind="algorithm"><app-icon name="code" /></span>
+                <span class="ag-lib-item-main">
+                  <span class="ag-lib-item-name">{{ f.name }}</span>
+                  <span class="ag-lib-item-desc">{{ fileMeta(f) }}</span>
+                </span>
+              </button>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
+
 <!-- Hidden file picker shared by the Import button in either workspace. -->
-<input #importInput type="file" accept="application/json,.json" hidden
+<input #importInput type="file" accept=".algo,application/json,.json" hidden
   (change)="onImportFile($event)" />
 
 <!--

@@ -51,6 +51,18 @@ export class FilesStore {
     this.activeId.set(id);
   }
 
+  /** Add a file with given content (e.g. an imported `.algo`), under a unique name, and focus it. */
+  addFile(name: string, content: string): void {
+    const id = `f${this.nextId++}`;
+    let base = name.trim() || 'imported.algo';
+    if (!/\.algo$/i.test(base)) base += '.algo';
+    const used = new Set(this.files().map((f) => f.name));
+    let unique = base;
+    for (let i = 2; used.has(unique); i++) unique = base.replace(/\.algo$/i, `${i}.algo`);
+    this.files.update((list) => [...list, { id, name: unique, content, notes: [] }]);
+    this.activeId.set(id);
+  }
+
   /** Close a module file; the entry `main` can't be closed. */
   close(event: Event, id: string): void {
     event.stopPropagation();
