@@ -33,12 +33,12 @@ import {
 } from './node-api';
 import { type AlgoFile } from './models/algo-file.model';
 import { FilesStore } from './stores/files.store';
+import { CanvasStore } from './stores/canvas.store';
 import {
   DATA_PALETTE,
   DATA_STRUCTURES,
   dataSize,
   formatDataItems,
-  makeDataNode,
   type DataNode,
   type DataPaletteItem,
   type DataStructureKind,
@@ -49,7 +49,6 @@ import {
   nodeColor,
   nodeIcon,
   nodeTypeLabel,
-  type GEdge,
   type GNode,
   type NodeKind,
   type PaletteItem,
@@ -75,6 +74,8 @@ interface NodeInfo {
 })
 export class App {
   private readonly elRef = inject(ElementRef);
+  /** The canvas model (graph + data structures) lives in its own store; this component is a facade. */
+  protected readonly canvas = inject(CanvasStore);
   /** Algorithm files live in their own store; this component is a thin facade over it. */
   protected readonly fileStore = inject(FilesStore);
   private readonly fCanvas = viewChild(FCanvasComponent);
@@ -164,30 +165,10 @@ export class App {
     },
   ];
 
-  // ── Canvas state ──────────────────────────────────────────
-  protected readonly nodes = signal<GNode[]>([
-    { id: 'A', kind: 'START', label: 'A', position: { x: 60, y: 140 } },
-    { id: 'B', kind: 'NODE', label: 'B', position: { x: 360, y: 60 } },
-    { id: 'C', kind: 'NODE', label: 'C', position: { x: 360, y: 320 } },
-    { id: 'D', kind: 'NODE', label: 'D', position: { x: 680, y: 200 } },
-    { id: 'E', kind: 'GOAL', label: 'E', position: { x: 980, y: 280 } },
-  ]);
-
-  protected readonly edges = signal<GEdge[]>([
-    { id: 'e1', outputId: 'A-out', inputId: 'B-in', weight: 4, directed: true },
-    { id: 'e2', outputId: 'A-out', inputId: 'C-in', weight: 2, directed: true },
-    { id: 'e3', outputId: 'C-out', inputId: 'B-in', weight: 1, directed: true },
-    { id: 'e4', outputId: 'B-out', inputId: 'D-in', weight: 5, directed: true },
-    { id: 'e5', outputId: 'C-out', inputId: 'D-in', weight: 8, directed: true },
-    { id: 'e6', outputId: 'D-out', inputId: 'E-in', weight: 3, directed: true },
-  ]);
-
-  // Data-structure nodes — seeded to mirror the Dijkstra sample in the code rail.
-  protected readonly dataNodes = signal<DataNode[]>([
-    makeDataNode('SET', 'ds-visited', { x: 60, y: 470 }, 'visited'),
-    makeDataNode('MAP', 'ds-dist', { x: 320, y: 470 }, 'dist'),
-    makeDataNode('PQUEUE', 'ds-pq', { x: 600, y: 470 }, 'pq'),
-  ]);
+  // ── Canvas state — re-exposed from CanvasStore (facade) ───
+  protected readonly nodes = this.canvas.nodes;
+  protected readonly edges = this.canvas.edges;
+  protected readonly dataNodes = this.canvas.dataNodes;
 
   protected readonly zoomLevel = signal(100);
   protected readonly panning = signal(false);
@@ -231,15 +212,13 @@ export class App {
     if (!id) return '';
     const name = this.nameDraft().trim();
     if (!name) return 'Name is required';
-    if (this.usedNames(id).has(name.toLowerCase())) return 'Name already in use';
+    if (this.canvas.usedNames(id).has(name.toLowerCase())) return 'Name already in use';
     return '';
   });
 
   // Info modal — graph node / data-structure reference (description, methods next)
   protected readonly infoCard = signal<NodeInfo | null>(null);
 
-  private nextNodeId = 1;
-  private nextDataId = 1;
   private currentCanvasPos = { x: 0, y: 0 };
   private ctxCanvasPos = { x: 0, y: 0 };
   private panStart = { x: 0, y: 0 };
@@ -323,79 +302,31 @@ export class App {
     return Array.from({ length: n }, (_, i) => i);
   }
 
-  // ── Unique names (graph vertices + data structures share one namespace) ──
-  /** Lower-cased names currently taken by any node, optionally excluding one id. */
-  private usedNames(exceptId?: string): Set<string> {
-    const names = new Set<string>();
-    for (const n of this.nodes()) if (n.id !== exceptId) names.add(n.label.toLowerCase());
-    for (const d of this.dataNodes()) if (d.id !== exceptId) names.add(d.label.toLowerCase());
-    return names;
-  }
-  /** `base`, or `base2`, `base3`, … — the first variant not already in use. */
-  private uniqueName(base: string, exceptId?: string): string {
-    const used = this.usedNames(exceptId);
-    if (!used.has(base.toLowerCase())) return base;
-    let i = 2;
-    while (used.has(`${base}${i}`.toLowerCase())) i++;
-    return `${base}${i}`;
-  }
-
-  // ── Node operations ───────────────────────────────────────
-  private createNodeAt(kind: NodeKind, position: { x: number; y: number }): void {
-    const id = `n${this.nextNodeId++}`;
-    const label = this.uniqueName(id.toUpperCase());
-    this.nodes.update((list) => [...list, { id, kind, label, position }]);
-  }
-
+  // ── Node operations — delegated to CanvasStore ────────────
   addNode(kind: NodeKind): void {
-    this.createNodeAt(kind, { x: 220 + Math.random() * 220, y: 120 + Math.random() * 220 });
+    this.canvas.addNode(kind);
   }
 
   deleteNode(nodeId: string): void {
-    this.nodes.update((list) => list.filter((n) => n.id !== nodeId));
-    this.edges.update((list) =>
-      list.filter((e) => !e.outputId.startsWith(`${nodeId}-`) && !e.inputId.startsWith(`${nodeId}-`)),
-    );
+    this.canvas.deleteNode(nodeId);
   }
 
   // ── Data-structure node operations ────────────────────────
-  private createDataNodeAt(kind: DataStructureKind, position: { x: number; y: number }): void {
-    const id = `ds${this.nextDataId++}`;
-    const label = this.uniqueName(DATA_STRUCTURES[kind].defaultLabel);
-    this.dataNodes.update((list) => [...list, makeDataNode(kind, id, position, label)]);
-  }
-
   addDataNode(kind: DataStructureKind): void {
-    this.createDataNodeAt(kind, { x: 240 + Math.random() * 220, y: 460 + Math.random() * 160 });
+    this.canvas.addDataNode(kind);
   }
 
   addDataNodeAt(kind: DataStructureKind): void {
     this.ctxMenuOpen.set(false);
-    this.createDataNodeAt(kind, { x: this.ctxCanvasPos.x, y: this.ctxCanvasPos.y });
+    this.canvas.addDataNodeAt(kind, this.ctxCanvasPos);
   }
 
   deleteDataNode(nodeId: string): void {
-    this.dataNodes.update((list) => list.filter((n) => n.id !== nodeId));
+    this.canvas.deleteDataNode(nodeId);
   }
 
   copyDataNode(nodeId: string): void {
-    const node = this.dataNodes().find((n) => n.id === nodeId);
-    if (!node) return;
-    const id = `ds${this.nextDataId++}`;
-    const label = this.uniqueName(node.label);
-    this.dataNodes.update((list) => [
-      ...list,
-      {
-        ...node,
-        id,
-        label,
-        position: { x: node.position.x + 40, y: node.position.y + 40 },
-        items: [...node.items],
-        entries: node.entries.map((e) => ({ ...e })),
-        heap: node.heap.map((h) => ({ ...h })),
-        matrix: node.matrix.map((row) => [...row]),
-      },
-    ]);
+    this.canvas.copyDataNode(nodeId);
     this.closeNodeContextMenu();
   }
 
@@ -489,17 +420,13 @@ export class App {
     if (this.nameError()) return;
     const id = this.editNodeId();
     if (!id) return;
-    const name = value.trim();
-    const rename = <T extends { id: string; label: string }>(list: T[]): T[] =>
-      list.map((n) => (n.id === id ? { ...n, label: name } : n));
-    if (this.editNodeKind() === 'data') this.dataNodes.update(rename);
-    else this.nodes.update(rename);
+    this.canvas.renameNode(id, this.editNodeKind(), value.trim());
   }
 
   private updateEditingData(change: (node: DataNode) => DataNode): void {
     const id = this.editNodeId();
     if (!id) return;
-    this.dataNodes.update((list) => list.map((n) => (n.id === id ? change(n) : n)));
+    this.canvas.updateDataNode(id, change);
   }
 
   /** LIST · STACK · QUEUE · SET — parse the comma-separated field into items. */
@@ -572,11 +499,7 @@ export class App {
 
   // ── Foblex events ─────────────────────────────────────────
   onConnectionCreated(event: FCreateConnectionEvent): void {
-    if (!event.targetId) return;
-    this.edges.update((list) => [
-      ...list,
-      { id: `e${Date.now()}`, outputId: event.sourceId, inputId: event.targetId!, weight: 1, directed: true },
-    ]);
+    this.canvas.connect(event.sourceId, event.targetId);
   }
 
   // ── Edge editor (weight + direction) ──────────────────────
@@ -594,16 +517,15 @@ export class App {
   }
 
   setEdgeWeight(edgeId: string, weight: number): void {
-    if (Number.isNaN(weight)) return;
-    this.edges.update((list) => list.map((e) => (e.id === edgeId ? { ...e, weight } : e)));
+    this.canvas.setEdgeWeight(edgeId, weight);
   }
 
   setEdgeDirected(edgeId: string, directed: boolean): void {
-    this.edges.update((list) => list.map((e) => (e.id === edgeId ? { ...e, directed } : e)));
+    this.canvas.setEdgeDirected(edgeId, directed);
   }
 
   deleteEdge(edgeId: string): void {
-    this.edges.update((list) => list.filter((e) => e.id !== edgeId));
+    this.canvas.deleteEdge(edgeId);
     if (this.editEdgeId() === edgeId) this.closeEdgeEditor();
   }
 
@@ -612,13 +534,7 @@ export class App {
   }
 
   onNodeMoved(event: FMoveNodesEvent): void {
-    const updates = event.nodes;
-    const reposition = <T extends { id: string; position: { x: number; y: number } }>(n: T): T => {
-      const moved = updates.find((u) => u.id === n.id);
-      return moved ? { ...n, position: moved.position } : n;
-    };
-    this.nodes.update((list) => list.map(reposition));
-    this.dataNodes.update((list) => list.map(reposition));
+    this.canvas.moveNodes(event.nodes);
   }
 
   onCanvasChange(event: FCanvasChangeEvent): void {
@@ -675,7 +591,7 @@ export class App {
 
   addNodeAt(kind: NodeKind): void {
     this.ctxMenuOpen.set(false);
-    this.createNodeAt(kind, { x: this.ctxCanvasPos.x, y: this.ctxCanvasPos.y });
+    this.canvas.addNodeAt(kind, this.ctxCanvasPos);
   }
 
   closeContextMenu(): void {
@@ -724,14 +640,7 @@ export class App {
   }
 
   copyNode(nodeId: string): void {
-    const node = this.nodes().find((n) => n.id === nodeId);
-    if (!node) return;
-    const id = `n${this.nextNodeId++}`;
-    const label = this.uniqueName(node.label);
-    this.nodes.update((list) => [
-      ...list,
-      { id, kind: node.kind, label, position: { x: node.position.x + 40, y: node.position.y + 40 } },
-    ]);
+    this.canvas.copyNode(nodeId);
     this.closeNodeContextMenu();
   }
 
@@ -752,7 +661,7 @@ export class App {
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable) return;
     const connIds = this.selectedConnectionIds();
     if (connIds.length > 0) {
-      this.edges.update((list) => list.filter((e) => !connIds.includes(e.id)));
+      this.canvas.deleteEdges(connIds);
       this.selectedConnectionIds.set([]);
     }
   }
@@ -878,22 +787,13 @@ export class App {
 
   // ── Canvas overview + import / export ─────────────────────
   /** Per-kind breakdown shown in the right-hand overview panel. */
-  protected readonly canvasSummary = computed(() => {
-    const ns = this.nodes();
-    const es = this.edges();
-    return {
-      starts: ns.filter((n) => n.kind === 'START').length,
-      goals: ns.filter((n) => n.kind === 'GOAL').length,
-      plain: ns.filter((n) => n.kind === 'NODE').length,
-      directed: es.filter((e) => e.directed).length,
-      undirected: es.filter((e) => !e.directed).length,
-    };
-  });
+  protected readonly canvasSummary = this.canvas.summary;
 
   /** Download the whole canvas (graph + data structures) as a JSON file. */
   exportCanvas(): void {
-    const data = { version: 1, nodes: this.nodes(), edges: this.edges(), dataNodes: this.dataNodes() };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(this.canvas.snapshot(), null, 2)], {
+      type: 'application/json',
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -914,29 +814,11 @@ export class App {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        this.loadCanvas(JSON.parse(reader.result as string));
+        this.canvas.load(JSON.parse(reader.result as string));
       } catch {
         // Invalid JSON — ignored for now (a toast can surface this later).
       }
     };
     reader.readAsText(file);
-  }
-
-  private loadCanvas(data: { nodes?: GNode[]; edges?: GEdge[]; dataNodes?: DataNode[] }): void {
-    if (Array.isArray(data.nodes)) this.nodes.set(data.nodes);
-    if (Array.isArray(data.edges)) this.edges.set(data.edges);
-    if (Array.isArray(data.dataNodes)) this.dataNodes.set(data.dataNodes);
-    // Keep new-node counters ahead of any imported ids so they never collide.
-    this.nextNodeId = this.maxIdNumber(this.nodes(), 'n') + 1;
-    this.nextDataId = this.maxIdNumber(this.dataNodes(), 'ds') + 1;
-  }
-
-  private maxIdNumber(items: { id: string }[], prefix: string): number {
-    let max = 0;
-    for (const it of items) {
-      const m = new RegExp(`^${prefix}(\\d+)$`).exec(it.id);
-      if (m) max = Math.max(max, Number(m[1]));
-    }
-    return max;
   }
 }
