@@ -260,8 +260,10 @@ export abstract class RDataStructure {
     protected readonly charge: Charge,
     readonly x: number,
     readonly y: number,
-    /** Hidden "scratch" structures are off-canvas and untracked — never rendered or snapshotted. */
-    readonly hidden = false,
+    /** Whether to draw this on the canvas (false for off-canvas scratch / panel structures). */
+    readonly rendered = true,
+    /** Whether to list this in the run data panel (false for fully-hidden scratch structures). */
+    readonly tracked = true,
   ) {}
 
   /** Dispatch a method call from `obj.method(args)`. */
@@ -280,7 +282,7 @@ export abstract class RDataStructure {
   }
 
   protected base(): Omit<DataSnapshot, 'items' | 'entries' | 'heap' | 'matrix'> {
-    return { id: this.id, kind: this.kind, label: this.label, x: this.x, y: this.y };
+    return { id: this.id, kind: this.kind, label: this.label, x: this.x, y: this.y, rendered: this.rendered };
   }
 }
 
@@ -450,8 +452,8 @@ export class RPQueue extends RDataStructure {
 }
 
 export class RMatrix extends RDataStructure {
-  constructor(id: string, label: string, charge: Charge, x: number, y: number, private grid: number[][], hidden = false) {
-    super(id, label, 'MATRIX', charge, x, y, hidden);
+  constructor(id: string, label: string, charge: Charge, x: number, y: number, private grid: number[][], rendered = true, tracked = true) {
+    super(id, label, 'MATRIX', charge, x, y, rendered, tracked);
   }
   call(method: string, args: Value[], line: number): Value {
     switch (method) {
@@ -500,20 +502,21 @@ export function makeRuntimeDSByKind(
   charge: Charge,
   rows = 1,
   cols = 1,
-  hidden = false,
+  rendered = true,
+  tracked = true,
 ): RDataStructure {
   switch (kind) {
     case 'SET':
-      return new RSet(id, label, 'SET', charge, x, y, hidden);
+      return new RSet(id, label, 'SET', charge, x, y, rendered, tracked);
     case 'MAP':
-      return new RMap(id, label, 'MAP', charge, x, y, hidden);
+      return new RMap(id, label, 'MAP', charge, x, y, rendered, tracked);
     case 'PQUEUE':
-      return new RPQueue(id, label, 'PQUEUE', charge, x, y, hidden);
+      return new RPQueue(id, label, 'PQUEUE', charge, x, y, rendered, tracked);
     case 'MATRIX':
-      return new RMatrix(id, label, charge, x, y, Array.from({ length: rows }, () => Array.from({ length: cols }, () => 0)), hidden);
+      return new RMatrix(id, label, charge, x, y, Array.from({ length: rows }, () => Array.from({ length: cols }, () => 0)), rendered, tracked);
     case 'LIST':
     case 'STACK':
     case 'QUEUE':
-      return new RList(id, label, kind, charge, x, y, hidden);
+      return new RList(id, label, kind, charge, x, y, rendered, tracked);
   }
 }

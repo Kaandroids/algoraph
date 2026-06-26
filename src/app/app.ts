@@ -330,6 +330,7 @@ export class App {
         members: [...this.apiGroupMembers('Visualization'), ...this.apiGroupMembers('Canvas editing')],
       },
       { name: 'scratch', type: 'Scratch', members: this.apiGroupMembers('Scratch structures') },
+      { name: 'panel', type: 'Panel', members: this.apiGroupMembers('Panel structures') },
       ...structures,
       ...locals,
     ];
@@ -388,6 +389,18 @@ export class App {
         'scratch.map(), scratch.queue(), and friends. They behave like any structure but are ' +
         'never drawn on the canvas or shown in the run data panel.',
       groups: GLOBAL_REFERENCE.groups.filter((g) => g.title === 'Scratch structures'),
+    },
+    {
+      key: 'panel',
+      label: 'Panel',
+      sub: 'Off-canvas, watchable',
+      icon: 'panelRight',
+      color: 'oklch(0.62 0.1 160)',
+      description:
+        'Data structures that stay off the canvas but still appear in the run data panel — ' +
+        'created with panel.map(), panel.queue(), and friends. Use them to watch an ' +
+        'algorithm\'s bookkeeping step by step without cluttering the drawing.',
+      groups: GLOBAL_REFERENCE.groups.filter((g) => g.title === 'Panel structures'),
     },
   ];
 

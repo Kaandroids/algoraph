@@ -273,6 +273,18 @@ export const GLOBAL_REFERENCE: {
       ],
     },
     {
+      title: 'Panel structures',
+      members: [
+        { sig: 'panel.list(string name?)', desc: 'An off-canvas List that still appears in the run data panel — drawn nowhere, but watchable.', returns: 'List', cost: 'O(1)' },
+        { sig: 'panel.stack(string name?)', desc: 'An off-canvas Stack, watchable in the run data panel.', returns: 'Stack', cost: 'O(1)' },
+        { sig: 'panel.queue(string name?)', desc: 'An off-canvas Queue, watchable in the run data panel.', returns: 'Queue', cost: 'O(1)' },
+        { sig: 'panel.set(string name?)', desc: 'An off-canvas Set, watchable in the run data panel.', returns: 'Set', cost: 'O(1)' },
+        { sig: 'panel.map(string name?)', desc: 'An off-canvas Map, watchable in the run data panel.', returns: 'Map', cost: 'O(1)' },
+        { sig: 'panel.pqueue(string name?)', desc: 'An off-canvas priority queue, watchable in the run data panel.', returns: 'PQueue', cost: 'O(1)' },
+        { sig: 'panel.matrix(int rows, int cols, string name?)', desc: 'An off-canvas rows×cols matrix of zeros, watchable in the run data panel.', returns: 'Matrix', cost: 'O(R·C)' },
+      ],
+    },
+    {
       title: 'Language',
       members: [
         { sig: 'x ← e', desc: 'Assignment.' },

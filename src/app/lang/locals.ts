@@ -29,6 +29,17 @@ const CREATE_KIND: Record<string, DataStructureKind> = {
   createMatrix: 'MATRIX',
 };
 
+/** Short method names on the `scratch` / `panel` namespaces (e.g. `scratch.map`). */
+const OFF_CANVAS_KIND: Record<string, DataStructureKind> = {
+  list: 'LIST',
+  stack: 'STACK',
+  queue: 'QUEUE',
+  set: 'SET',
+  map: 'MAP',
+  pqueue: 'PQUEUE',
+  matrix: 'MATRIX',
+};
+
 /** The called function's name, for both `f(…)` and `canvas.f(…)`. */
 function callName(callee: Expr): string | null {
   if (callee.kind === 'name') return callee.name;
@@ -36,11 +47,27 @@ function callName(callee: Expr): string | null {
   return null;
 }
 
-/** The data-structure kind a call creates, or null when it isn't a `create*` call. */
-function createKind(expr: Expr): DataStructureKind | null {
+/**
+ * A data-structure constructor call → its kind and the index of its optional
+ * `name` argument. Recognises `createMap(x, y, name)` (bare or `canvas.`-prefixed,
+ * name at arg 2 / 4 for a matrix) as well as the coordinate-free off-canvas forms
+ * `scratch.map(name)` / `panel.map(name)` (name at arg 0 / 2 for a matrix).
+ */
+function constructorInfo(expr: Expr): { kind: DataStructureKind; nameArg: number } | null {
   if (expr.kind !== 'call') return null;
-  const name = callName(expr.callee);
-  return name ? (CREATE_KIND[name] ?? null) : null;
+  const callee = expr.callee;
+  if (callee.kind !== 'name' && callee.kind !== 'member') return null;
+  const created = CREATE_KIND[callee.name];
+  if (created) return { kind: created, nameArg: created === 'MATRIX' ? 4 : 2 };
+  if (
+    callee.kind === 'member' &&
+    callee.object.kind === 'name' &&
+    (callee.object.name === 'scratch' || callee.object.name === 'panel')
+  ) {
+    const off = OFF_CANVAS_KIND[callee.name];
+    if (off) return { kind: off, nameArg: off === 'MATRIX' ? 2 : 0 };
+  }
+  return null;
 }
 
 export function collectLocalStructures(entry: Module, functions: Map<string, FunctionDecl>): LocalStructure[] {
@@ -61,9 +88,9 @@ export function collectLocalStructures(entry: Module, functions: Map<string, Fun
   const visitStmt = (s: Stmt): void => {
     switch (s.kind) {
       case 'assign': {
-        // `x ← create*(…)` — the variable is that structure.
-        const kind = createKind(s.value);
-        if (kind && s.target.kind === 'name') add(s.target.name, kind);
+        // `x ← create*(…)` / `x ← scratch.map(…)` — the variable is that structure.
+        const info = constructorInfo(s.value);
+        if (info && s.target.kind === 'name') add(s.target.name, info.kind);
         visitExpr(s.target);
         visitExpr(s.value);
         break;
@@ -95,11 +122,11 @@ export function collectLocalStructures(entry: Module, functions: Map<string, Fun
 
   const visitExpr = (expr: Expr): void => {
     if (expr.kind === 'call') {
-      const kind = createKind(expr);
-      if (kind) {
-        // `create*(x, y, "name", …)` — the literal label, if it's a usable identifier.
-        const arg = expr.args[kind === 'MATRIX' ? 4 : 2];
-        if (arg?.kind === 'str' && IDENT.test(arg.value)) add(arg.value, kind);
+      const info = constructorInfo(expr);
+      if (info) {
+        // The literal label, if it's a usable identifier — its position depends on the form.
+        const arg = expr.args[info.nameArg];
+        if (arg?.kind === 'str' && IDENT.test(arg.value)) add(arg.value, info.kind);
       } else {
         // A user-function call — follow it once so its creations count too.
         const fname = callName(expr.callee);

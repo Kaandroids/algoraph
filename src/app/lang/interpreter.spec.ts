@@ -457,3 +457,40 @@ describe('scratch structures (hidden, off-canvas bookkeeping)', () => {
     expect(result.error).toContain('scratch.heap');
   });
 });
+
+describe('panel structures (off-canvas, watchable in the data panel)', () => {
+  it('appears in the data panel feed but is flagged off-canvas (rendered = false)', () => {
+    const result = runSrc('inDeg ← panel.map("inDeg")\ninDeg[source()] ← 5\n');
+    expect(result.error).toBeNull();
+    const snap = result.steps.at(-1)!.data.find((d) => d.label === 'inDeg');
+    expect(snap).toBeDefined();              // tracked → reaches the data panel
+    expect(snap!.rendered).toBe(false);      // but not drawn on the run canvas
+    expect(snap!.entries).toEqual([{ key: 'A', value: 5 }]);
+  });
+
+  it('contrasts with createMap (rendered) and scratch.map (absent from the trace)', () => {
+    const visible = runSrc('m ← createMap(10, 20, "shown")\n').steps.at(-1)!;
+    expect(visible.data.find((d) => d.label === 'shown')!.rendered).toBe(true);
+
+    const scratch = runSrc('m ← scratch.map("hidden")\nm[source()] ← 1\n');
+    expect(scratch.steps.every((s) => s.data.length === 0)).toBe(true);
+  });
+
+  it('keeps full semantics and is reachable by name', () => {
+    const result = runSrc('q ← panel.queue("q")\nq.enqueue(source())\nshowMessage(q.front() + "|" + q.size())\n');
+    expect(result.error).toBeNull();
+    expect(result.steps.at(-1)!.effects.message!.text).toBe('A|1');
+  });
+
+  it('is not persisted by saveCanvas() (it is not on the canvas)', () => {
+    const saved = runSrc('clearGraph()\nseen ← panel.set("seen")\nseen.add(source())\nsaveCanvas()\n').savedCanvas;
+    expect(saved).not.toBeNull();
+    expect(saved!.data).toEqual([]);
+  });
+
+  it('rejects an unknown panel structure kind with a helpful message', () => {
+    const result = runSrc('x ← panel.heap()\n');
+    expect(result.error).toBeTruthy();
+    expect(result.error).toContain('panel.heap');
+  });
+});

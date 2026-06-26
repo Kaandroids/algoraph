@@ -61,8 +61,8 @@ function optionalName(value: Value | undefined): string | undefined {
   return value != null ? String(display(value)) : undefined;
 }
 
-/** `scratch.<method>()` → the kind of hidden structure it builds. */
-const SCRATCH_KINDS: Record<string, DataStructureKind> = {
+/** `scratch.<method>()` / `panel.<method>()` → the kind of off-canvas structure it builds. */
+const OFF_CANVAS_KINDS: Record<string, DataStructureKind> = {
   list: 'LIST',
   stack: 'STACK',
   queue: 'QUEUE',
@@ -174,8 +174,9 @@ export class Interpreter {
       fileId: this.entryId,
       line,
       graph: this.graph.snapshot(),
-      // Hidden scratch structures are bookkeeping — never drawn on the canvas or listed in the data panel.
-      data: this.dsList.filter((d) => !d.hidden).map((d) => d.snapshot()) as DataSnapshot[],
+      // Tracked structures reach the data panel (and, if rendered, the canvas). Fully-hidden
+      // scratch structures (tracked = false) are left out of the trace entirely.
+      data: this.dsList.filter((d) => d.tracked).map((d) => d.snapshot()) as DataSnapshot[],
       vars: this.snapshotVars(),
       effects: this.snapshotEffects(),
       loop: this.snapshotLoop(),
@@ -438,8 +439,9 @@ export class Interpreter {
       const obj = this.evalExpr(expr.callee.object);
       if (obj instanceof RDataStructure) return obj.call(expr.callee.name, args, expr.line);
       if (obj instanceof Namespace) {
-        // `scratch.map(…)` builds a hidden structure; graph./canvas. forward to the global builtins.
-        if (obj.name === 'scratch') return this.createScratchDS(expr.callee.name, args, expr.line);
+        // `scratch.map(…)` / `panel.map(…)` build off-canvas structures; graph./canvas. forward to builtins.
+        if (obj.name === 'scratch') return this.createOffCanvasDS('scratch', expr.callee.name, args, expr.line, false);
+        if (obj.name === 'panel') return this.createOffCanvasDS('panel', expr.callee.name, args, expr.line, true);
         return this.callBuiltin(expr.callee.name, args, expr.line);
       }
       // Read-only methods on a plain list — e.g. graph.nodes().size(), neighbors(u).contains(v).
@@ -580,26 +582,26 @@ export class Interpreter {
     cols = 1,
     name = optionalName(args[2]),
   ): RDataStructure {
-    return this.registerDS(kind, Number(args[0]), Number(args[1]), name, rows, cols, false);
+    return this.registerDS(kind, Number(args[0]), Number(args[1]), name, rows, cols, true, true);
   }
 
   /**
-   * Create a hidden "scratch" structure for an algorithm's private bookkeeping —
-   * off-canvas and untracked. Coordinate-free: `scratch.map("inDeg")`,
-   * `scratch.queue()`, `scratch.matrix(rows, cols)`.
+   * Create a coordinate-free off-canvas structure for an algorithm's bookkeeping.
+   * `scratch.*` is fully hidden (tracked = false); `panel.*` stays in the run data
+   * panel but off the canvas (tracked = true). Both never draw on the canvas.
    */
-  private createScratchDS(method: string, args: Value[], line: number): RDataStructure {
-    const kind = SCRATCH_KINDS[method];
+  private createOffCanvasDS(ns: string, method: string, args: Value[], line: number, tracked: boolean): RDataStructure {
+    const kind = OFF_CANVAS_KINDS[method];
     if (!kind) {
       throw new RuntimeError(
-        `'scratch.${method}' is not a structure — try scratch.map / set / queue / stack / list / pqueue / matrix (line ${line})`,
+        `'${ns}.${method}' is not a structure — try ${ns}.map / set / queue / stack / list / pqueue / matrix (line ${line})`,
       );
     }
     const isMatrix = kind === 'MATRIX';
     const rows = isMatrix ? Number(args[0]) : 1;
     const cols = isMatrix ? Number(args[1]) : 1;
     const name = optionalName(isMatrix ? args[2] : args[0]);
-    return this.registerDS(kind, 0, 0, name, rows, cols, true);
+    return this.registerDS(kind, 0, 0, name, rows, cols, false, tracked);
   }
 
   /** Mint an id + unique label, build the structure, and register it for lookup. */
@@ -610,12 +612,13 @@ export class Interpreter {
     name: string | undefined,
     rows: number,
     cols: number,
-    hidden: boolean,
+    rendered: boolean,
+    tracked: boolean,
   ): RDataStructure {
     this.charge(1);
     const id = `ds${this.nextDataId++}`;
     const label = this.uniqueDataLabel(name ?? DATA_STRUCTURES[kind].defaultLabel);
-    const ds = makeRuntimeDSByKind(kind, id, label, x, y, this.charge, rows, cols, hidden);
+    const ds = makeRuntimeDSByKind(kind, id, label, x, y, this.charge, rows, cols, rendered, tracked);
     this.dsList.push(ds);
     this.dsByLabel.set(label, ds);
     return ds;
@@ -644,7 +647,7 @@ export class Interpreter {
       nodes: g.nodes.map((n) => ({ ...n })),
       edges: g.edges.map((e) => ({ ...e })),
       data: this.dsList
-        .filter((d) => !d.hidden)
+        .filter((d) => d.rendered)
         .map((d) => ({ id: d.id, kind: d.kind, label: d.label, x: d.x, y: d.y })),
     };
   }
@@ -654,7 +657,9 @@ export class Interpreter {
     if (this.scope.has(name)) return this.scope.get(name) as Value;
     const ds = this.dsByLabel.get(name);
     if (ds) return ds;
-    if (name === 'graph' || name === 'canvas' || name === 'scratch') return new Namespace(name);
+    if (name === 'graph' || name === 'canvas' || name === 'scratch' || name === 'panel') {
+      return new Namespace(name);
+    }
     throw new RuntimeError(`'${name}' is not defined (line ${line})`);
   }
 

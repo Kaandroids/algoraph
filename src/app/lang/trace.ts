@@ -48,6 +48,8 @@ export interface DataSnapshot {
   /** Canvas position (so created structures can be drawn and committed). */
   x: number;
   y: number;
+  /** Whether to draw this on the run canvas. False for panel-only structures. */
+  rendered: boolean;
   items: (string | number)[];
   entries: MapEntry[];
   heap: HeapEntry[];

@@ -138,6 +138,9 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
         <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
         <line x1="2" y1="2" x2="22" y2="22" />
       }
+      @case ('panelRight') {
+        <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="15" y1="3" x2="15" y2="21" />
+      }
     }
   </svg>`,
   styles: [`

@@ -55,4 +55,18 @@ describe('local structure scan', () => {
       'createList(0, 0, "used")\n';
     expect(locals([{ id: 'main', name: 'main.algo', content: src }])).toEqual(['used:LIST']);
   });
+
+  it('finds scratch.* and panel.* structures — label form and assigned variable', () => {
+    const src =
+      'panel.map("Test")\n' +
+      'scratch.set("Test2")\n' +
+      'q ← scratch.queue()\n' +
+      'panel.matrix(2, 2, "grid")\n';
+    expect(locals([{ id: 'main', name: 'main.algo', content: src }])).toEqual([
+      'Test2:SET',
+      'Test:MAP',
+      'grid:MATRIX',
+      'q:QUEUE',
+    ]);
+  });
 });

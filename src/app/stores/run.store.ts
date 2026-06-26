@@ -109,11 +109,13 @@ export class RunStore {
       directed: e.directed,
     }));
   });
-  /** Data-structure nodes as of the current step (live content + position). */
+  /** Data-structure nodes drawn on the run canvas — only the rendered ones (panel-only structures are skipped). */
   readonly runDataNodes = computed<DataNode[]>(() => {
     const step = this.currentStep();
     if (!step) return this.canvas.dataNodes();
-    return step.data.map((d) => ({
+    return step.data
+      .filter((d) => d.rendered)
+      .map((d) => ({
       id: d.id,
       kind: d.kind,
       label: d.label,
