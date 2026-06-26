@@ -54,6 +54,7 @@ import {
   nodeColor,
   nodeIcon,
   nodeTypeLabel,
+  type GEdge,
   type GNode,
   type NodeKind,
   type PaletteItem,
@@ -114,6 +115,19 @@ export class App {
   /** Compile + run the algorithm afresh each time the Run workspace is opened. */
   private readonly autoBuild = effect(() => {
     if (this.activeView() === 'run') untracked(() => this.run.build());
+  });
+
+  /** Pan the Run canvas when the algorithm calls `scrollTo(u)` on a step. */
+  private readonly followScroll = effect(() => {
+    const target = this.run.effects().scrollTo;
+    if (!target || untracked(() => this.activeView()) !== 'run') return;
+    untracked(() => {
+      try {
+        this.fCanvas()?.centerGroupOrNode(target, true);
+      } catch {
+        // The node may not be laid out yet; ignore and let the next step retry.
+      }
+    });
   });
 
   /** In algorithm mode, which library item's inline reference card is open (`graph:KIND` / `data:KIND`). */
@@ -269,6 +283,12 @@ export class App {
   }
   inputId(node: GNode): string {
     return `${node.id}-in`;
+  }
+  /** Whether the algorithm has highlighted this edge at the current Run step. */
+  edgeMarked(edge: GEdge): boolean {
+    const src = edge.outputId.replace(/-out$/, '');
+    const tgt = edge.inputId.replace(/-in$/, '');
+    return this.run.markedSet().has(`${src}->${tgt}`);
   }
   /** Template hooks for the per-kind vertex appearance (defined in the model). */
   protected readonly nodeIcon = nodeIcon;

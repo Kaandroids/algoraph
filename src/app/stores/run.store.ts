@@ -41,6 +41,14 @@ export class RunStore {
   readonly dataState = computed(() => this.currentStep()?.data ?? []);
   readonly effects = computed(() => this.currentStep()?.effects ?? emptyEffects());
   readonly ops = computed(() => this.currentStep()?.ops ?? 0);
+
+  // Canvas effects as sets/maps for cheap per-node lookups in the template.
+  readonly visitedSet = computed(() => new Set(this.effects().visited));
+  readonly activeSet = computed(() => new Set(this.effects().active));
+  readonly markedSet = computed(() => new Set(this.effects().markedEdges));
+  readonly labels = computed(() => this.effects().labels);
+  /** Effect transition duration (ms), shortened as the playback speeds up. */
+  readonly animMs = computed(() => Math.round(450 / this.speed()));
   readonly bigO = computed(() => this.result()?.bigO ?? { time: 'O(?)', space: 'O(?)' });
   readonly note = computed(() => this.currentStep()?.note ?? '');
 

@@ -691,7 +691,8 @@
 
     <!-- ── Run: read-only canvas + transport (center) ────────── -->
     <div class="ag-runstage">
-      <div class="ag-runcanvas" [class.ae-panning]="panning()" (mousedown)="onCanvasMouseDown($event)">
+      <div class="ag-runcanvas" [class.ae-panning]="panning()" [style.--run-anim]="run.animMs() + 'ms'"
+        (mousedown)="onCanvasMouseDown($event)">
         <f-flow fDraggable [fCanvasMoveTrigger]="canvasMoveTrigger">
           <f-background>
             <f-circle-pattern [color]="'rgba(128,128,128,0.32)'" [radius]="22" />
@@ -702,6 +703,8 @@
                 [fNodeId]="node.id"
                 [fNodePosition]="node.position"
                 class="ae-node ae-node-ro"
+                [class.is-visited]="run.visitedSet().has(node.id)"
+                [class.is-active]="run.activeSet().has(node.id)"
                 [attr.data-type]="node.kind"
                 [style.--nc]="nodeColor(node.kind)">
                 <div class="ae-node-header">
@@ -718,6 +721,9 @@
                       class="ae-port-dot ae-port-circle ae-port-filled ae-port-nc"></div>
                   </span>
                 </div>
+                @if (run.labels()[node.id]; as runLabel) {
+                  <span class="ae-node-runlabel">{{ runLabel }}</span>
+                }
               </div>
             }
 
@@ -743,7 +749,8 @@
                 [fOutputId]="edge.outputId"
                 [fInputId]="edge.inputId"
                 [fType]="EFConnectionType.BEZIER"
-                [class.ag-undirected]="!edge.directed">
+                [class.ag-undirected]="!edge.directed"
+                [class.is-marked]="edgeMarked(edge)">
                 <f-connection-marker-arrow [type]="EFMarkerType.END_ALL_STATES" />
                 <div fConnectionContent [position]="0.5" class="ag-edge-badge">
                   <span class="ag-edge-weight ag-edge-weight-ro">{{ edge.weight }}</span>

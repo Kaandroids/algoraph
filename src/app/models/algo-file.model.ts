@@ -29,6 +29,9 @@ while not pq.isEmpty() do
   u ← pq.popMin()
   if u in visited then continue end
   visited.add(u)
+  visit(u)
+  scrollTo(u)
+  setLabel(u, dist[u])
 
   for each vertex v in neighbors(u) do
     relax(u, v)
@@ -43,6 +46,8 @@ export function relax(u, v) do
   if alt < dist[v] then
     dist[v] ← alt
     pq.push(v, alt)
+    markEdge(u, v)
+    setLabel(v, alt)
   end
 end
 `;

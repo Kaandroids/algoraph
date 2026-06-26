@@ -362,6 +362,16 @@
   fill: none;
 }
 
+/* An edge the running algorithm has highlighted (markEdge) — part of the tree. */
+:host ::ng-deep .f-connection.is-marked path {
+  stroke: var(--accent);
+  stroke-width: 3.5;
+  transition: stroke var(--run-anim, 450ms) ease, stroke-width var(--run-anim, 450ms) ease;
+}
+:host ::ng-deep .f-connection.is-marked .f-marker {
+  color: var(--accent);
+}
+
 :host ::ng-deep .f-marker {
   color: var(--fg-muted);
 }
@@ -966,6 +976,55 @@
 .ag-runcanvas.ae-panning f-flow { cursor: grabbing; }
 
 .ae-node-ro { cursor: grab; }
+
+/* ── Run: live algorithm effects on the read-only canvas ──── */
+.ag-runcanvas {
+  --run-anim: 450ms;
+}
+
+.ae-node.ae-node-ro {
+  transition:
+    box-shadow var(--run-anim) ease,
+    border-color var(--run-anim) ease,
+    transform var(--run-anim) ease;
+}
+
+/* A settled vertex — a calm green ring. */
+.ae-node.ae-node-ro.is-visited {
+  border-color: color-mix(in srgb, var(--success) 55%, var(--border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--success) 42%, transparent);
+}
+
+/* The vertex being processed right now — a bright accent glow, lifted. */
+.ae-node.ae-node-ro.is-active {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 22px color-mix(in srgb, var(--accent) 45%, transparent);
+  transform: translateY(-1px) scale(1.03);
+  z-index: 6;
+}
+
+/* Distance / value badge the algorithm pins on a vertex via setLabel. */
+.ae-node-runlabel {
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
 .ag-edge-weight-ro { cursor: grab; }
 
 /* ── Run: readable state rail (left) ──────────────────────── */
