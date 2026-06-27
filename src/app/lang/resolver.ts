@@ -8,23 +8,10 @@
  * calls (`pq.push`, `m.keys`) are member calls and are checked at runtime, not
  * here.
  */
-import { GLOBAL_REFERENCE, memberName } from '../node-api';
+import { BUILTIN_NAMES, DS_CREATE_NAME_ARG } from './builtins';
 import type { Diagnostic } from './diagnostics';
 import type { Expr, FunctionDecl, Module, Stmt } from './ast';
 import type { ExportRef } from '../models/exports';
-
-/** Global graph / visualization functions callable by bare name. */
-const BUILTIN_FUNCTIONS: ReadonlySet<string> = new Set([
-  ...GLOBAL_REFERENCE.groups
-    // 'Language' is syntax; 'Scratch structures'/'Panel structures' are `scratch.*`/`panel.*`
-    // member calls, checked at runtime.
-    .filter((g) => !['Language', 'Scratch structures', 'Panel structures'].includes(g.title))
-    .flatMap((g) => g.members)
-    .map((m) => memberName(m.sig))
-    .filter((name): name is string => name !== null),
-  // Aliases the combined reference signatures don't expose individually.
-  'inDegree', 'outDegree', 'unmark',
-]);
 
 export interface ResolveResult {
   /** Exported helpers, in declaration order, for the overview + autocomplete. */
@@ -63,7 +50,7 @@ export function resolve(modules: Module[], diagnostics: Diagnostic[]): ResolveRe
 
   // Flag bare calls to unknown names, and data structures created with a name
   // that can't be referenced in code (must be a plain identifier).
-  const known = new Set([...functions.keys(), ...BUILTIN_FUNCTIONS]);
+  const known = new Set([...functions.keys(), ...BUILTIN_NAMES]);
   for (const module of modules) {
     for (const item of module.items) {
       const body = item.kind === 'function' ? item.body : [item];
@@ -97,17 +84,6 @@ export function resolve(modules: Module[], diagnostics: Diagnostic[]): ResolveRe
 
   return { exports, functions };
 }
-
-/** Data-structure `create*` functions → the index of their optional name argument. */
-const DS_CREATE_NAME_ARG: Record<string, number> = {
-  createList: 2,
-  createStack: 2,
-  createQueue: 2,
-  createSet: 2,
-  createMap: 2,
-  createPQueue: 2,
-  createMatrix: 4,
-};
 
 /** A name usable as a DSL identifier; anything else can't be referenced by name. */
 const IDENT = /^[A-Za-z_]\w*$/;

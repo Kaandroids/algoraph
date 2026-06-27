@@ -18,6 +18,7 @@ import {
 import type { CompletionContext, CompletionResult, Completion } from '@codemirror/autocomplete';
 import { tags as t } from '@lezer/highlight';
 import type { ExportRef } from '../models/exports';
+import { BUILTIN_NAMES } from '../lang/builtins';
 
 // ── Token sets ──────────────────────────────────────────────
 const KEYWORDS = new Set([
@@ -25,14 +26,8 @@ const KEYWORDS = new Set([
   'for', 'each', 'in', 'continue', 'break', 'and', 'or', 'not',
 ]);
 const ATOMS = new Set(['INFINITY', 'true', 'false', 'nil']);
-const BUILTINS = new Set([
-  'neighbors', 'weight', 'hasEdge', 'degree', 'inDegree', 'outDegree',
-  'source', 'goal', 'nodes', 'edges',
-  'mark', 'unmark', 'setLabel', 'scrollTo', 'clearMarks', 'showMessage', 'hideMessage',
-  'createNode', 'deleteNode', 'createEdge', 'deleteEdge',
-  'createList', 'createStack', 'createQueue', 'createSet', 'createMap', 'createPQueue', 'createMatrix',
-  'deleteDS', 'clearGraph', 'clearCanvas', 'saveCanvas',
-]);
+// Highlighted as built-ins — the single source of truth lives in lang/builtins.ts.
+const BUILTINS = BUILTIN_NAMES;
 
 // ── Stream tokenizer (shared spirit with the future lexer) ──
 const dslStream = StreamLanguage.define<{ }>({
