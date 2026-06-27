@@ -5,20 +5,15 @@
  * theme and the ASCII→Unicode input helper. The real lexer / parser /
  * interpreter live elsewhere (coming next); nothing here executes code.
  */
-import { Decoration, EditorView, ViewPlugin } from '@codemirror/view';
-import type { DecorationSet, ViewUpdate } from '@codemirror/view';
-import { Facet, RangeSetBuilder } from '@codemirror/state';
-import {
-  HighlightStyle,
-  StreamLanguage,
-  LanguageSupport,
-  syntaxHighlighting,
-  indentService,
-} from '@codemirror/language';
+import { EditorView } from '@codemirror/view';
+import { Facet } from '@codemirror/state';
+import { HighlightStyle, StreamLanguage, LanguageSupport, syntaxHighlighting } from '@codemirror/language';
 import type { CompletionContext, CompletionResult, Completion } from '@codemirror/autocomplete';
 import { tags as t } from '@lezer/highlight';
 import type { ExportRef } from '../models/exports';
 import { BUILTIN_NAMES } from '../lang/builtins';
+import { postwerkTheme } from './dsl-theme';
+import { indentGuides, dslIndentService } from './dsl-indent';
 
 // ── Token sets ──────────────────────────────────────────────
 const KEYWORDS = new Set([
@@ -291,163 +286,6 @@ const aliasInput = EditorView.inputHandler.of((view, from, to, text) => {
   });
   return true;
 });
-
-// ── Indent guides — a vertical line per nesting level (book style) ──
-const INDENT_UNIT = 2;
-
-function leadingWidth(text: string): number {
-  let n = 0;
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === ' ') n += 1;
-    else if (text[i] === '\t') n += INDENT_UNIT;
-    else return n;
-  }
-  return n; // whitespace-only line
-}
-
-const indentGuides = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet;
-    constructor(view: EditorView) {
-      this.decorations = this.build(view);
-    }
-    update(u: ViewUpdate) {
-      if (u.docChanged || u.viewportChanged) this.decorations = this.build(u.view);
-    }
-    build(view: EditorView): DecorationSet {
-      const builder = new RangeSetBuilder<Decoration>();
-      const doc = view.state.doc;
-      for (const { from, to } of view.visibleRanges) {
-        for (let pos = from; pos <= to; ) {
-          const line = doc.lineAt(pos);
-          const depth = this.depthAt(view, line.number);
-          if (depth > 0) {
-            builder.add(
-              line.from,
-              line.from,
-              Decoration.line({ attributes: { class: 'cm-indent-guides', style: `--cm-indent:${depth}` } }),
-            );
-          }
-          pos = line.to + 1;
-        }
-      }
-      return builder.finish();
-    }
-    /** A blank line keeps the guides that span across it (min of its neighbours). */
-    private depthAt(view: EditorView, lineNo: number): number {
-      const doc = view.state.doc;
-      const text = doc.line(lineNo).text;
-      if (text.trim() !== '') return Math.floor(leadingWidth(text) / INDENT_UNIT);
-      let prev = 0;
-      for (let i = lineNo - 1; i >= 1; i--) {
-        const t = doc.line(i).text;
-        if (t.trim() !== '') { prev = leadingWidth(t); break; }
-      }
-      let next = 0;
-      for (let i = lineNo + 1; i <= doc.lines; i++) {
-        const t = doc.line(i).text;
-        if (t.trim() !== '') { next = leadingWidth(t); break; }
-      }
-      return Math.floor(Math.min(prev, next) / INDENT_UNIT);
-    }
-  },
-  { decorations: (v) => v.decorations },
-);
-
-// ── Auto-indent: open a level after `do`/`then`, dedent `end`/`else` ──
-const BLOCK_OPENER = /\b(?:do|then)\s*$/;
-const BLOCK_CLOSER = /^\s*(?:end|else)\b/;
-
-const dslIndentService = indentService.of((context, pos) => {
-  const doc = context.state.doc;
-  // `lineAt(pos, ±1)` respects the simulated line break Enter inserts.
-  const current = context.lineAt(pos, 1); // the line being indented (the new line on Enter)
-  const before = context.lineAt(pos, -1); // content before the break
-  // Nearest non-blank line at or above `before`.
-  let prevText = '';
-  for (let n = doc.lineAt(before.from).number; n >= 1; n--) {
-    const t = doc.line(n).text;
-    if (t.trim() !== '') { prevText = t; break; }
-  }
-  let indent = leadingWidth(prevText);
-  if (BLOCK_OPENER.test(prevText)) indent += INDENT_UNIT;
-  if (BLOCK_CLOSER.test(current.text)) indent -= INDENT_UNIT;
-  return Math.max(0, indent);
-});
-
-// ── Warm-paper theme ────────────────────────────────────────
-const postwerkTheme = EditorView.theme(
-  {
-    '&': { color: 'var(--fg)', backgroundColor: 'transparent', height: '100%' },
-    '.cm-scroller': { fontFamily: 'var(--font-mono)', fontSize: '13px', lineHeight: '1.7' },
-    '.cm-content': { padding: '14px 0', caretColor: 'var(--accent)' },
-    '.cm-line': { padding: '0 16px' },
-    '.cm-line.cm-indent-guides': {
-      backgroundImage:
-        'repeating-linear-gradient(to right, color-mix(in srgb, var(--fg-subtle) 42%, transparent) 0 1px, transparent 1px 2ch)',
-      backgroundRepeat: 'no-repeat',
-      backgroundPositionX: '16px',
-      backgroundSize: 'calc(var(--cm-indent) * 2ch) 100%',
-    },
-    '&.cm-focused': { outline: 'none' },
-    '.cm-gutters': {
-      backgroundColor: 'transparent',
-      border: 'none',
-      color: 'var(--fg-subtle)',
-    },
-    '.cm-lineNumbers .cm-gutterElement': { padding: '0 10px 0 14px', minWidth: '34px' },
-    '.cm-activeLine': { backgroundColor: 'color-mix(in srgb, var(--accent) 5%, transparent)' },
-    // The line the Run workspace is executing — a debugger-style cursor.
-    '.cm-line.cm-run-current': {
-      backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)',
-      boxShadow: 'inset 3px 0 0 var(--accent)',
-    },
-    // Compiler diagnostics — a wavy underline, message on hover (title attribute).
-    '.cm-diag-error': {
-      textDecoration: 'underline wavy var(--danger)',
-      textDecorationSkipInk: 'none',
-    },
-    '.cm-diag-warn': {
-      textDecoration: 'underline wavy var(--warning)',
-      textDecorationSkipInk: 'none',
-    },
-    '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--fg-muted)' },
-    '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--accent)' },
-    '.cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection': {
-      backgroundColor: 'color-mix(in srgb, var(--accent) 16%, transparent)',
-    },
-    '.cm-matchingBracket': {
-      backgroundColor: 'color-mix(in srgb, var(--accent) 18%, transparent)',
-      outline: 'none',
-    },
-    // Autocomplete popup
-    '.cm-tooltip': {
-      background: 'var(--bg)',
-      border: '0.5px solid var(--border-strong)',
-      borderRadius: '10px',
-      boxShadow: '0 10px 30px -10px rgba(34,28,18,0.28)',
-      overflow: 'hidden',
-    },
-    '.cm-tooltip.cm-tooltip-autocomplete > ul': { fontFamily: 'var(--font-mono)', maxHeight: '15em' },
-    '.cm-tooltip-autocomplete ul li': { padding: '4px 10px', color: 'var(--fg-muted)' },
-    '.cm-tooltip-autocomplete ul li[aria-selected]': {
-      background: 'color-mix(in srgb, var(--accent) 14%, transparent)',
-      color: 'var(--fg)',
-    },
-    '.cm-completionLabel': { color: 'var(--fg)' },
-    '.cm-completionDetail': { color: 'var(--fg-subtle)', fontStyle: 'normal', marginLeft: '6px' },
-    '.cm-completionIcon': { color: 'var(--fg-subtle)', paddingRight: '6px' },
-    '.cm-tooltip.cm-completionInfo': {
-      fontFamily: 'var(--font-sans)',
-      fontSize: '12px',
-      lineHeight: '1.5',
-      color: 'var(--fg-muted)',
-      padding: '9px 11px',
-      maxWidth: '260px',
-    },
-  },
-  { dark: false },
-);
 
 /** Everything the editor needs to speak the Algoraph DSL. */
 export function algoraphLanguage() {
