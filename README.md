@@ -9,6 +9,9 @@ one operation at a time — every vertex it visits lights up on the canvas, and
 every operation is counted, so an algorithm's complexity becomes something you
 can *see* rather than just read about.
 
+### [▶ Try Algoraph live →](https://kaandroids.github.io/algoraph/)
+
+[![Live demo](https://img.shields.io/badge/live%20demo-online-2ea44f?logo=githubpages&logoColor=white)](https://kaandroids.github.io/algoraph/)
 [![Angular](https://img.shields.io/badge/Angular-21-DD0031?logo=angular&logoColor=white)](https://angular.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![CodeMirror](https://img.shields.io/badge/CodeMirror-6-1C1C1C?logo=codemirror&logoColor=white)](https://codemirror.net)
@@ -184,7 +187,9 @@ npm test         # unit tests (Vitest)
 ```
 
 Algoraph is a static single-page app, so the contents of `dist/` can be served
-from anywhere — including GitHub Pages.
+from anywhere. This repo auto-deploys to
+**[GitHub Pages](https://kaandroids.github.io/algoraph/)** on every push to
+`master` via [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
 
 ---
 
