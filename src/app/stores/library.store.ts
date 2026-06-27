@@ -7,7 +7,7 @@ export interface LibraryEntry {
   name: string;
   /** One-line summary. */
   description: string;
-  /** Path under `public/library/`, e.g. `algorithm/dijkstra.algo` or `algorithm/bfs.json`. */
+  /** Path under `public/library/`, e.g. `algorithm/bfs.json` (a bundle) or a single `.algo` file. */
   file: string;
 }
 
