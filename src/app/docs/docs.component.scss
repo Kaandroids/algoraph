@@ -50,7 +50,22 @@
 .docs-nav-list {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+}
+
+.docs-nav-group {
+  display: flex;
+  flex-direction: column;
   gap: 1px;
+}
+
+.docs-nav-grouphead {
+  margin: 0 0 4px 10px;
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-subtle);
 }
 
 .docs-nav-item {
@@ -301,6 +316,122 @@
   font-size: 11.5px;
   line-height: 1.5;
   color: var(--fg-subtle);
+}
+
+/* ── In-section subheading (e.g. one data structure) ──────── */
+.docs-subhead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 22px 0 8px;
+}
+
+.docs-subhead-text {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+
+.docs-subhead-chip {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+  background: var(--bg-2);
+  border: 0.5px solid var(--border);
+  border-radius: 5px;
+  padding: 1.5px 6px;
+}
+
+/* ── API reference table ──────────────────────────────────── */
+.docs-api-group {
+  margin: 0 0 16px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.docs-api-grouphead {
+  margin: 0 0 8px;
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fg-subtle);
+}
+
+.docs-api-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 40%) 1fr;
+  gap: 14px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-top: 0.5px solid var(--border);
+
+  &:first-of-type {
+    border-top: 0;
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+.docs-api-sig {
+  justify-self: start;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--field-bg));
+  border: 0.5px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: 6px;
+  padding: 2px 7px;
+  word-break: break-word;
+}
+
+.docs-api-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.docs-api-desc {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+
+.docs-api-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.docs-api-ret,
+.docs-api-cost {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+
+.docs-api-ret {
+  color: var(--tone-violet);
+  background: color-mix(in srgb, var(--tone-violet) 12%, transparent);
+}
+
+.docs-api-cost {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
 }
 
 /* ── Callout aside ────────────────────────────────────────── */

@@ -6,12 +6,17 @@
       <span class="docs-nav-title">Getting started</span>
     </div>
     <nav class="docs-nav-list">
-      @for (s of sections; track s.id) {
-        <button class="docs-nav-item" type="button"
-          [class.active]="activeId() === s.id" (click)="select(s.id)">
-          <span class="docs-nav-dot"></span>
-          <span class="docs-nav-label">{{ s.nav }}</span>
-        </button>
+      @for (g of navGroups; track g.id) {
+        <div class="docs-nav-group">
+          <span class="docs-nav-grouphead">{{ g.label }}</span>
+          @for (s of g.sections; track s.id) {
+            <button class="docs-nav-item" type="button"
+              [class.active]="activeId() === s.id" (click)="select(s.id)">
+              <span class="docs-nav-dot"></span>
+              <span class="docs-nav-label">{{ s.nav }}</span>
+            </button>
+          }
+        </div>
       }
     </nav>
   </aside>
@@ -61,12 +66,45 @@
                 <pre class="docs-code">{{ b.code }}</pre>
               }
               @case ('image') {
-                <figure class="docs-figure">
+                <figure class="docs-figure" [style.max-width.px]="b.width">
                   <img class="docs-figure-img" [src]="b.src" [alt]="b.alt ?? ''" loading="lazy" />
                   @if (b.caption) {
                     <figcaption class="docs-figure-cap">{{ b.caption }}</figcaption>
                   }
                 </figure>
+              }
+              @case ('subhead') {
+                <div class="docs-subhead">
+                  <h3 class="docs-subhead-text">{{ b.text }}</h3>
+                  @if (b.chip) {
+                    <span class="docs-subhead-chip">{{ b.chip }}</span>
+                  }
+                </div>
+              }
+              @case ('api') {
+                @for (g of b.apiGroups; track g.title) {
+                  <div class="docs-api-group">
+                    <div class="docs-api-grouphead">{{ g.title }}</div>
+                    @for (m of g.members; track m.sig) {
+                      <div class="docs-api-row">
+                        <code class="docs-api-sig">{{ m.sig }}</code>
+                        <div class="docs-api-meta">
+                          <span class="docs-api-desc">{{ m.desc }}</span>
+                          @if (m.returns || m.cost) {
+                            <span class="docs-api-badges">
+                              @if (m.returns) {
+                                <span class="docs-api-ret">{{ m.returns }}</span>
+                              }
+                              @if (m.cost) {
+                                <span class="docs-api-cost">{{ m.cost }}</span>
+                              }
+                            </span>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
               }
               @case ('callout') {
                 <div class="docs-callout" [attr.data-tone]="b.tone">

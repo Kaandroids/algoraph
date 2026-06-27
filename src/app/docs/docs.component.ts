@@ -9,7 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { IconComponent } from '../shared/icon.component';
-import { DOCS, type DocAction } from './docs-content';
+import { DOCS, DOC_GROUPS, type DocAction } from './docs-content';
 
 /**
  * The Docs workspace — a full-page, scrollable getting-started guide with a
@@ -29,6 +29,11 @@ export class DocsComponent {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   protected readonly sections = DOCS;
+  /** Sidebar groups, each carrying the sections that sit under its heading. */
+  protected readonly navGroups = DOC_GROUPS.map((g) => ({
+    ...g,
+    sections: DOCS.filter((s) => s.group === g.id),
+  }));
   /** The section currently in view — drives the active state in the nav. */
   protected readonly activeId = signal(DOCS[0].id);
 
