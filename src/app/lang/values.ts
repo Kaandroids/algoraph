@@ -295,6 +295,21 @@ export abstract class RDataStructure {
     throw new RuntimeError(`Cannot assign into ${this.label} (line ${line})`);
   }
 
+  /**
+   * The bookkeeping methods every collection shares — `size`, `isEmpty` and
+   * `clear` — so each concrete `call` only spells out its own operations.
+   * `count` is the live element count and `empty` drops the backing store.
+   * Returns `undefined` when `method` isn't one of the shared three.
+   */
+  protected common(method: string, count: number, empty: () => void): Value | undefined {
+    switch (method) {
+      case 'size': this.charge(1); return count;
+      case 'isEmpty': this.charge(1); return count === 0;
+      case 'clear': this.charge(count); empty(); return null;
+      default: return undefined;
+    }
+  }
+
   protected unknown(method: string, line: number): never {
     throw new RuntimeError(`${this.label} has no method '${method}' (line ${line})`);
   }
@@ -309,6 +324,8 @@ export class RList extends RDataStructure {
   private data: Value[] = [];
 
   call(method: string, args: Value[], line: number): Value {
+    const shared = this.common(method, this.data.length, () => { this.data = []; });
+    if (shared !== undefined) return shared;
     switch (method) {
       // List
       case 'push': this.charge(1); this.data.push(args[0]); return null;
@@ -323,10 +340,6 @@ export class RList extends RDataStructure {
       case 'enqueue': this.charge(1); this.data.push(args[0]); return null;
       case 'dequeue': this.charge(1); return this.data.shift() ?? null;
       case 'front': this.charge(1); return this.data[0] ?? null;
-      // Common
-      case 'size': this.charge(1); return this.data.length;
-      case 'isEmpty': this.charge(1); return this.data.length === 0;
-      case 'clear': this.charge(this.data.length); this.data = []; return null;
       default: this.unknown(method, line);
     }
   }
@@ -362,13 +375,12 @@ export class RSet extends RDataStructure {
   private data = new Map<string, Value>();
 
   call(method: string, args: Value[], line: number): Value {
+    const shared = this.common(method, this.data.size, () => this.data.clear());
+    if (shared !== undefined) return shared;
     switch (method) {
       case 'add': this.charge(1); this.data.set(keyOf(args[0]), args[0]); return null;
       case 'remove': this.charge(1); this.data.delete(keyOf(args[0])); return null;
       case 'contains': this.charge(1); return this.contains(args[0]);
-      case 'size': this.charge(1); return this.data.size;
-      case 'isEmpty': this.charge(1); return this.data.size === 0;
-      case 'clear': this.charge(this.data.size); this.data.clear(); return null;
       default: this.unknown(method, line);
     }
   }
@@ -388,13 +400,12 @@ export class RMap extends RDataStructure {
   private data = new Map<string, { key: Value; value: Value }>();
 
   call(method: string, args: Value[], line: number): Value {
+    const shared = this.common(method, this.data.size, () => this.data.clear());
+    if (shared !== undefined) return shared;
     switch (method) {
       case 'remove': this.charge(1); this.data.delete(keyOf(args[0])); return null;
       case 'keys': this.charge(this.data.size); return [...this.data.values()].map((e) => e.key);
       case 'values': this.charge(this.data.size); return [...this.data.values()].map((e) => e.value);
-      case 'size': this.charge(1); return this.data.size;
-      case 'isEmpty': this.charge(1); return this.data.size === 0;
-      case 'clear': this.charge(this.data.size); this.data.clear(); return null;
       default: this.unknown(method, line);
     }
   }
@@ -436,6 +447,8 @@ export class RPQueue extends RDataStructure {
   private data: { item: Value; priority: number }[] = [];
 
   call(method: string, args: Value[], line: number): Value {
+    const shared = this.common(method, this.data.length, () => { this.data = []; });
+    if (shared !== undefined) return shared;
     switch (method) {
       case 'push': {
         this.charge(log2(this.data.length + 1));
@@ -457,9 +470,6 @@ export class RPQueue extends RDataStructure {
         }
         return null;
       }
-      case 'size': this.charge(1); return this.data.length;
-      case 'isEmpty': this.charge(1); return this.data.length === 0;
-      case 'clear': this.charge(this.data.length); this.data = []; return null;
       default: this.unknown(method, line);
     }
   }
