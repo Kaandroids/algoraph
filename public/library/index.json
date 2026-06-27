@@ -1,6 +1,11 @@
 {
   "algorithm": [
     {
+      "name": "Breadth-first search",
+      "description": "Shortest paths by hop count from the Start vertex. A clean main loop calls interactive helpers; long notes explain each line. Run it on the Weighted digraph canvas.",
+      "file": "algorithm/bfs.json"
+    },
+    {
       "name": "Dijkstra — shortest paths",
       "description": "Greedy single-source shortest paths with a priority queue. Builds its own dist / visited / pq.",
       "file": "algorithm/dijkstra.algo"

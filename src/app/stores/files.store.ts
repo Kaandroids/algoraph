@@ -63,6 +63,24 @@ export class FilesStore {
     this.activeId.set(id);
   }
 
+  /**
+   * Replace the workspace with a multi-file algorithm (a library bundle). The
+   * first file becomes the entry `main` the Run steps through; the rest are its
+   * module files. Per-file notes ride along, so an imported algorithm keeps its
+   * inline explanations.
+   */
+  loadBundle(files: readonly { name: string; content: string; notes?: LineNote[] }[]): void {
+    if (!files.length) return;
+    const mapped: AlgoFile[] = files.map((f, i) => ({
+      id: i === 0 ? 'main' : `f${this.nextId++}`,
+      name: f.name,
+      content: f.content,
+      notes: f.notes ?? [],
+    }));
+    this.files.set(mapped);
+    this.activeId.set('main');
+  }
+
   /** Close a module file; the entry `main` can't be closed. */
   close(event: Event, id: string): void {
     event.stopPropagation();

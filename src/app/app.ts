@@ -1015,18 +1015,24 @@ export class App {
     this.triggerImport();
   }
 
-  /** Import a library item: a canvas loads onto the board, an algorithm opens as a new file. */
+  /**
+   * Import a library item. A canvas loads onto the board. An algorithm is either
+   * a single `.algo` (opened as one new file) or a `.json` bundle — the clean
+   * entry plus its helper modules, with notes — which replaces the workspace.
+   */
   async importLibrary(kind: 'algorithm' | 'canvas', item: LibraryEntry): Promise<void> {
-    const text = await this.library.file(item.file);
     if (kind === 'canvas') {
       try {
-        this.canvas.load(JSON.parse(text));
+        this.canvas.load(JSON.parse(await this.library.file(item.file)));
         this.setView('canvas');
       } catch {
         // Malformed library canvas — ignore (these are bundled, so this shouldn't happen).
       }
+    } else if (/\.json$/i.test(item.file)) {
+      this.fileStore.loadBundle((await this.library.bundle(item.file)).files);
+      this.setView('algorithm');
     } else {
-      this.fileStore.addFile(item.file.split('/').pop() ?? 'imported.algo', text);
+      this.fileStore.addFile(item.file.split('/').pop() ?? 'imported.algo', await this.library.file(item.file));
       this.setView('algorithm');
     }
     this.closeImport();

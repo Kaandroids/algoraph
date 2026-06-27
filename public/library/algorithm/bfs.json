@@ -1,0 +1,86 @@
+{
+  "files": [
+    {
+      "name": "bfs.algo",
+      "content": "bfsInit()\n\nwhile not queue.isEmpty() do\n  u ← queue.dequeue()\n  visit(u)\n  for each v in neighbors(u) do\n    discover(u, v)\n  end\nend\n\nreconstructPath(goal())\n",
+      "notes": [
+        {
+          "line": 1,
+          "text": "Set up the search in one step — create the **queue**, the **dist** and **prev** maps and the **visited** set, then seed them from the Start vertex. Keeping setup in a helper lets the main loop read like the algorithm itself."
+        },
+        {
+          "line": 3,
+          "text": "BFS explores the graph in waves. The **queue** holds the *frontier*: vertices found but not yet expanded. We loop until it drains."
+        },
+        {
+          "line": 4,
+          "text": "Take the next vertex from the **front** of the queue. First-in, first-out order is what makes the search breadth-first — nearer vertices are always expanded before farther ones."
+        },
+        {
+          "line": 5,
+          "text": "Settle `u`. Thanks to the FIFO order, the first time BFS reaches a vertex it has already found its shortest distance, so `visit` can label it as final."
+        },
+        {
+          "line": 6,
+          "text": "Fan out to every neighbour of `u` — the candidates for the next wave of the search."
+        },
+        {
+          "line": 7,
+          "text": "`discover` adds `v` to the frontier the first time it is seen, recording `dist[u] + 1` and remembering `u` as its predecessor. Already-seen vertices are skipped."
+        },
+        {
+          "line": 11,
+          "text": "Walk the **prev** map backward from the Goal to the Start to light up the shortest path. `reconstructPath` lives in the shared **helpers** file — any search that records predecessors can reuse it."
+        }
+      ]
+    },
+    {
+      "name": "bfs-helpers.algo",
+      "content": "export function bfsInit() do\n  queue ← panel.createQueue(\"queue\")\n  dist ← panel.createMap(\"dist\")\n  prev ← panel.createMap(\"prev\")\n  visited ← panel.createSet(\"visited\")\n  s ← source()\n  dist[s] ← 0\n  visited.add(s)\n  queue.enqueue(s)\n  mark(s, \"info\")\n  scrollTo(s)\n  setLabel(s, 0)\n  showMessage(\"Start BFS from \" + s)\nend\n\nexport function visit(u) do\n  mark(u, \"success\")\n  scrollTo(u)\n  setLabel(u, dist[u])\n  showMessage(\"Visiting \" + u + \" (distance \" + dist[u] + \")\")\nend\n\nexport function discover(u, v) do\n  if v in visited then return end\n  dist[v] ← dist[u] + 1\n  prev[v] ← u\n  visited.add(v)\n  queue.enqueue(v)\n  mark(u, v, \"info\")\n  setLabel(v, dist[v])\n  showMessage(\"Found \" + v + \" from \" + u)\nend\n",
+      "notes": [
+        {
+          "line": 1,
+          "text": "Algorithm-specific setup. The four structures are created off-canvas with `panel.*`, so they stay out of the drawing but still appear in the Run data panel, where you can watch them fill."
+        },
+        {
+          "line": 2,
+          "text": "The frontier. BFS pushes to the back and pulls from the front, so vertices leave in the order they were discovered."
+        },
+        {
+          "line": 16,
+          "text": "Highlight the vertex BFS is expanding and pin its final distance on the canvas. Pure visualization — the result is the same without it, but the run is far easier to follow."
+        },
+        {
+          "line": 23,
+          "text": "The heart of BFS: each vertex is discovered exactly once, from the first vertex that reaches it."
+        },
+        {
+          "line": 24,
+          "text": "The guard that keeps BFS linear — skip any vertex already seen so none is ever enqueued twice."
+        },
+        {
+          "line": 25,
+          "text": "A BFS distance is just a hop count: one more than the vertex we arrived from."
+        }
+      ]
+    },
+    {
+      "name": "helpers.algo",
+      "content": "export function reconstructPath(t) do\n  showMessage(\"Tracing the path back to the Start\", \"success\")\n  mark(t, \"warn\")\n  cur ← t\n  while cur in prev do\n    p ← prev[cur]\n    mark(p, cur, \"warn\")\n    mark(p, \"warn\")\n    scrollTo(p, cur)\n    cur ← p\n  end\n  showMessage(\"Shortest path highlighted\", \"success\")\nend\n",
+      "notes": [
+        {
+          "line": 1,
+          "text": "A **general** helper, not tied to BFS. It reads the global **prev** map — the predecessor each vertex was reached from — so any search that records predecessors (BFS, Dijkstra, A*) can call it to draw a path. This is also where shared utilities like `isDAG` would live."
+        },
+        {
+          "line": 5,
+          "text": "Follow predecessors from the target back toward the Start. The Start has no predecessor, so `cur in prev` turns false there and the loop stops."
+        },
+        {
+          "line": 7,
+          "text": "Re-colour each edge along the route so the shortest path stands out from the rest of the BFS tree."
+        }
+      ]
+    }
+  ]
+}

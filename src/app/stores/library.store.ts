@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import type { LineNote } from '../editor/line-notes';
 
 /** One ready-made item in the bundled library (an algorithm file or a canvas). */
 export interface LibraryEntry {
@@ -6,8 +7,21 @@ export interface LibraryEntry {
   name: string;
   /** One-line summary. */
   description: string;
-  /** Path under `public/library/`, e.g. `algorithm/dijkstra.algo`. */
+  /** Path under `public/library/`, e.g. `algorithm/dijkstra.algo` or `algorithm/bfs.json`. */
   file: string;
+}
+
+/** One source file inside a multi-file algorithm bundle. */
+export interface BundleFile {
+  name: string;
+  content: string;
+  /** Inline per-line explanations (shown collapsed, expand on click in the Run view). */
+  notes?: LineNote[];
+}
+
+/** A multi-file algorithm: the clean entry file plus its helper modules. */
+export interface AlgorithmBundle {
+  files: BundleFile[];
 }
 
 /** The library manifest — algorithms (`.algo`) and canvases (`.json`), kept apart by type. */
@@ -39,5 +53,12 @@ export class LibraryStore {
   async file(path: string): Promise<string> {
     const res = await fetch(`library/${path}`);
     return res.text();
+  }
+
+  /** Fetch a multi-file algorithm bundle (`.json`): the entry file plus its modules. */
+  async bundle(path: string): Promise<AlgorithmBundle> {
+    const res = await fetch(`library/${path}`);
+    const data = (await res.json()) as Partial<AlgorithmBundle>;
+    return { files: data.files ?? [] };
   }
 }
