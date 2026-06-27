@@ -276,9 +276,11 @@
 :host ::ng-deep .f-connection[data-mark='danger'] { --mark: var(--danger); }
 :host ::ng-deep .f-connection[data-mark='warn'] { --mark: var(--warning); }
 :host ::ng-deep .f-connection[data-mark='info'] { --mark: var(--tone-violet); }
+/* A marked edge reads like a selected one — the type colour at the normal edge
+   width, not a heavy stroke. */
 :host ::ng-deep .f-connection.is-marked path {
   stroke: var(--mark);
-  stroke-width: 3.5;
+  stroke-width: 2;
   transition: stroke var(--run-anim, 450ms) ease, stroke-width var(--run-anim, 450ms) ease;
 }
 :host ::ng-deep .f-connection.is-marked .f-marker {
