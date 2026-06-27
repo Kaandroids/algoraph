@@ -29,6 +29,7 @@ import { type EditorDiagnostic } from './editor/diagnostics';
 import { type LineNote } from './editor/line-notes';
 import { API_GROUP, buildEditorGlobals } from './editor/editor-globals';
 import { downloadJson, downloadText, readFileAsText } from './shared/file-transfer';
+import { CanvasViewport } from './canvas-viewport';
 import {
   ApiGroup,
   DATA_STRUCTURE_API,
@@ -101,6 +102,9 @@ export class App {
   private readonly importInput = viewChild<ElementRef<HTMLInputElement>>('importInput');
   private readonly renameInput = viewChild<ElementRef<HTMLInputElement>>('renameInput');
 
+  /** Camera control (zoom, pan, run scroll-follow) — the imperative Foblex/DOM work. */
+  private readonly viewport = new CanvasViewport(this.elRef.nativeElement, () => this.fCanvas());
+
   /** Focus & select the rename field when a file tab enters rename mode. */
   private readonly focusRename = effect(() => {
     if (this.renamingFileId()) {
@@ -135,40 +139,15 @@ export class App {
     untracked(() => this.runError.set(null));
   });
 
-  /** Cleared/reset whenever a new `scrollTo` pan begins (see `followScroll`). */
-  private panTimer: ReturnType<typeof setTimeout> | null = null;
-
   /**
    * Pan the Run canvas when the algorithm calls `scrollTo(…)` on a step — to a
-   * single vertex, or to the midpoint of an edge.
-   *
-   * Foblex's animated centring eases (`ease-in-out`) but only over 150 ms, which
-   * reads as a snap. We briefly tag the canvas with `is-scrolling`, whose CSS
-   * stretches the transform transition to a perceptible, speed-scaled duration
-   * with a pronounced ease-in-out curve, then drop the tag so manual panning and
-   * zooming stay instant.
+   * single vertex, or to the midpoint of an edge. The imperative work lives in
+   * the viewport controller; the effect just reacts to the new target.
    */
   private readonly followScroll = effect(() => {
     const target = this.run.effects().scrollTo;
     if (!target || untracked(() => this.activeView()) !== 'run') return;
-    untracked(() => {
-      const canvas = this.fCanvas();
-      if (!canvas) return;
-      const host = this.elRef.nativeElement.querySelector('.ag-runcanvas f-canvas') as HTMLElement | null;
-      if (host) {
-        const ms = Math.round(this.run.animMs() * 1.4); // a touch longer than the effect fades
-        host.style.setProperty('--run-pan', `${ms}ms`);
-        host.classList.add('is-scrolling');
-        if (this.panTimer !== null) clearTimeout(this.panTimer);
-        this.panTimer = setTimeout(() => host.classList.remove('is-scrolling'), ms + 120);
-      }
-      try {
-        if (target.kind === 'edge') this.panToEdge(canvas, target.from, target.to);
-        else canvas.centerGroupOrNode(target.id, true);
-      } catch {
-        // A node may not be laid out yet; ignore and let the next step retry.
-      }
-    });
+    untracked(() => this.viewport.followScroll(target, this.run.animMs(), this.edges()));
   });
 
   /**
@@ -209,39 +188,6 @@ export class App {
       });
     });
   });
-
-  /**
-   * Centre the canvas on an edge by its weight badge — the point the learner sees
-   * labelling the edge. Foblex only centres a node by id, so we pan by the screen
-   * delta that brings the badge to the viewport centre, which is exact at any zoom
-   * (panning adds straight to the transform's translation). Falls back to centring
-   * the head vertex if the edge or its badge isn't found.
-   */
-  private panToEdge(canvas: FCanvasComponent, from: string, to: string): void {
-    const edge = this.edges().find((e) => {
-      const s = e.outputId.replace(/-out$/, '');
-      const t = e.inputId.replace(/-in$/, '');
-      return (s === from && t === to) || (s === to && t === from);
-    });
-    const flow = this.elRef.nativeElement.querySelector('.ag-runcanvas f-flow') as HTMLElement | null;
-    const badge = edge
-      ? (this.elRef.nativeElement.querySelector(
-          `.ag-runcanvas .ag-edge-badge[data-edge="${edge.id}"]`,
-        ) as HTMLElement | null)
-      : null;
-    if (!flow || !badge) {
-      canvas.centerGroupOrNode(to, true);
-      return;
-    }
-    const b = badge.getBoundingClientRect();
-    const f = flow.getBoundingClientRect();
-    const pos = canvas.getPosition();
-    canvas._setPosition({
-      x: pos.x + (f.left + f.width / 2 - (b.left + b.width / 2)),
-      y: pos.y + (f.top + f.height / 2 - (b.top + b.height / 2)),
-    });
-    canvas.redraw();
-  }
 
   /** In algorithm mode, which library item's inline reference card is open (`graph:KIND` / `data:KIND`). */
   protected readonly expandedLib = signal<string | null>(null);
@@ -403,8 +349,9 @@ export class App {
   protected readonly edges = this.canvas.edges;
   protected readonly dataNodes = this.canvas.dataNodes;
 
-  protected readonly zoomLevel = signal(100);
-  protected readonly panning = signal(false);
+  // Zoom % + pan-in-progress flag are owned by the viewport controller (facade).
+  protected readonly zoomLevel = this.viewport.zoomLevel;
+  protected readonly panning = this.viewport.panning;
   protected readonly railCollapsed = signal(false);
   protected readonly codeRailCollapsed = signal(false);
   protected readonly runDataCollapsed = signal(false);
@@ -466,11 +413,7 @@ export class App {
   protected readonly syntaxGuide = SYNTAX_GUIDE;
   protected readonly syntaxOpen = signal(false);
 
-  private currentCanvasPos = { x: 0, y: 0 };
   private ctxCanvasPos = { x: 0, y: 0 };
-  private panStart = { x: 0, y: 0 };
-  private canvasPosStart = { x: 0, y: 0 };
-  private panSetPosition = { x: 0, y: 0 };
 
   // ── Foblex triggers ───────────────────────────────────────
   /** Left-drag on empty canvas pans (Figma-style). */
@@ -725,39 +668,22 @@ export class App {
   }
 
   onCanvasChange(event: FCanvasChangeEvent): void {
-    this.zoomLevel.set(Math.round(event.scale * 100));
-    this.currentCanvasPos = event.position;
+    this.viewport.onCanvasChange(event.scale, event.position);
   }
 
-  // ── Middle-mouse pan ──────────────────────────────────────
-  /** Hold the middle mouse button and drag to pan (left-drag already pans via Foblex). */
+  // ── Middle-mouse pan (delegated to the viewport controller) ──
   onCanvasMouseDown(event: MouseEvent): void {
-    if (event.button !== 1) return; // middle button only
-    event.preventDefault();
-    const canvas = this.fCanvas();
-    this.panStart = { x: event.clientX, y: event.clientY };
-    this.canvasPosStart = canvas ? { ...canvas.getPosition() } : { ...this.panSetPosition };
-    this.panning.set(true);
+    this.viewport.startPan(event);
   }
 
   @HostListener('window:mousemove', ['$event'])
   onWindowMouseMove(event: MouseEvent): void {
-    if (!this.panning()) return;
-    const canvas = this.fCanvas();
-    if (!canvas) return;
-    const newPos = {
-      x: this.canvasPosStart.x + (event.clientX - this.panStart.x),
-      y: this.canvasPosStart.y + (event.clientY - this.panStart.y),
-    };
-    this.panSetPosition = newPos;
-    canvas._setPosition(newPos);
-    canvas.redraw();
-    canvas.emitCanvasChangeEvent();
+    this.viewport.movePan(event);
   }
 
   @HostListener('window:mouseup')
   onWindowMouseUp(): void {
-    if (this.panning()) this.panning.set(false);
+    this.viewport.endPan();
   }
 
   // ── Context menus ─────────────────────────────────────────
@@ -767,11 +693,7 @@ export class App {
     event.preventDefault();
     this.ctxMenuPos.set({ x: event.clientX, y: event.clientY });
     const wrap = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const scale = this.zoomLevel() / 100;
-    this.ctxCanvasPos = {
-      x: (event.clientX - wrap.left - this.currentCanvasPos.x) / scale,
-      y: (event.clientY - wrap.top - this.currentCanvasPos.y) / scale,
-    };
+    this.ctxCanvasPos = this.viewport.toCanvasCoords(event.clientX, event.clientY, wrap);
     this.nodeCtxMenuOpen.set(false);
     this.ctxMenuOpen.set(true);
   }
@@ -854,36 +776,15 @@ export class App {
     }
   }
 
-  // ── Zoom controls ─────────────────────────────────────────
-  private canvasCenter(): { x: number; y: number } {
-    const wrap = this.elRef.nativeElement.querySelector('.ae-canvas-wrap') as HTMLElement | null;
-    if (!wrap) return { x: 0, y: 0 };
-    const r = wrap.getBoundingClientRect();
-    return { x: r.width / 2, y: r.height / 2 };
-  }
-
-  private zoomBy(delta: number): void {
-    const canvas = this.fCanvas();
-    if (!canvas) return;
-    const current = canvas.getScale();
-    const next = Math.min(3, Math.max(0.2, Math.round((current + delta) * 10) / 10));
-    if (next === current) return;
-    canvas.setScale(next, this.canvasCenter());
-    canvas.redrawWithAnimation();
-    this.zoomLevel.set(Math.round(next * 100));
-  }
-
+  // ── Zoom controls (delegated to the viewport controller) ──
   zoomIn(): void {
-    this.zoomBy(0.1);
+    this.viewport.zoomIn();
   }
   zoomOut(): void {
-    this.zoomBy(-0.1);
+    this.viewport.zoomOut();
   }
   resetZoom(): void {
-    const canvas = this.fCanvas();
-    if (!canvas) return;
-    canvas.resetScaleAndCenter(true);
-    this.zoomLevel.set(100);
+    this.viewport.reset();
   }
 
   // ── Rails ─────────────────────────────────────────────────
