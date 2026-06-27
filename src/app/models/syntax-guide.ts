@@ -117,7 +117,7 @@ export const SYNTAX_GUIDE: SyntaxSection[] = [
       { syntax: 'setLabel(u, text)', desc: 'Pin a value on u, e.g. its distance.' },
       { syntax: 'scrollTo(u) · scrollTo(u, v)', desc: 'Pan the canvas to a vertex, or to the edge u → v.' },
       { syntax: 'clearMarks()', desc: 'Clear every highlight and label.' },
-      { syntax: 'showMessage(text) · showMessage(text, "warn")', desc: 'Flash a snackbar — same type options; empty text clears it.' },
+      { syntax: 'showMessage(text) · showMessage(text, "warn")', desc: 'Flash a snackbar for this step — same type options; it clears on the next step.' },
       { syntax: 'hideMessage()', desc: 'Dismiss the snackbar.' },
     ],
   },

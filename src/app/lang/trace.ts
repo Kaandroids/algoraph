@@ -92,7 +92,7 @@ export interface CanvasEffects {
   labels: Record<string, string>;
   /** Vertices held by an enclosing `for each` right now — the iteration cursor(s). */
   cursors: string[];
-  /** A snackbar message to show, or null — persists until the next showMessage. */
+  /** A snackbar message to show, or null — belongs to this step, cleared on the next. */
   message: CanvasMessage | null;
   /** A vertex or edge the canvas should pan to and centre (consumed once). */
   scrollTo: ScrollTarget | null;

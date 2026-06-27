@@ -231,6 +231,11 @@ export class Interpreter {
   }
 
   private execStmt(stmt: Stmt): void {
+    // A snackbar message belongs to the step that shows it. Clear any prior one as
+    // each new stepped statement begins, so a message doesn't linger across steps
+    // (stepping back over a showMessage removes it). Statements inside a helper run
+    // with stepping off, so the message they set survives to the call's single step.
+    if (this.stepping) this.effects.setMessage(null);
     switch (stmt.kind) {
       case 'assign':
         this.doAssign(stmt.target, this.evalExpr(stmt.value));
@@ -250,6 +255,7 @@ export class Interpreter {
       case 'while':
         for (;;) {
           const more = this.truthy(this.evalExpr(stmt.cond));
+          if (this.stepping) this.effects.setMessage(null); // each re-test is its own step
           this.emit(stmt.line);
           if (!more) break;
           try {
@@ -281,6 +287,7 @@ export class Interpreter {
             // A vertex element becomes the canvas cursor and the canvas follows it.
             frame.cursorId = elem instanceof Vertex ? elem.id : null;
             if (elem instanceof Vertex) this.effects.panTo({ kind: 'node', id: elem.id });
+            if (this.stepping) this.effects.setMessage(null); // each iteration is its own step
             this.emit(stmt.line);
             try {
               this.execBlock(stmt.body);
@@ -540,7 +547,7 @@ export class Interpreter {
         return null;
       },
       showMessage: ({ args }) => {
-        // A snackbar; empty text clears it. Stays until the next showMessage.
+        // A snackbar for the current step; empty text clears it. Cleared as the next step begins.
         this.charge(1);
         const text = String(display(args[0]));
         this.effects.setMessage(text ? { text, type: markType(args[1]) } : null);

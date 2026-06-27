@@ -236,7 +236,7 @@ export const GLOBAL_REFERENCE: {
         { sig: 'setLabel(vertex u, string text)', desc: 'Show a value on u, e.g. its distance.', returns: 'void' },
         { sig: 'scrollTo(vertex u)', desc: 'Pan to centre a vertex — or an edge with scrollTo(u, v).', returns: 'void' },
         { sig: 'clearMarks()', desc: 'Clear every highlight and label.', returns: 'void' },
-        { sig: 'showMessage(string text, string type?)', desc: 'Flash a snackbar; type danger / warn / success / info colours it (empty text clears).', returns: 'void' },
+        { sig: 'showMessage(string text, string type?)', desc: 'Flash a snackbar for the current step; type danger / warn / success / info colours it. It clears as the next step begins.', returns: 'void' },
         { sig: 'hideMessage()', desc: 'Dismiss the snackbar shown by showMessage.', returns: 'void' },
         { sig: 'printDebug(value x)', desc: 'Print a value to the Algorithm view’s debug panel. Instrumentation only — it never affects the operation count.', returns: 'void' },
       ],

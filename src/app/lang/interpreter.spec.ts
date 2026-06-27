@@ -302,11 +302,12 @@ describe('interpreter (Dijkstra seed)', () => {
     expect(runSrc('mark(source())\n').steps.at(-1)!.effects.marks['A']).toBe('');
   });
 
-  it('showMessage flashes a typed snackbar that persists until changed', () => {
+  it('shows a typed snackbar on the step that set it, cleared on the next step', () => {
     const result = runSrc('showMessage("processing", "warn")\nmark(source())\nshowMessage("done", "success")\n');
     expect(result.error).toBeNull();
     const msgs = result.steps.map((s) => s.effects.message);
-    expect(msgs).toContainEqual({ text: 'processing', type: 'warn' }); // persists over the mark step
+    expect(msgs).toContainEqual({ text: 'processing', type: 'warn' }); // shown on its own step
+    expect(result.steps.find((s) => s.line === 2)!.effects.message).toBeNull(); // the mark step in between carries nothing
     expect(result.steps.at(-1)!.effects.message).toEqual({ text: 'done', type: 'success' });
   });
 
@@ -317,7 +318,7 @@ describe('interpreter (Dijkstra seed)', () => {
   it('hideMessage dismisses the snackbar', () => {
     const result = runSrc('showMessage("hi", "info")\nmark(source())\nhideMessage()\n');
     expect(result.error).toBeNull();
-    // The message persists over the intermediate step, then is gone at the end.
+    // "hi" shows only on its own step; the steps after it (and the end) carry nothing.
     expect(result.steps.map((s) => s.effects.message)).toContainEqual({ text: 'hi', type: 'info' });
     expect(result.steps.at(-1)!.effects.message).toBeNull();
   });

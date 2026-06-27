@@ -13,7 +13,7 @@ export class EffectsState {
   private readonly marks = new Map<string, string>(); // vertex id → mark type
   private readonly markedEdges = new Map<string, string>(); // edge key (`src->tgt`) → mark type
   private readonly labels = new Map<string, string>(); // vertex id → badge text
-  private message: CanvasMessage | null = null; // snackbar, persists until changed
+  private message: CanvasMessage | null = null; // snackbar for the current step (cleared as each stepped statement begins)
   private scrollTo: ScrollTarget | null = null; // pending pan, consumed by the next step
 
   markVertex(id: string, type: string): void {
