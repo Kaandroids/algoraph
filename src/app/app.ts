@@ -26,18 +26,14 @@ import { IconComponent } from './shared/icon.component';
 import { CodeEditorComponent } from './editor/code-editor.component';
 import { type EditorGlobal } from './editor/dsl';
 import { type EditorDiagnostic } from './editor/diagnostics';
-
-/** One autocomplete member entry (a namespace/data-structure method or property). */
-type EditorMember = NonNullable<EditorGlobal['members']>[number];
 import { type LineNote } from './editor/line-notes';
+import { API_GROUP, buildEditorGlobals } from './editor/editor-globals';
 import {
   ApiGroup,
   DATA_STRUCTURE_API,
   EDGE_API,
   GRAPH_NODE_API,
   GLOBAL_REFERENCE,
-  memberName,
-  signatureApply,
 } from './node-api';
 import { type AlgoFile } from './models/algo-file.model';
 import { type ExportRef } from './models/exports';
@@ -312,30 +308,9 @@ export class App {
   });
 
   /** Names in scope for the editor's autocomplete — the graph, the canvas, and data structures. */
-  protected readonly editorGlobals = computed<EditorGlobal[]>(() => {
-    const structures = this.dataNodes().map((d) => ({
-      name: d.label,
-      type: DATA_STRUCTURES[d.kind].tag,
-      members: this.dataMembers(d.kind),
-    }));
-    // Code-created structures, minus any whose name a placed structure already covers.
-    const placed = new Set(this.dataNodes().map((d) => d.label));
-    const locals = this.localStructures()
-      .filter((ls) => !placed.has(ls.name))
-      .map((ls) => ({ name: ls.name, type: DATA_STRUCTURES[ls.kind].tag, members: this.dataMembers(ls.kind) }));
-    return [
-      { name: 'graph', type: 'Graph', members: this.apiGroupMembers('Graph access') },
-      {
-        name: 'canvas',
-        type: 'Canvas',
-        members: [...this.apiGroupMembers('Visualization'), ...this.apiGroupMembers('Canvas editing')],
-      },
-      { name: 'scratch', type: 'Scratch', members: this.apiGroupMembers('Scratch structures') },
-      { name: 'panel', type: 'Panel', members: this.apiGroupMembers('Panel structures') },
-      ...structures,
-      ...locals,
-    ];
-  });
+  protected readonly editorGlobals = computed<EditorGlobal[]>(() =>
+    buildEditorGlobals(this.dataNodes(), this.localStructures()),
+  );
 
   // ── Node palette (tool library rail) ──────────────────────
   protected readonly palette: PaletteItem[] = GRAPH_PALETTE;
@@ -364,7 +339,7 @@ export class App {
       color: 'oklch(0.58 0.13 65)',
       description:
         'The graph built on the canvas — query its vertices and edges as the algorithm explores them.',
-      groups: GLOBAL_REFERENCE.groups.filter((g) => g.title === 'Graph access'),
+      groups: GLOBAL_REFERENCE.groups.filter((g) => g.title === API_GROUP.graph),
     },
     {
       key: 'canvas',
@@ -376,7 +351,7 @@ export class App {
         'The drawing surface — highlight vertices and edges, and create or delete graph parts and ' +
         'data structures from code (saveCanvas to keep the changes).',
       groups: GLOBAL_REFERENCE.groups.filter(
-        (g) => g.title === 'Visualization' || g.title === 'Canvas editing',
+        (g) => g.title === API_GROUP.visualization || g.title === API_GROUP.canvasEditing,
       ),
     },
     {
@@ -389,7 +364,7 @@ export class App {
         'Off-canvas data structures for an algorithm\'s private bookkeeping — created with ' +
         'scratch.createMap(), scratch.createQueue(), and friends. They behave like any structure ' +
         'but are never drawn on the canvas or shown in the run data panel.',
-      groups: GLOBAL_REFERENCE.groups.filter((g) => g.title === 'Scratch structures'),
+      groups: GLOBAL_REFERENCE.groups.filter((g) => g.title === API_GROUP.scratch),
     },
     {
       key: 'panel',
@@ -401,7 +376,7 @@ export class App {
         'Data structures that stay off the canvas but still appear in the run data panel — ' +
         'created with panel.createMap(), panel.createQueue(), and friends. Use them to watch an ' +
         'algorithm\'s bookkeeping step by step without cluttering the drawing.',
-      groups: GLOBAL_REFERENCE.groups.filter((g) => g.title === 'Panel structures'),
+      groups: GLOBAL_REFERENCE.groups.filter((g) => g.title === API_GROUP.panel),
     },
   ];
 
@@ -538,44 +513,6 @@ export class App {
   dataTypeLabel(kind: DataStructureKind): string {
     return DATA_STRUCTURES[kind].tag;
   }
-  /** Autocomplete entries for a data structure's methods (from the API catalog). */
-  private dataMembers(kind: DataStructureKind): EditorMember[] {
-    const out: EditorMember[] = [];
-    const seen = new Set<string>();
-    for (const group of DATA_STRUCTURE_API[kind]) {
-      for (const m of group.members) {
-        const label = memberName(m.sig);
-        if (!label || seen.has(label)) continue;
-        seen.add(label);
-        out.push({
-          label,
-          detail: m.returns ? `: ${m.returns}` : undefined,
-          info: m.cost ? `${m.desc} · ${m.cost}` : m.desc,
-          apply: signatureApply(m.sig) ?? undefined,
-        });
-      }
-    }
-    return out;
-  }
-
-  /** Autocomplete members for a global namespace (`graph.` / `canvas.`), from its API group. */
-  private apiGroupMembers(title: string): EditorMember[] {
-    const out: EditorMember[] = [];
-    const seen = new Set<string>();
-    for (const m of GLOBAL_REFERENCE.groups.find((g) => g.title === title)?.members ?? []) {
-      const label = memberName(m.sig);
-      if (!label || seen.has(label)) continue;
-      seen.add(label);
-      out.push({
-        label,
-        detail: m.returns ? `: ${m.returns}` : undefined,
-        info: m.cost ? `${m.desc} · ${m.cost}` : m.desc,
-        apply: signatureApply(m.sig) ?? undefined,
-      });
-    }
-    return out;
-  }
-
   /** Template hooks for the data-structure presentation helpers (defined in the model). */
   protected readonly dataSizeLabel = dataSize;
   /** Stacks grow upward, so render the top (last pushed) element first. */
