@@ -277,6 +277,24 @@ export abstract class RDataStructure {
     return [];
   }
 
+  /**
+   * How many indices subscripting takes — 1 for a list or map (`a[i]`, `m[k]`),
+   * 2 for a matrix (`M[i][j]`), 0 (the default) for kinds that can't be indexed.
+   * Lets the interpreter route every `a[i]` / `a[i] ← x` through one abstraction
+   * instead of testing for each concrete subclass.
+   */
+  readonly rank: number = 0;
+
+  /** Read `this[…]`; the index count matches `rank`. Not indexable by default. */
+  subscriptGet(_indices: Value[], line: number): Value {
+    throw new RuntimeError(`Cannot index ${this.label} (line ${line})`);
+  }
+
+  /** Write `this[…] ← value`. Not assignable by default. */
+  subscriptSet(_indices: Value[], _value: Value, line: number): void {
+    throw new RuntimeError(`Cannot assign into ${this.label} (line ${line})`);
+  }
+
   protected unknown(method: string, line: number): never {
     throw new RuntimeError(`${this.label} has no method '${method}' (line ${line})`);
   }
@@ -311,6 +329,13 @@ export class RList extends RDataStructure {
       case 'clear': this.charge(this.data.length); this.data = []; return null;
       default: this.unknown(method, line);
     }
+  }
+  override readonly rank = 1;
+  override subscriptGet(indices: Value[]): Value {
+    return this.get(Number(indices[0]));
+  }
+  override subscriptSet(indices: Value[], value: Value): void {
+    this.set(Number(indices[0]), value);
   }
   /** Index read for `list[i]`. */
   get(i: number): Value {
@@ -372,6 +397,13 @@ export class RMap extends RDataStructure {
       case 'clear': this.charge(this.data.size); this.data.clear(); return null;
       default: this.unknown(method, line);
     }
+  }
+  override readonly rank = 1;
+  override subscriptGet(indices: Value[]): Value {
+    return this.get(indices[0]);
+  }
+  override subscriptSet(indices: Value[], value: Value): void {
+    this.set(indices[0], value);
   }
   /** Read for `map[k]`. */
   get(key: Value): Value {
@@ -467,6 +499,15 @@ export class RMatrix extends RDataStructure {
       }
       default: this.unknown(method, line);
     }
+  }
+  override readonly rank = 2;
+  override subscriptGet(indices: Value[], line: number): Value {
+    if (indices.length !== 2) throw new RuntimeError(`A matrix is indexed as M[i][j] (line ${line})`);
+    return this.get(Number(indices[0]), Number(indices[1]));
+  }
+  override subscriptSet(indices: Value[], value: Value, line: number): void {
+    if (indices.length !== 2) throw new RuntimeError(`A matrix is indexed as M[i][j] (line ${line})`);
+    this.set(Number(indices[0]), Number(indices[1]), value);
   }
   get(i: number, j: number): Value {
     this.charge(1);

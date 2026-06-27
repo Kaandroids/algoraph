@@ -16,9 +16,6 @@ import {
   GraphValue,
   Namespace,
   RDataStructure,
-  RList,
-  RMap,
-  RMatrix,
   RangeValue,
   RuntimeError,
   Vertex,
@@ -318,18 +315,17 @@ export class Interpreter {
       return;
     }
     if (target.kind === 'index') {
-      // Matrix: M[i][j] ← x
+      // Matrix: M[i][j] ← x — a rank-2 structure takes both indices at once.
       if (target.object.kind === 'index') {
         const base = this.evalExpr(target.object.object);
-        if (base instanceof RMatrix) {
-          base.set(Number(this.evalExpr(target.object.index)), Number(this.evalExpr(target.index)), value);
+        if (base instanceof RDataStructure && base.rank === 2) {
+          base.subscriptSet([this.evalExpr(target.object.index), this.evalExpr(target.index)], value, target.line);
           return;
         }
       }
       const obj = this.evalExpr(target.object);
       const idx = this.evalExpr(target.index);
-      if (obj instanceof RMap) obj.set(idx, value);
-      else if (obj instanceof RList) obj.set(Number(idx), value);
+      if (obj instanceof RDataStructure) obj.subscriptSet([idx], value, target.line);
       else throw new RuntimeError(`Cannot assign into ${display(obj)} (line ${target.line})`);
       return;
     }
@@ -390,17 +386,16 @@ export class Interpreter {
   }
 
   private evalIndex(expr: Extract<Expr, { kind: 'index' }>): Value {
-    // Matrix: M[i][j]
+    // Matrix: M[i][j] — a rank-2 structure takes both indices at once.
     if (expr.object.kind === 'index') {
       const base = this.evalExpr(expr.object.object);
-      if (base instanceof RMatrix) {
-        return base.get(Number(this.evalExpr(expr.object.index)), Number(this.evalExpr(expr.index)));
+      if (base instanceof RDataStructure && base.rank === 2) {
+        return base.subscriptGet([this.evalExpr(expr.object.index), this.evalExpr(expr.index)], expr.line);
       }
     }
     const obj = this.evalExpr(expr.object);
     const idx = this.evalExpr(expr.index);
-    if (obj instanceof RMap) return obj.get(idx);
-    if (obj instanceof RList) return obj.get(Number(idx));
+    if (obj instanceof RDataStructure) return obj.subscriptGet([idx], expr.line);
     if (Array.isArray(obj)) { this.charge(1); return obj[Number(idx)] ?? null; }
     throw new RuntimeError(`Cannot index ${display(obj)} (line ${expr.line})`);
   }
