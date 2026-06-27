@@ -44,59 +44,8 @@
   100% { background-position: 300% 50%; }
 }
 
-/* ── Status pill (Live / Simulation / Paused) ───────────── */
-.ae-status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 24px;
-  padding: 0 10px 0 9px;
-  border-radius: 999px;
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  flex-shrink: 0;
-  border: 0.5px solid color-mix(in srgb, var(--sc) 35%, var(--border));
-  background: color-mix(in srgb, var(--sc) 14%, var(--bg-2));
-  color: var(--sc);
-}
-
-.ae-status-pill[data-status='ACTIVE'] { --sc: var(--success); }
-.ae-status-pill[data-status='TESTING'] { --sc: var(--warning); }
-.ae-status-pill[data-status='PAUSED'] { --sc: var(--fg-muted); }
-
-.ae-status-dot {
-  position: relative;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--sc);
-  flex-shrink: 0;
-}
-
-.ae-status-dot::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: var(--sc);
-  animation: ae-status-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-.ae-status-pill[data-status='PAUSED'] .ae-status-dot::after {
-  animation: none;
-  display: none;
-}
-
-@keyframes ae-status-ping {
-  0% { transform: scale(1); opacity: 0.7; }
-  70%, 100% { transform: scale(2.4); opacity: 0; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .ae-toolbar-accent { animation: none; }
-  .ae-status-dot::after { animation: none; display: none; }
 }
 
 .ae-toolbar-left {
