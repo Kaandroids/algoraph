@@ -287,6 +287,7 @@ export class App {
     this.run.entryId.set(this.activeFileId());
     this.run.build(); // compile + run now
     this.runError.set(this.run.error()); // null when clean, message on failure
+    if (this.run.debug().length) this.debugOpen.set(true); // surface fresh printDebug output
   }
 
   /** Estimated Big-O of the entry algorithm, shown in the overview's Complexity card. */
@@ -436,6 +437,11 @@ export class App {
   protected readonly runCodeWidth = signal(320);
   /** True while the user is dragging a panel's resize handle. */
   protected readonly resizing = signal(false);
+
+  /** Whether the Algorithm view's bottom debug panel (printDebug output) is expanded. */
+  protected readonly debugOpen = signal(false);
+  /** Height (px) of the expanded debug panel — drag its top edge to resize. */
+  protected readonly debugHeight = signal(180);
   protected readonly librarySearch = signal('');
   protected readonly tipsOpen = signal(false);
   private readonly selectedConnectionIds = signal<string[]>([]);
@@ -971,6 +977,24 @@ export class App {
     const startW = this.runCodeWidth();
     const move = (e: MouseEvent) =>
       this.runCodeWidth.set(Math.max(240, Math.min(640, startW + (startX - e.clientX))));
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      this.resizing.set(false);
+    };
+    this.resizing.set(true);
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  }
+
+  /** Drag the debug panel's top edge to grow/shrink it. It sits at the bottom, so
+   *  dragging the edge up widens it — the delta is inverted (clamped 80–500px). */
+  startDebugResize(event: MouseEvent): void {
+    event.preventDefault();
+    const startY = event.clientY;
+    const startH = this.debugHeight();
+    const move = (e: MouseEvent) =>
+      this.debugHeight.set(Math.max(80, Math.min(500, startH + (startY - e.clientY))));
     const up = () => {
       window.removeEventListener('mousemove', move);
       window.removeEventListener('mouseup', up);

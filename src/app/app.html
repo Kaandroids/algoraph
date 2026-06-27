@@ -497,6 +497,45 @@
         [notes]="activeFileNotes()"
         (notesChange)="onNotesChange($event)" />
 
+      <!-- ── Debug panel (printDebug output) — opens upward, collapsible & resizable ── -->
+      <div class="ag-debug" [class.is-open]="debugOpen()" [class.is-resizing]="resizing()"
+        [style.--debug-h.px]="debugHeight()">
+        @if (debugOpen()) {
+          <div class="ag-debug-resize" (mousedown)="startDebugResize($event)"
+            role="separator" aria-orientation="horizontal" aria-label="Resize debug panel"></div>
+        }
+        <div class="ag-debug-head">
+          <button class="ag-debug-toggle" type="button" (click)="debugOpen.set(!debugOpen())"
+            [attr.aria-expanded]="debugOpen()">
+            <span class="ag-debug-mark"><app-icon name="code" /></span>
+            <span class="ag-debug-title">Debug</span>
+            @if (run.debug().length) {
+              <span class="ag-debug-count">{{ run.debug().length }}</span>
+            }
+            <app-icon class="ag-debug-chev" [name]="debugOpen() ? 'chevronDown' : 'chevronUp'" />
+          </button>
+          <span class="grow"></span>
+          <button class="ag-debug-run" type="button" (click)="runActive()" title="Run this file">
+            <app-icon name="play" /> Run
+          </button>
+        </div>
+        @if (debugOpen()) {
+          <div class="ag-debug-body">
+            @for (d of run.debug(); track $index) {
+              <div class="ag-debug-line">
+                <span class="ag-debug-ln">{{ d.line }}</span>
+                <span class="ag-debug-tx">{{ d.text }}</span>
+              </div>
+            } @empty {
+              <div class="ag-debug-empty">
+                <app-icon name="code" />
+                <span>Run the file to see <code>printDebug</code> output.</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
       <div class="ag-editor-foot">
         <span class="grp"><app-icon name="code" /> {{ activeLineCount() }} lines</span>
         <span class="sep"></span>

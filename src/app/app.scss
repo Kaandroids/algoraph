@@ -796,6 +796,186 @@
   color: var(--fg-subtle);
 }
 
+/* ── Debug panel — printDebug output, opens upward from the editor foot ── */
+.ag-debug {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 0.5px solid var(--border);
+  background: var(--bg);
+  transition: box-shadow 0.16s ease;
+
+  &.is-open { box-shadow: 0 -7px 22px rgba(34, 28, 18, 0.07); }
+  &.is-resizing { user-select: none; }
+}
+
+/* Top-edge drag handle (only rendered while the panel is open). */
+.ag-debug-resize {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: row-resize;
+  z-index: 6;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 3px 0 auto;
+    height: 2px;
+    background: transparent;
+    transition: background 0.12s;
+  }
+  &:hover::after { background: color-mix(in srgb, var(--accent) 55%, transparent); }
+}
+
+.ag-debug-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 8px;
+  flex-shrink: 0;
+
+  .grow { flex: 1; }
+}
+
+.ag-debug-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--fg);
+  cursor: pointer;
+  padding: 4px 7px 4px 5px;
+  border-radius: 8px;
+  transition: background 0.12s;
+
+  &:hover { background: var(--bg-2); }
+}
+
+/* Accent icon chip, echoing the brand mark. */
+.ag-debug-mark {
+  width: 21px;
+  height: 21px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  flex-shrink: 0;
+
+  app-icon { width: 12px; height: 12px; }
+}
+
+.ag-debug-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg);
+}
+
+.ag-debug-count {
+  font-size: 9.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.ag-debug-chev {
+  width: 13px;
+  height: 13px;
+  color: var(--fg-subtle);
+  margin-left: 1px;
+}
+
+.ag-debug-run {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0.5px solid var(--border);
+  background: var(--bg-2);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-muted);
+  cursor: pointer;
+  padding: 4px 11px;
+  border-radius: 7px;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+
+  app-icon { width: 12px; height: 12px; color: var(--accent); }
+  &:hover { color: var(--fg); border-color: var(--border-strong); background: var(--bg); }
+}
+
+.ag-debug-body {
+  height: var(--debug-h, 180px);
+  overflow-y: auto;
+  border-top: 0.5px solid var(--border);
+  background: var(--bg-2);
+  padding: 7px 0;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.ag-debug-line {
+  display: flex;
+  align-items: baseline;
+  padding: 1px 0 1px 14px;
+  transition: background 0.08s;
+
+  &:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+}
+
+.ag-debug-ln {
+  flex-shrink: 0;
+  width: 3ch;
+  padding-right: 11px;
+  margin-right: 12px;
+  text-align: right;
+  border-right: 0.5px solid var(--border);
+  color: var(--fg-subtle);
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.ag-debug-tx {
+  flex: 1;
+  min-width: 0;
+  padding-right: 14px;
+  color: var(--fg);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ag-debug-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 16px;
+  font-size: 12px;
+  color: var(--fg-subtle);
+
+  app-icon { width: 14px; height: 14px; opacity: 0.7; }
+  code {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--fg-muted);
+    background: color-mix(in srgb, var(--fg-subtle) 12%, transparent);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+}
+
 /* ── Library inline reference card (algorithm mode) ───────── */
 .ae-toolitem.expanded {
   background: var(--bg-2);

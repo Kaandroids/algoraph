@@ -8,7 +8,7 @@
  * the Run workspace's "main goes line by line, helpers are one step" model.
  */
 import type { Expr, FunctionDecl, Module, Stmt } from './ast';
-import type { CanvasEffects, CanvasMessage, DataSnapshot, LoopFrame, RunResult, SavedCanvas, ScrollTarget, StepSnapshot, VarSnapshot, VertexRef } from './trace';
+import type { CanvasEffects, CanvasMessage, DataSnapshot, DebugLine, LoopFrame, RunResult, SavedCanvas, ScrollTarget, StepSnapshot, VarSnapshot, VertexRef } from './trace';
 import { emptyEffects } from './trace';
 import { DATA_STRUCTURES, type DataNode, type DataStructureKind } from '../models/data-structure.model';
 import {
@@ -103,6 +103,8 @@ export class Interpreter {
   private readonly dsList: RDataStructure[];
   private readonly dsByLabel = new Map<string, RDataStructure>();
   private nextDataId: number;
+  /** Lines emitted by printDebug, in execution order — surfaced in the Algorithm debug panel. */
+  private readonly debugLog: DebugLine[] = [];
   /** Graph the program asked to persist via saveCanvas() (last call wins), or null. */
   private savedCanvas: SavedCanvas | null = null;
   private readonly functions: Map<string, FunctionDecl>;
@@ -157,6 +159,7 @@ export class Interpreter {
       error: this.error,
       bigO: { time: 'O(?)', space: 'O(?)' },
       savedCanvas: this.savedCanvas,
+      debug: this.debugLog,
     };
   }
 
@@ -529,6 +532,10 @@ export class Interpreter {
         return null;
       }
       case 'hideMessage': this.charge(1); this.message = null; return null;
+      case 'printDebug':
+        // Instrumentation only — append a line to the debug panel; never charge the op counter.
+        this.debugLog.push({ line, text: String(display(args[0])) });
+        return null;
       case 'scrollTo':
         this.charge(1);
         this.scrollTo = isEdge

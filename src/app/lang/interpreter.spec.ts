@@ -494,3 +494,25 @@ describe('panel structures (off-canvas, watchable in the data panel)', () => {
     expect(result.error).toContain('panel.heap');
   });
 });
+
+describe('printDebug', () => {
+  it('collects output tagged with its source line', () => {
+    const result = runSrc(
+      'a ← source()\n' +
+      'b ← goal()\n' +
+      'printDebug("from " + a)\n' +
+      'printDebug("to " + b)\n',
+    );
+    expect(result.error).toBeNull();
+    expect(result.debug).toEqual([
+      { line: 3, text: 'from A' },
+      { line: 4, text: 'to E' },
+    ]);
+  });
+
+  it('is instrumentation only — it never charges the operation counter', () => {
+    const withDebug = runSrc('a ← source()\nprintDebug(a)\nprintDebug(a)\n');
+    const without = runSrc('a ← source()\n');
+    expect(withDebug.steps.at(-1)!.ops).toBe(without.steps.at(-1)!.ops);
+  });
+});

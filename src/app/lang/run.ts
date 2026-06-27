@@ -18,6 +18,7 @@ function failed(compiled: CompileResult, message: string): RunResult {
     error: message,
     bigO: { time: 'O(?)', space: 'O(?)' },
     savedCanvas: null,
+    debug: [],
   };
 }
 

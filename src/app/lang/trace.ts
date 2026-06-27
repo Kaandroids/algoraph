@@ -138,6 +138,13 @@ export interface SavedCanvas {
   data: { id: string; kind: DataStructureKind; label: string; x: number; y: number }[];
 }
 
+/** One line the algorithm wrote with `printDebug`, tagged with its source line. */
+export interface DebugLine {
+  /** 1-based source line the printDebug call sits on. */
+  line: number;
+  text: string;
+}
+
 export interface RunResult {
   steps: StepSnapshot[];
   diagnostics: Diagnostic[];
@@ -147,6 +154,8 @@ export interface RunResult {
   bigO: { time: string; space: string };
   /** Graph the program asked to persist (saveCanvas), or null to leave the canvas as-is. */
   savedCanvas: SavedCanvas | null;
+  /** Lines emitted by `printDebug`, in execution order. */
+  debug: DebugLine[];
 }
 
 export function emptyEffects(): CanvasEffects {

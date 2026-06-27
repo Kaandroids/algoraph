@@ -238,6 +238,7 @@ export const GLOBAL_REFERENCE: {
         { sig: 'clearMarks()', desc: 'Clear every highlight and label.', returns: 'void' },
         { sig: 'showMessage(string text, string type?)', desc: 'Flash a snackbar; type danger / warn / success / info colours it (empty text clears).', returns: 'void' },
         { sig: 'hideMessage()', desc: 'Dismiss the snackbar shown by showMessage.', returns: 'void' },
+        { sig: 'printDebug(value x)', desc: 'Print a value to the Algorithm view’s debug panel. Instrumentation only — it never affects the operation count.', returns: 'void' },
       ],
     },
     {

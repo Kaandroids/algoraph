@@ -129,6 +129,8 @@ export class RunStore {
   /** Effect transition duration (ms), shortened as the playback speeds up. */
   readonly animMs = computed(() => Math.round(450 / this.speed()));
   readonly bigO = computed(() => this.result()?.bigO ?? { time: 'O(?)', space: 'O(?)' });
+  /** Lines the algorithm wrote with printDebug during the last run (for the Algorithm debug panel). */
+  readonly debug = computed(() => this.result()?.debug ?? []);
   readonly note = computed(() => this.currentStep()?.note ?? '');
 
   // ── Transport state for the template ──────────────────────
