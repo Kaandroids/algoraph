@@ -11,10 +11,11 @@
  */
 import type { Expr, FunctionDecl, Module, Stmt } from './ast';
 import type { DataStructureKind } from '../models/data-structure.model';
-import { DATA_STRUCTURE_API, memberName } from '../node-api';
 
 type Factor = 'V' | 'E' | 'logV' | 'n' | 'logn';
 type Term = Factor[]; // a product of factors; the empty term is O(1)
+/** A loop's per-iteration factor; `neighbors` is an amortisation marker (see `amortise`). */
+type LoopFactor = Factor | 'neighbors';
 
 export interface Complexity {
   time: string;
@@ -41,11 +42,11 @@ interface Ctx {
 }
 
 // ── Walk ──────────────────────────────────────────────────────
-function walkBlock(stmts: Stmt[], loops: Factor[], ctx: Ctx): void {
+function walkBlock(stmts: Stmt[], loops: LoopFactor[], ctx: Ctx): void {
   for (const stmt of stmts) walkStmt(stmt, loops, ctx);
 }
 
-function walkStmt(stmt: Stmt, loops: Factor[], ctx: Ctx): void {
+function walkStmt(stmt: Stmt, loops: LoopFactor[], ctx: Ctx): void {
   switch (stmt.kind) {
     case 'assign':
       emit(loops, max(opFactor(stmt.value, ctx), opFactor(stmt.target, ctx)), ctx);
@@ -84,24 +85,24 @@ function userCall(expr: Expr, ctx: Ctx): FunctionDecl | null {
 }
 
 /** Inline a stepped-over helper at the call site's loop depth. */
-function inlineCall(fn: FunctionDecl, loops: Factor[], ctx: Ctx): void {
+function inlineCall(fn: FunctionDecl, loops: LoopFactor[], ctx: Ctx): void {
   if (ctx.inlining.has(fn.name)) return; // guard against recursion
   ctx.inlining.add(fn.name);
   walkBlock(fn.body, loops, ctx);
   ctx.inlining.delete(fn.name);
 }
 
-function emit(loops: Factor[], op: Factor | null, ctx: Ctx): void {
+function emit(loops: LoopFactor[], op: Factor | null, ctx: Ctx): void {
   const term = amortise(loops);
   if (op) term.push(op);
   ctx.terms.push(term);
 }
 
 /** Collapse a `V` (or `while`) immediately consumed by a neighbour loop into `E`. */
-function amortise(loops: Factor[]): Factor[] {
+function amortise(loops: LoopFactor[]): Factor[] {
   const out: Factor[] = [];
   for (const f of loops) {
-    if (f === 'neighbors' as Factor) {
+    if (f === 'neighbors') {
       const v = out.lastIndexOf('V');
       if (v !== -1) out[v] = 'E';
       else out.push('E');
@@ -113,12 +114,12 @@ function amortise(loops: Factor[]): Factor[] {
 }
 
 // ── Cost of a single loop / operation ─────────────────────────
-function loopFactor(iterable: Expr): Factor {
+function loopFactor(iterable: Expr): LoopFactor {
   if (iterable.kind === 'range') return 'n';
   if (iterable.kind === 'call' && iterable.callee.kind === 'name') {
     if (iterable.callee.name === 'nodes') return 'V';
     if (iterable.callee.name === 'edges') return 'E';
-    if (iterable.callee.name === 'neighbors') return 'neighbors' as Factor;
+    if (iterable.callee.name === 'neighbors') return 'neighbors';
   }
   return 'n';
 }
@@ -171,29 +172,35 @@ function funcFactor(fn: FunctionDecl, ctx: Ctx): Factor | null {
   return factor;
 }
 
+/**
+ * The dominant cost factor of each data-structure method that isn't O(1), by
+ * kind. Kept structured here — rather than parsed from the Big-O prose in the
+ * docs catalogue — so rewording a cost string ("O(N)" vs "O(n)") can't silently
+ * shift the estimate. A method absent from a kind's map is treated as O(1) and
+ * left to the enclosing loop. Linear/quadratic ops read as `V` (≈ the graph
+ * size), heap ops as `logV`.
+ */
+const DS_METHOD_FACTOR: Partial<Record<DataStructureKind, Record<string, Factor>>> = {
+  LIST: { insert: 'V', removeAt: 'V', contains: 'V', indexOf: 'V', clear: 'V' },
+  STACK: { clear: 'V' },
+  QUEUE: { clear: 'V' },
+  SET: { clear: 'V' },
+  MAP: { keys: 'V', values: 'V', clear: 'V' },
+  PQUEUE: { push: 'logV', popMin: 'logV', decreaseKey: 'logV', clear: 'V' },
+  MATRIX: { fill: 'V' },
+};
+
 function dsMethodFactor(obj: Expr, method: string, ctx: Ctx): Factor | null {
   if (obj.kind !== 'name') return null;
   const kind = ctx.dsKinds.get(obj.name);
   if (!kind) return null;
-  for (const group of DATA_STRUCTURE_API[kind] ?? []) {
-    for (const m of group.members) {
-      if (memberName(m.sig) === method) return costToFactor(m.cost);
-    }
-  }
-  return null;
+  return DS_METHOD_FACTOR[kind]?.[method] ?? null;
 }
 
 function builtinFactor(name: string): Factor | null {
   if (name === 'nodes') return 'V';
   if (name === 'edges') return 'E';
   return null; // weight / hasEdge / degree / source / goal / viz are O(1)
-}
-
-function costToFactor(cost: string | undefined): Factor | null {
-  if (!cost) return null;
-  if (/log/.test(cost)) return 'logV';
-  if (/O\(n\)|O\(R·C\)|O\(V\)|O\(E\)/.test(cost)) return 'V';
-  return null; // O(1), O(1)*, O(deg u) — handled by the enclosing loop
 }
 
 // ── Domination & formatting ───────────────────────────────────
