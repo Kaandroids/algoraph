@@ -157,6 +157,14 @@
 
     app-icon { color: var(--accent); }
   }
+
+  &.is-active {
+    color: var(--fg);
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+
+    app-icon { color: var(--accent); }
+  }
 }
 
 .ae-toolbar-name {

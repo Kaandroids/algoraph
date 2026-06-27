@@ -24,6 +24,8 @@ import {
 } from '@foblex/flow';
 import { IconComponent } from './shared/icon.component';
 import { CodeEditorComponent } from './editor/code-editor.component';
+import { DocsComponent } from './docs/docs.component';
+import { type DocAction } from './docs/docs-content';
 import { type EditorGlobal } from './editor/dsl';
 import { type EditorDiagnostic } from './editor/diagnostics';
 import { type LineNote } from './editor/line-notes';
@@ -84,7 +86,7 @@ type InspectorRail = 'code' | 'data' | 'runcode';
   selector: 'app-root',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FFlowModule, IconComponent, CodeEditorComponent, NgTemplateOutlet],
+  imports: [FFlowModule, IconComponent, CodeEditorComponent, DocsComponent, NgTemplateOutlet],
   templateUrl: './app.html',
   styleUrls: ['./app.scss', './editor-chrome.scss', './editor-nodes.scss', './data-nodes.scss'],
 })
@@ -121,8 +123,8 @@ export class App {
 
   protected readonly title = signal('Algoraph');
 
-  /** Which workspace is showing — graph builder, algorithm editor, or step-by-step run. */
-  protected readonly activeView = signal<'canvas' | 'algorithm' | 'run'>('canvas');
+  /** Which workspace is showing — graph builder, algorithm editor, step-by-step run, or the docs guide. */
+  protected readonly activeView = signal<'canvas' | 'algorithm' | 'run' | 'docs'>('canvas');
 
   /** Compile + run the algorithm afresh each time the Run workspace is opened. */
   private readonly autoBuild = effect(() => {
@@ -845,7 +847,7 @@ export class App {
   }
 
   // ── View switch (graph builder ↔ algorithm editor) ────────
-  setView(view: 'canvas' | 'algorithm' | 'run'): void {
+  setView(view: 'canvas' | 'algorithm' | 'run' | 'docs'): void {
     this.activeView.set(view);
     this.expandedLib.set(null);
   }
@@ -1030,8 +1032,29 @@ export class App {
     this.closeImport();
   }
 
-  /** Open the documentation. (Content TBD.) */
+  /** Open the documentation workspace — the full-page getting-started guide. */
   openDocs(): void {
-    // Placeholder — the docs target lands in a follow-up.
+    this.setView('docs');
+  }
+
+  /**
+   * A CTA inside the docs guide jumps the reader into the app: a workspace tab,
+   * the syntax-guide modal, or the import/library modal.
+   */
+  onDocsNavigate(action: DocAction): void {
+    switch (action) {
+      case 'canvas':
+      case 'algorithm':
+      case 'run':
+        this.setView(action);
+        break;
+      case 'syntax':
+        this.setView('algorithm');
+        this.syntaxOpen.set(true);
+        break;
+      case 'import':
+        this.openImport();
+        break;
+    }
   }
 }

@@ -1,0 +1,100 @@
+<div class="docs">
+  <!-- ── Section nav (sticky) ─────────────────────────────────── -->
+  <aside class="docs-nav">
+    <div class="docs-nav-head">
+      <span class="docs-nav-eyebrow">Documentation</span>
+      <span class="docs-nav-title">Getting started</span>
+    </div>
+    <nav class="docs-nav-list">
+      @for (s of sections; track s.id) {
+        <button class="docs-nav-item" type="button"
+          [class.active]="activeId() === s.id" (click)="select(s.id)">
+          <span class="docs-nav-dot"></span>
+          <span class="docs-nav-label">{{ s.nav }}</span>
+        </button>
+      }
+    </nav>
+  </aside>
+
+  <!-- ── Guide body (scrolls) ─────────────────────────────────── -->
+  <div class="docs-content">
+    <article class="docs-article">
+      @for (s of sections; track s.id) {
+        <section class="docs-section" [id]="anchor(s.id)">
+          <header class="docs-section-head">
+            <span class="docs-section-icon"><app-icon [name]="s.icon" /></span>
+            <div class="docs-section-heading">
+              <span class="docs-section-eyebrow">{{ s.eyebrow }}</span>
+              <h2 class="docs-section-title">{{ s.title }}</h2>
+            </div>
+          </header>
+
+          @for (b of s.blocks; track $index) {
+            @switch (b.kind) {
+              @case ('lead') {
+                <p class="docs-lead">{{ b.text }}</p>
+              }
+              @case ('steps') {
+                <ol class="docs-steps">
+                  @for (it of b.items; track it.head) {
+                    <li class="docs-step">
+                      <span class="docs-step-head">{{ it.head }}</span>
+                      <span class="docs-step-body">{{ it.body }}</span>
+                    </li>
+                  }
+                </ol>
+              }
+              @case ('points') {
+                <div class="docs-points">
+                  @for (it of b.items; track it.head) {
+                    <div class="docs-point">
+                      <code class="docs-point-head">{{ it.head }}</code>
+                      <span class="docs-point-body">{{ it.body }}</span>
+                    </div>
+                  }
+                </div>
+              }
+              @case ('code') {
+                @if (b.caption) {
+                  <div class="docs-code-cap">{{ b.caption }}</div>
+                }
+                <pre class="docs-code">{{ b.code }}</pre>
+              }
+              @case ('image') {
+                <figure class="docs-figure">
+                  <img class="docs-figure-img" [src]="b.src" [alt]="b.alt ?? ''" loading="lazy" />
+                  @if (b.caption) {
+                    <figcaption class="docs-figure-cap">{{ b.caption }}</figcaption>
+                  }
+                </figure>
+              }
+              @case ('callout') {
+                <div class="docs-callout" [attr.data-tone]="b.tone">
+                  <span class="docs-callout-ic">
+                    <app-icon [name]="b.tone === 'teacher' ? 'flag' : b.tone === 'tip' ? 'target' : 'help'" />
+                  </span>
+                  <div class="docs-callout-main">
+                    @if (b.title) {
+                      <span class="docs-callout-title">{{ b.title }}</span>
+                    }
+                    <span class="docs-callout-text">{{ b.text }}</span>
+                  </div>
+                </div>
+              }
+            }
+          }
+
+          @if (s.cta; as cta) {
+            <button class="docs-cta" type="button" (click)="go(cta.action)">
+              @if (cta.icon) {
+                <app-icon [name]="cta.icon" />
+              }
+              <span>{{ cta.label }}</span>
+              <app-icon name="arrowRight" class="docs-cta-arrow" />
+            </button>
+          }
+        </section>
+      }
+    </article>
+  </div>
+</div>

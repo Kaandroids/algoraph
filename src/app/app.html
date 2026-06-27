@@ -29,7 +29,8 @@
       <button class="ae-action-btn" type="button" (click)="openExport()" title="Export an algorithm or canvas">
         <app-icon name="download" /><span>Export</span>
       </button>
-      <button class="ae-action-btn" type="button" (click)="openDocs()" title="Documentation">
+      <button class="ae-action-btn" type="button" (click)="openDocs()" title="Documentation"
+        [class.is-active]="activeView() === 'docs'">
         <app-icon name="help" /><span>Doc</span>
       </button>
     </div>
@@ -39,7 +40,7 @@
 
 <!-- ── Main area ────────────────────────────────────────────── -->
 <div class="ae-main">
-  @if (activeView() !== 'run') {
+  @if (activeView() !== 'run' && activeView() !== 'docs') {
   <!-- ── Tool library rail ─────────────────────────────────── -->
   <aside class="ae-toolrail" [class.collapsed]="railCollapsed()">
     <div class="ae-toolrail-head">
@@ -878,6 +879,11 @@
           [readOnly]="true" />
       </div>
     </aside>
+  }
+
+  @if (activeView() === 'docs') {
+    <!-- ── Docs: full-page getting-started guide ───────────── -->
+    <app-docs (navigate)="onDocsNavigate($event)" />
   }
 </div>
 
