@@ -76,6 +76,21 @@ function varKind(value: Value): string {
   return 'other';
 }
 
+/** The per-call context handed to every built-in handler (shared argument sugar). */
+interface BuiltinCall {
+  args: Value[];
+  line: number;
+  /** The first argument as a vertex (throws if it isn't one). */
+  v0: () => Vertex;
+  /** Whether the second argument is a vertex — i.e. this addresses an edge u → v. */
+  isEdge: boolean;
+  /** The `src->tgt` key for the edge addressed by args[0]/args[1]. */
+  edgeKey: () => string;
+}
+
+/** One global built-in's implementation. Registered by name in `buildBuiltins`. */
+type BuiltinHandler = (call: BuiltinCall) => Value;
+
 export class Interpreter {
   private readonly steps: StepSnapshot[] = [];
   private opCount = 0;
@@ -111,6 +126,9 @@ export class Interpreter {
 
   private scope = new Map<string, Value>();
 
+  /** Global built-ins, keyed by name — the dispatch table behind `callBuiltin`. */
+  private readonly builtins: Record<string, BuiltinHandler>;
+
   constructor(
     entry: Module,
     functions: Map<string, FunctionDecl>,
@@ -123,6 +141,7 @@ export class Interpreter {
     this.dsList = input.data.map((node) => makeRuntimeDS(node, this.charge));
     for (const ds of this.dsList) this.dsByLabel.set(ds.label, ds);
     this.nextDataId = Math.max(0, ...input.data.map((d) => Number(/^ds(\d+)$/.exec(d.id)?.[1] ?? 0))) + 1;
+    this.builtins = this.buildBuiltins();
   }
 
   run(): RunResult {
@@ -481,63 +500,92 @@ export class Interpreter {
   }
 
   private callBuiltin(name: string, args: Value[], line: number): Value {
+    const handler = this.builtins[name];
+    if (!handler) throw new RuntimeError(`Unknown function '${name}' (line ${line})`);
     const v0 = () => this.asVertex(args[0], line);
     // An edge is addressed by two vertices; mark/unmark/scrollTo overload on whether
     // the second argument is a vertex (an edge) or not (a vertex + optional type).
     const isEdge = args[1] instanceof Vertex;
     const edgeKey = () => `${v0().id}->${this.asVertex(args[1], line).id}`;
-    switch (name) {
-      case 'nodes': return this.graph.nodes();
-      case 'edges': return this.graph.edges();
-      case 'neighbors': return this.graph.neighbors(v0());
-      case 'weight': return this.graph.weight(v0(), this.asVertex(args[1], line));
-      case 'hasEdge': return this.graph.hasEdge(v0(), this.asVertex(args[1], line));
-      case 'degree':
-      case 'inDegree':
-      case 'outDegree': return this.graph.degree(v0());
-      case 'source': return this.graph.source();
-      case 'goal': return this.graph.goal();
-      case 'mark':
+    return handler({ args, line, v0, isEdge, edgeKey });
+  }
+
+  /**
+   * Build the built-in dispatch table once per run. Each handler reads the
+   * shared argument sugar (`v0`, `isEdge`, `edgeKey`) from its call context;
+   * adding a built-in is a single entry here (and one in `lang/builtins.ts`).
+   */
+  private buildBuiltins(): Record<string, BuiltinHandler> {
+    const degree: BuiltinHandler = ({ v0 }) => this.graph.degree(v0());
+    const table: Record<string, BuiltinHandler> = {
+      // ── Graph access ──
+      nodes: () => this.graph.nodes(),
+      edges: () => this.graph.edges(),
+      neighbors: ({ v0 }) => this.graph.neighbors(v0()),
+      weight: ({ v0, args, line }) => this.graph.weight(v0(), this.asVertex(args[1], line)),
+      hasEdge: ({ v0, args, line }) => this.graph.hasEdge(v0(), this.asVertex(args[1], line)),
+      degree,
+      inDegree: degree,
+      outDegree: degree,
+      source: () => this.graph.source(),
+      goal: () => this.graph.goal(),
+      // ── Visualization ──
+      mark: ({ isEdge, edgeKey, v0, args }) => {
         // mark(u, type?) highlights a vertex; mark(u, v, type?) highlights an edge.
         this.charge(1);
         if (isEdge) this.markedEdges.set(edgeKey(), markType(args[2]));
         else this.marks.set(v0().id, markType(args[1]));
         return null;
-      case 'unmark':
+      },
+      unmark: ({ isEdge, edgeKey, v0 }) => {
         this.charge(1);
         if (isEdge) this.markedEdges.delete(edgeKey());
         else this.marks.delete(v0().id);
         return null;
-      case 'setLabel': this.charge(1); this.labels.set(v0().id, String(display(args[1]))); return null;
-      case 'showMessage': {
+      },
+      setLabel: ({ v0, args }) => {
+        this.charge(1);
+        this.labels.set(v0().id, String(display(args[1])));
+        return null;
+      },
+      showMessage: ({ args }) => {
         // A snackbar; empty text clears it. Stays until the next showMessage.
         this.charge(1);
         const text = String(display(args[0]));
         this.message = text ? { text, type: markType(args[1]) } : null;
         return null;
-      }
-      case 'hideMessage': this.charge(1); this.message = null; return null;
-      case 'printDebug':
+      },
+      hideMessage: () => {
+        this.charge(1);
+        this.message = null;
+        return null;
+      },
+      printDebug: ({ args, line }) => {
         // Instrumentation only — append a line to the debug panel; never charge the op counter.
         this.debugLog.push({ line, text: String(display(args[0])) });
         return null;
-      case 'scrollTo':
+      },
+      scrollTo: ({ isEdge, v0, args, line }) => {
         this.charge(1);
         this.scrollTo = isEdge
           ? { kind: 'edge', from: v0().id, to: this.asVertex(args[1], line).id }
           : { kind: 'node', id: v0().id };
         return null;
-      case 'clearMarks':
+      },
+      clearMarks: () => {
         this.charge(1);
         this.marks.clear();
         this.markedEdges.clear();
         this.labels.clear();
         return null;
+      },
       // ── Canvas editing — mutate the graph / data structures ──
-      case 'createNode':
-        return this.graph.createNode(Number(args[0]), Number(args[1]), optionalName(args[2]));
-      case 'deleteNode': this.graph.deleteNode(v0()); return null;
-      case 'createEdge':
+      createNode: ({ args }) => this.graph.createNode(Number(args[0]), Number(args[1]), optionalName(args[2])),
+      deleteNode: ({ v0 }) => {
+        this.graph.deleteNode(v0());
+        return null;
+      },
+      createEdge: ({ v0, args, line }) => {
         this.graph.createEdge(
           v0(),
           this.asVertex(args[1], line),
@@ -545,25 +593,37 @@ export class Interpreter {
           args[3] != null ? this.truthy(args[3]) : true,
         );
         return null;
-      case 'deleteEdge': this.graph.deleteEdge(v0(), this.asVertex(args[1], line)); return null;
-      case 'createList': return this.createDS('LIST', args);
-      case 'createStack': return this.createDS('STACK', args);
-      case 'createQueue': return this.createDS('QUEUE', args);
-      case 'createSet': return this.createDS('SET', args);
-      case 'createMap': return this.createDS('MAP', args);
-      case 'createPQueue': return this.createDS('PQUEUE', args);
-      case 'createMatrix':
-        return this.createDS('MATRIX', args, Number(args[2]), Number(args[3]), optionalName(args[4]));
-      case 'deleteDS': this.deleteDS(args[0]); return null;
-      case 'clearGraph': this.graph.clear(); return null;
-      case 'clearCanvas':
+      },
+      deleteEdge: ({ v0, args, line }) => {
+        this.graph.deleteEdge(v0(), this.asVertex(args[1], line));
+        return null;
+      },
+      createMatrix: ({ args }) =>
+        this.createDS('MATRIX', args, Number(args[2]), Number(args[3]), optionalName(args[4])),
+      deleteDS: ({ args }) => {
+        this.deleteDS(args[0]);
+        return null;
+      },
+      clearGraph: () => {
+        this.graph.clear();
+        return null;
+      },
+      clearCanvas: () => {
         this.graph.clear();
         this.dsList.length = 0;
         this.dsByLabel.clear();
         return null;
-      case 'saveCanvas': this.commitCanvas(); return null;
-      default: throw new RuntimeError(`Unknown function '${name}' (line ${line})`);
+      },
+      saveCanvas: () => {
+        this.commitCanvas();
+        return null;
+      },
+    };
+    // The coordinate-placed constructors (everything but the matrix) share one shape.
+    for (const [fn, kind] of Object.entries(CREATE_KINDS)) {
+      if (kind !== 'MATRIX') table[fn] = ({ args }) => this.createDS(kind, args);
     }
+    return table;
   }
 
   /** Create a data structure on the canvas and register it for lookup by label. */
