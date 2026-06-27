@@ -9,8 +9,9 @@
  * here.
  */
 import { BUILTIN_NAMES, DS_CREATE_NAME_ARG } from './builtins';
+import { walkStmts } from './walk';
 import type { Diagnostic } from './diagnostics';
-import type { Expr, FunctionDecl, Module, Stmt } from './ast';
+import type { FunctionDecl, Module } from './ast';
 import type { ExportRef } from '../models/exports';
 
 export interface ResolveResult {
@@ -54,7 +55,7 @@ export function resolve(modules: Module[], diagnostics: Diagnostic[]): ResolveRe
   for (const module of modules) {
     for (const item of module.items) {
       const body = item.kind === 'function' ? item.body : [item];
-      walkStmts(body, (expr) => {
+      walkStmts(body, { onExpr: (expr) => {
         if (expr.kind !== 'call') return;
         if (expr.callee.kind === 'name' && !known.has(expr.callee.name)) {
           diagnostics.push({
@@ -78,7 +79,7 @@ export function resolve(modules: Module[], diagnostics: Diagnostic[]): ResolveRe
             });
           }
         }
-      });
+      } });
     }
   }
 
@@ -87,72 +88,3 @@ export function resolve(modules: Module[], diagnostics: Diagnostic[]): ResolveRe
 
 /** A name usable as a DSL identifier; anything else can't be referenced by name. */
 const IDENT = /^[A-Za-z_]\w*$/;
-
-// ── Minimal AST walk to visit every expression ────────────────
-function walkStmts(stmts: Stmt[], visit: (expr: Expr) => void): void {
-  for (const stmt of stmts) walkStmt(stmt, visit);
-}
-
-function walkStmt(stmt: Stmt, visit: (expr: Expr) => void): void {
-  switch (stmt.kind) {
-    case 'assign':
-      walkExpr(stmt.target, visit);
-      walkExpr(stmt.value, visit);
-      break;
-    case 'exprStmt':
-      walkExpr(stmt.expr, visit);
-      break;
-    case 'if':
-      walkExpr(stmt.cond, visit);
-      walkStmts(stmt.thenBody, visit);
-      if (stmt.elseBody) walkStmts(stmt.elseBody, visit);
-      break;
-    case 'while':
-      walkExpr(stmt.cond, visit);
-      walkStmts(stmt.body, visit);
-      break;
-    case 'forIn':
-      walkExpr(stmt.iterable, visit);
-      walkStmts(stmt.body, visit);
-      break;
-    case 'return':
-      if (stmt.value) walkExpr(stmt.value, visit);
-      break;
-    case 'continue':
-    case 'break':
-      break;
-  }
-}
-
-function walkExpr(expr: Expr, visit: (expr: Expr) => void): void {
-  visit(expr);
-  switch (expr.kind) {
-    case 'call':
-      walkExpr(expr.callee, visit);
-      expr.args.forEach((a) => walkExpr(a, visit));
-      break;
-    case 'member':
-      walkExpr(expr.object, visit);
-      break;
-    case 'index':
-      walkExpr(expr.object, visit);
-      walkExpr(expr.index, visit);
-      break;
-    case 'unary':
-      walkExpr(expr.operand, visit);
-      break;
-    case 'binary':
-      walkExpr(expr.left, visit);
-      walkExpr(expr.right, visit);
-      break;
-    case 'range':
-      walkExpr(expr.from, visit);
-      walkExpr(expr.to, visit);
-      break;
-    case 'num':
-    case 'str':
-    case 'atom':
-    case 'name':
-      break;
-  }
-}

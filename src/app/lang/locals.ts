@@ -10,6 +10,7 @@
 import type { Expr, FunctionDecl, Module, Stmt } from './ast';
 import type { DataStructureKind } from '../models/data-structure.model';
 import { CREATE_KINDS } from './builtins';
+import { walkStmts, type AstVisitor } from './walk';
 
 /** A data structure the code creates, by name and kind. */
 export interface LocalStructure {
@@ -59,47 +60,15 @@ export function collectLocalStructures(entry: Module, functions: Map<string, Fun
     out.push({ name, kind });
   };
 
-  const visitStmts = (stmts: Stmt[]): void => {
-    for (const s of stmts) visitStmt(s);
-  };
-
-  const visitStmt = (s: Stmt): void => {
-    switch (s.kind) {
-      case 'assign': {
-        // `x ← create*(…)` / `x ← scratch.createMap(…)` — the variable is that structure.
-        const info = constructorInfo(s.value);
-        if (info && s.target.kind === 'name') add(s.target.name, info.kind);
-        visitExpr(s.target);
-        visitExpr(s.value);
-        break;
-      }
-      case 'exprStmt':
-        visitExpr(s.expr);
-        break;
-      case 'if':
-        visitExpr(s.cond);
-        visitStmts(s.thenBody);
-        if (s.elseBody) visitStmts(s.elseBody);
-        break;
-      case 'while':
-        visitExpr(s.cond);
-        visitStmts(s.body);
-        break;
-      case 'forIn':
-        visitExpr(s.iterable);
-        visitStmts(s.body);
-        break;
-      case 'return':
-        if (s.value) visitExpr(s.value);
-        break;
-      case 'continue':
-      case 'break':
-        break;
-    }
-  };
-
-  const visitExpr = (expr: Expr): void => {
-    if (expr.kind === 'call') {
+  const visitor: AstVisitor = {
+    onStmt: (s) => {
+      // `x ← create*(…)` / `x ← scratch.createMap(…)` — the variable is that structure.
+      if (s.kind !== 'assign') return;
+      const info = constructorInfo(s.value);
+      if (info && s.target.kind === 'name') add(s.target.name, info.kind);
+    },
+    onExpr: (expr) => {
+      if (expr.kind !== 'call') return;
       const info = constructorInfo(expr);
       if (info) {
         // The literal label, if it's a usable identifier — its position depends on the form.
@@ -111,36 +80,12 @@ export function collectLocalStructures(entry: Module, functions: Map<string, Fun
         const fn = fname ? functions.get(fname) : undefined;
         if (fn && fname && !seenFns.has(fname)) {
           seenFns.add(fname);
-          visitStmts(fn.body);
+          walkStmts(fn.body, visitor);
         }
       }
-      visitExpr(expr.callee);
-      for (const arg of expr.args) visitExpr(arg);
-      return;
-    }
-    switch (expr.kind) {
-      case 'unary':
-        visitExpr(expr.operand);
-        break;
-      case 'binary':
-        visitExpr(expr.left);
-        visitExpr(expr.right);
-        break;
-      case 'index':
-        visitExpr(expr.object);
-        visitExpr(expr.index);
-        break;
-      case 'member':
-        visitExpr(expr.object);
-        break;
-      case 'range':
-        visitExpr(expr.from);
-        visitExpr(expr.to);
-        break;
-      // num · str · atom · name are leaves
-    }
+    },
   };
 
-  visitStmts(entry.items.filter((i): i is Stmt => i.kind !== 'function'));
+  walkStmts(entry.items.filter((i): i is Stmt => i.kind !== 'function'), visitor);
   return out;
 }
