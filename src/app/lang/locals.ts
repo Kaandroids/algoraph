@@ -9,6 +9,7 @@
  */
 import type { Expr, FunctionDecl, Module, Stmt } from './ast';
 import type { DataStructureKind } from '../models/data-structure.model';
+import { CREATE_KINDS } from './builtins';
 
 /** A data structure the code creates, by name and kind. */
 export interface LocalStructure {
@@ -18,16 +19,6 @@ export interface LocalStructure {
 
 /** A name usable as a DSL identifier — spaced / punctuated labels can't be referenced. */
 const IDENT = /^[A-Za-z_]\w*$/;
-
-const CREATE_KIND: Record<string, DataStructureKind> = {
-  createList: 'LIST',
-  createStack: 'STACK',
-  createQueue: 'QUEUE',
-  createSet: 'SET',
-  createMap: 'MAP',
-  createPQueue: 'PQUEUE',
-  createMatrix: 'MATRIX',
-};
 
 /** The called function's name, for both `f(…)` and `canvas.f(…)`. */
 function callName(callee: Expr): string | null {
@@ -46,7 +37,7 @@ function constructorInfo(expr: Expr): { kind: DataStructureKind; nameArg: number
   if (expr.kind !== 'call') return null;
   const callee = expr.callee;
   if (callee.kind !== 'name' && callee.kind !== 'member') return null;
-  const kind = CREATE_KIND[callee.name];
+  const kind = CREATE_KINDS[callee.name];
   if (!kind) return null;
   // scratch.* / panel.* are coordinate-free (name first); create* / canvas.create* take x, y first.
   const offCanvas =

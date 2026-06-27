@@ -17,6 +17,7 @@
  * source of the *human-facing* docs (signatures, prose, Big-O); this is the
  * source of the *machine* facts the toolchain branches on.
  */
+import type { DataStructureKind } from '../models/data-structure.model';
 
 /** Static metadata for one global built-in function. */
 export interface BuiltinSpec {
@@ -29,6 +30,8 @@ export interface BuiltinSpec {
    * built-ins that take no such name.
    */
   readonly nameArg?: number;
+  /** For a data-structure constructor, the kind of structure it builds. */
+  readonly creates?: DataStructureKind;
 }
 
 /**
@@ -61,13 +64,13 @@ export const BUILTINS: readonly BuiltinSpec[] = [
   { name: 'deleteNode' },
   { name: 'createEdge' },
   { name: 'deleteEdge' },
-  { name: 'createList', nameArg: 2 },
-  { name: 'createStack', nameArg: 2 },
-  { name: 'createQueue', nameArg: 2 },
-  { name: 'createSet', nameArg: 2 },
-  { name: 'createMap', nameArg: 2 },
-  { name: 'createPQueue', nameArg: 2 },
-  { name: 'createMatrix', nameArg: 4 },
+  { name: 'createList', nameArg: 2, creates: 'LIST' },
+  { name: 'createStack', nameArg: 2, creates: 'STACK' },
+  { name: 'createQueue', nameArg: 2, creates: 'QUEUE' },
+  { name: 'createSet', nameArg: 2, creates: 'SET' },
+  { name: 'createMap', nameArg: 2, creates: 'MAP' },
+  { name: 'createPQueue', nameArg: 2, creates: 'PQUEUE' },
+  { name: 'createMatrix', nameArg: 4, creates: 'MATRIX' },
   { name: 'deleteDS' },
   { name: 'clearGraph' },
   { name: 'clearCanvas' },
@@ -85,4 +88,13 @@ export const BUILTIN_NAMES: ReadonlySet<string> = new Set(BUILTINS.map((b) => b.
  */
 export const DS_CREATE_NAME_ARG: Readonly<Record<string, number>> = Object.fromEntries(
   BUILTINS.filter((b) => b.nameArg !== undefined).map((b) => [b.name, b.nameArg as number]),
+);
+
+/**
+ * Data-structure `create*` function → the kind it builds. Shared by the
+ * interpreter (`scratch.*` / `panel.*` construction) and the static locals scan,
+ * which otherwise each kept their own identical copy of this map.
+ */
+export const CREATE_KINDS: Readonly<Record<string, DataStructureKind>> = Object.fromEntries(
+  BUILTINS.filter((b) => b.creates !== undefined).map((b) => [b.name, b.creates as DataStructureKind]),
 );

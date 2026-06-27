@@ -11,6 +11,7 @@ import type { Expr, FunctionDecl, Module, Stmt } from './ast';
 import type { CanvasEffects, CanvasMessage, DataSnapshot, DebugLine, LoopFrame, RunResult, SavedCanvas, ScrollTarget, StepSnapshot, VarSnapshot, VertexRef } from './trace';
 import { emptyEffects } from './trace';
 import { DATA_STRUCTURES, type DataNode, type DataStructureKind } from '../models/data-structure.model';
+import { CREATE_KINDS } from './builtins';
 import {
   Edge,
   GraphValue,
@@ -57,17 +58,6 @@ class ReturnSignal {
 function optionalName(value: Value | undefined): string | undefined {
   return value != null ? String(display(value)) : undefined;
 }
-
-/** `scratch.createMap()` / `panel.createMap()` → the kind of off-canvas structure it builds. */
-const OFF_CANVAS_KINDS: Record<string, DataStructureKind> = {
-  createList: 'LIST',
-  createStack: 'STACK',
-  createQueue: 'QUEUE',
-  createSet: 'SET',
-  createMap: 'MAP',
-  createPQueue: 'PQUEUE',
-  createMatrix: 'MATRIX',
-};
 
 /** A mark's optional `type` argument (`danger`/`warn`/…); `''` is the default highlight. */
 function markType(value: Value | undefined): string {
@@ -593,7 +583,7 @@ export class Interpreter {
    * panel but off the canvas (tracked = true). Both never draw on the canvas.
    */
   private createOffCanvasDS(ns: string, method: string, args: Value[], line: number, tracked: boolean): RDataStructure {
-    const kind = OFF_CANVAS_KINDS[method];
+    const kind = CREATE_KINDS[method];
     if (!kind) {
       throw new RuntimeError(
         `'${ns}.${method}' is not a structure — try ${ns}.createMap / createSet / createQueue / createStack / createList / createPQueue / createMatrix (line ${line})`,
