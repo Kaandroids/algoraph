@@ -8,8 +8,8 @@
  * the Run workspace's "main goes line by line, helpers are one step" model.
  */
 import type { Expr, FunctionDecl, Module, Stmt } from './ast';
-import type { CanvasEffects, CanvasMessage, DataSnapshot, DebugLine, LoopFrame, RunResult, SavedCanvas, ScrollTarget, StepSnapshot, VarSnapshot, VertexRef } from './trace';
-import { emptyEffects } from './trace';
+import type { CanvasEffects, DataSnapshot, DebugLine, LoopFrame, RunResult, SavedCanvas, StepSnapshot, VarSnapshot, VertexRef } from './trace';
+import { EffectsState } from './effects';
 import { DATA_STRUCTURES, type DataNode, type DataStructureKind } from '../models/data-structure.model';
 import { CREATE_KINDS } from './builtins';
 import {
@@ -113,12 +113,9 @@ export class Interpreter {
   private readonly entryStmts: Stmt[];
   private readonly entryId: string;
 
-  // Mutable canvas effects, snapshotted (and scroll consumed) on each step.
-  private marks = new Map<string, string>(); // vertex id → mark type
-  private markedEdges = new Map<string, string>(); // edge key → mark type
-  private labels = new Map<string, string>();
-  private message: CanvasMessage | null = null; // snackbar, persists until changed
-  private scrollTo: ScrollTarget | null = null;
+  // Mutable canvas effects (highlights, labels, snackbar, pending pan),
+  // snapshotted — and the scroll consumed — on each step.
+  private readonly effects = new EffectsState();
   // Stack of active `for each` loops, innermost last. Each frame drives the
   // iteration popup and (when its element is a vertex) the canvas cursor + pan,
   // so a loop visualizes itself without the algorithm marking anything.
@@ -192,7 +189,7 @@ export class Interpreter {
       ops: this.opCount,
       note,
     });
-    this.scrollTo = null; // a pan is consumed by the step that shows it
+    this.effects.consumePan(); // a pan is consumed by the step that shows it
   }
 
   /**
@@ -224,14 +221,8 @@ export class Interpreter {
   }
 
   private snapshotEffects(): CanvasEffects {
-    const effects = emptyEffects();
-    effects.marks = Object.fromEntries(this.marks);
-    effects.markedEdges = Object.fromEntries(this.markedEdges);
-    effects.labels = Object.fromEntries(this.labels);
-    effects.cursors = [...new Set(this.loopFrames.map((f) => f.cursorId).filter((id): id is string => id !== null))];
-    effects.message = this.message;
-    effects.scrollTo = this.scrollTo;
-    return effects;
+    const cursors = [...new Set(this.loopFrames.map((f) => f.cursorId).filter((id): id is string => id !== null))];
+    return this.effects.snapshot(cursors);
   }
 
   // ── Statements ──────────────────────────────────────────────
@@ -289,7 +280,7 @@ export class Interpreter {
             frame.index = i;
             // A vertex element becomes the canvas cursor and the canvas follows it.
             frame.cursorId = elem instanceof Vertex ? elem.id : null;
-            if (elem instanceof Vertex) this.scrollTo = { kind: 'node', id: elem.id };
+            if (elem instanceof Vertex) this.effects.panTo({ kind: 'node', id: elem.id });
             this.emit(stmt.line);
             try {
               this.execBlock(stmt.body);
@@ -533,31 +524,31 @@ export class Interpreter {
       mark: ({ isEdge, edgeKey, v0, args }) => {
         // mark(u, type?) highlights a vertex; mark(u, v, type?) highlights an edge.
         this.charge(1);
-        if (isEdge) this.markedEdges.set(edgeKey(), markType(args[2]));
-        else this.marks.set(v0().id, markType(args[1]));
+        if (isEdge) this.effects.markEdge(edgeKey(), markType(args[2]));
+        else this.effects.markVertex(v0().id, markType(args[1]));
         return null;
       },
       unmark: ({ isEdge, edgeKey, v0 }) => {
         this.charge(1);
-        if (isEdge) this.markedEdges.delete(edgeKey());
-        else this.marks.delete(v0().id);
+        if (isEdge) this.effects.unmarkEdge(edgeKey());
+        else this.effects.unmarkVertex(v0().id);
         return null;
       },
       setLabel: ({ v0, args }) => {
         this.charge(1);
-        this.labels.set(v0().id, String(display(args[1])));
+        this.effects.setLabel(v0().id, String(display(args[1])));
         return null;
       },
       showMessage: ({ args }) => {
         // A snackbar; empty text clears it. Stays until the next showMessage.
         this.charge(1);
         const text = String(display(args[0]));
-        this.message = text ? { text, type: markType(args[1]) } : null;
+        this.effects.setMessage(text ? { text, type: markType(args[1]) } : null);
         return null;
       },
       hideMessage: () => {
         this.charge(1);
-        this.message = null;
+        this.effects.setMessage(null);
         return null;
       },
       printDebug: ({ args, line }) => {
@@ -567,16 +558,16 @@ export class Interpreter {
       },
       scrollTo: ({ isEdge, v0, args, line }) => {
         this.charge(1);
-        this.scrollTo = isEdge
-          ? { kind: 'edge', from: v0().id, to: this.asVertex(args[1], line).id }
-          : { kind: 'node', id: v0().id };
+        this.effects.panTo(
+          isEdge
+            ? { kind: 'edge', from: v0().id, to: this.asVertex(args[1], line).id }
+            : { kind: 'node', id: v0().id },
+        );
         return null;
       },
       clearMarks: () => {
         this.charge(1);
-        this.marks.clear();
-        this.markedEdges.clear();
-        this.labels.clear();
+        this.effects.clear();
         return null;
       },
       // ── Canvas editing — mutate the graph / data structures ──
