@@ -15,6 +15,7 @@ can *see* rather than just read about.
 [![Foblex Flow](https://img.shields.io/badge/Foblex%20Flow-canvas-6c5ce7)](https://flow.foblex.com)
 [![Vitest](https://img.shields.io/badge/tested%20with-Vitest-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev)
 [![100% client-side](https://img.shields.io/badge/backend-none-555)](#tech-stack)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 <br/>
 
@@ -233,6 +234,12 @@ Issues and pull requests are welcome.
 - Prefer signals over RxJS for component state, and use the design-token CSS
   custom properties (`--bg`, `--fg`, `--accent`, …) rather than hard-coded
   colors.
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE).
 
 ---
 
