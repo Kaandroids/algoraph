@@ -622,17 +622,12 @@
 
       </div>
 
-      <!-- Run the file currently open in the editor -->
+      <!-- Last run's error, if it failed (running is triggered from the Debug panel). -->
       @if (runError(); as err) {
         <div class="ag-run-error" role="alert">
           <app-icon name="x" /><span>{{ err }}</span>
         </div>
       }
-      <div class="ag-coderail-foot ag-inspector-foot">
-        <button class="ag-run-active" type="button" (click)="runActive()">
-          <app-icon name="play" /> Run {{ activeFile().name }}
-        </button>
-      </div>
     </aside>
   }
 
