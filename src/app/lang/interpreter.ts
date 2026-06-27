@@ -61,15 +61,15 @@ function optionalName(value: Value | undefined): string | undefined {
   return value != null ? String(display(value)) : undefined;
 }
 
-/** `scratch.<method>()` / `panel.<method>()` → the kind of off-canvas structure it builds. */
+/** `scratch.createMap()` / `panel.createMap()` → the kind of off-canvas structure it builds. */
 const OFF_CANVAS_KINDS: Record<string, DataStructureKind> = {
-  list: 'LIST',
-  stack: 'STACK',
-  queue: 'QUEUE',
-  set: 'SET',
-  map: 'MAP',
-  pqueue: 'PQUEUE',
-  matrix: 'MATRIX',
+  createList: 'LIST',
+  createStack: 'STACK',
+  createQueue: 'QUEUE',
+  createSet: 'SET',
+  createMap: 'MAP',
+  createPQueue: 'PQUEUE',
+  createMatrix: 'MATRIX',
 };
 
 /** A mark's optional `type` argument (`danger`/`warn`/…); `''` is the default highlight. */
@@ -439,7 +439,7 @@ export class Interpreter {
       const obj = this.evalExpr(expr.callee.object);
       if (obj instanceof RDataStructure) return obj.call(expr.callee.name, args, expr.line);
       if (obj instanceof Namespace) {
-        // `scratch.map(…)` / `panel.map(…)` build off-canvas structures; graph./canvas. forward to builtins.
+        // `scratch.createMap(…)` / `panel.createMap(…)` build off-canvas structures; graph./canvas. forward to builtins.
         if (obj.name === 'scratch') return this.createOffCanvasDS('scratch', expr.callee.name, args, expr.line, false);
         if (obj.name === 'panel') return this.createOffCanvasDS('panel', expr.callee.name, args, expr.line, true);
         return this.callBuiltin(expr.callee.name, args, expr.line);
@@ -594,7 +594,7 @@ export class Interpreter {
     const kind = OFF_CANVAS_KINDS[method];
     if (!kind) {
       throw new RuntimeError(
-        `'${ns}.${method}' is not a structure — try ${ns}.map / set / queue / stack / list / pqueue / matrix (line ${line})`,
+        `'${ns}.${method}' is not a structure — try ${ns}.createMap / createSet / createQueue / createStack / createList / createPQueue / createMatrix (line ${line})`,
       );
     }
     const isMatrix = kind === 'MATRIX';

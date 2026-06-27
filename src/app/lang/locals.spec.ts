@@ -58,10 +58,10 @@ describe('local structure scan', () => {
 
   it('finds scratch.* and panel.* structures — label form and assigned variable', () => {
     const src =
-      'panel.map("Test")\n' +
-      'scratch.set("Test2")\n' +
-      'q ← scratch.queue()\n' +
-      'panel.matrix(2, 2, "grid")\n';
+      'panel.createMap("Test")\n' +
+      'scratch.createSet("Test2")\n' +
+      'q ← scratch.createQueue()\n' +
+      'panel.createMatrix(2, 2, "grid")\n';
     expect(locals([{ id: 'main', name: 'main.algo', content: src }])).toEqual([
       'Test2:SET',
       'Test:MAP',

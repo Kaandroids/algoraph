@@ -401,7 +401,7 @@ describe('scratch structures (hidden, off-canvas bookkeeping)', () => {
   it('scratch.* builds a working structure, usable by its variable', () => {
     const result = runSrc(
       'a ← source()\n' +
-      'inDeg ← scratch.map("inDeg")\n' +
+      'inDeg ← scratch.createMap("inDeg")\n' +
       'inDeg[a] ← 7\n' +
       'inDeg[a] ← inDeg[a] + 1\n' +
       'showMessage("" + inDeg[a])\n',
@@ -414,13 +414,13 @@ describe('scratch structures (hidden, off-canvas bookkeeping)', () => {
     const visible = runSrc('m ← createMap(10, 20, "shown")\nm[source()] ← 1\n');
     expect(visible.steps.at(-1)!.data.map((d) => d.label)).toEqual(['shown']);
 
-    const hidden = runSrc('m ← scratch.map("hidden")\nm[source()] ← 1\n');
+    const hidden = runSrc('m ← scratch.createMap("hidden")\nm[source()] ← 1\n');
     expect(hidden.steps.every((s) => s.data.length === 0)).toBe(true);
   });
 
   it('keeps full FIFO/queue semantics while staying hidden', () => {
     const result = runSrc(
-      'q ← scratch.queue()\n' +
+      'q ← scratch.createQueue()\n' +
       'q.enqueue(source())\n' +
       'q.enqueue(goal())\n' +
       'showMessage(q.dequeue() + "|" + q.size())\n',
@@ -430,7 +430,7 @@ describe('scratch structures (hidden, off-canvas bookkeeping)', () => {
   });
 
   it('stays out of both the data panel and the variable watch', () => {
-    const result = runSrc('seen ← scratch.set()\nseen.add(1)\nn ← seen.size()\n');
+    const result = runSrc('seen ← scratch.createSet()\nseen.add(1)\nn ← seen.size()\n');
     expect(result.error).toBeNull();
     const last = result.steps.at(-1)!;
     expect(last.data).toEqual([]);
@@ -438,15 +438,15 @@ describe('scratch structures (hidden, off-canvas bookkeeping)', () => {
     expect(last.vars.find((v) => v.name === 'n')).toMatchObject({ value: '1' });
   });
 
-  it('scratch.matrix takes rows and cols', () => {
-    const result = runSrc('M ← scratch.matrix(2, 3)\nshowMessage(M.rows() + "x" + M.cols())\n');
+  it('scratch.createMatrix takes rows and cols', () => {
+    const result = runSrc('M ← scratch.createMatrix(2, 3)\nshowMessage(M.rows() + "x" + M.cols())\n');
     expect(result.error).toBeNull();
     expect(result.steps.at(-1)!.effects.message!.text).toBe('2x3');
     expect(result.steps.at(-1)!.data).toEqual([]);
   });
 
   it('is not persisted by saveCanvas()', () => {
-    const saved = runSrc('clearGraph()\ninDeg ← scratch.map("inDeg")\ninDeg[source()] ← 1\nsaveCanvas()\n').savedCanvas;
+    const saved = runSrc('clearGraph()\ninDeg ← scratch.createMap("inDeg")\ninDeg[source()] ← 1\nsaveCanvas()\n').savedCanvas;
     expect(saved).not.toBeNull();
     expect(saved!.data).toEqual([]); // the scratch map is left out of the saved canvas
   });
@@ -460,7 +460,7 @@ describe('scratch structures (hidden, off-canvas bookkeeping)', () => {
 
 describe('panel structures (off-canvas, watchable in the data panel)', () => {
   it('appears in the data panel feed but is flagged off-canvas (rendered = false)', () => {
-    const result = runSrc('inDeg ← panel.map("inDeg")\ninDeg[source()] ← 5\n');
+    const result = runSrc('inDeg ← panel.createMap("inDeg")\ninDeg[source()] ← 5\n');
     expect(result.error).toBeNull();
     const snap = result.steps.at(-1)!.data.find((d) => d.label === 'inDeg');
     expect(snap).toBeDefined();              // tracked → reaches the data panel
@@ -468,22 +468,22 @@ describe('panel structures (off-canvas, watchable in the data panel)', () => {
     expect(snap!.entries).toEqual([{ key: 'A', value: 5 }]);
   });
 
-  it('contrasts with createMap (rendered) and scratch.map (absent from the trace)', () => {
+  it('contrasts with createMap (rendered) and scratch.createMap (absent from the trace)', () => {
     const visible = runSrc('m ← createMap(10, 20, "shown")\n').steps.at(-1)!;
     expect(visible.data.find((d) => d.label === 'shown')!.rendered).toBe(true);
 
-    const scratch = runSrc('m ← scratch.map("hidden")\nm[source()] ← 1\n');
+    const scratch = runSrc('m ← scratch.createMap("hidden")\nm[source()] ← 1\n');
     expect(scratch.steps.every((s) => s.data.length === 0)).toBe(true);
   });
 
   it('keeps full semantics and is reachable by name', () => {
-    const result = runSrc('q ← panel.queue("q")\nq.enqueue(source())\nshowMessage(q.front() + "|" + q.size())\n');
+    const result = runSrc('q ← panel.createQueue("q")\nq.enqueue(source())\nshowMessage(q.front() + "|" + q.size())\n');
     expect(result.error).toBeNull();
     expect(result.steps.at(-1)!.effects.message!.text).toBe('A|1');
   });
 
   it('is not persisted by saveCanvas() (it is not on the canvas)', () => {
-    const saved = runSrc('clearGraph()\nseen ← panel.set("seen")\nseen.add(source())\nsaveCanvas()\n').savedCanvas;
+    const saved = runSrc('clearGraph()\nseen ← panel.createSet("seen")\nseen.add(source())\nsaveCanvas()\n').savedCanvas;
     expect(saved).not.toBeNull();
     expect(saved!.data).toEqual([]);
   });

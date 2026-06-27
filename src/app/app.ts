@@ -386,8 +386,8 @@ export class App {
       color: 'oklch(0.6 0.06 230)',
       description:
         'Off-canvas data structures for an algorithm\'s private bookkeeping — created with ' +
-        'scratch.map(), scratch.queue(), and friends. They behave like any structure but are ' +
-        'never drawn on the canvas or shown in the run data panel.',
+        'scratch.createMap(), scratch.createQueue(), and friends. They behave like any structure ' +
+        'but are never drawn on the canvas or shown in the run data panel.',
       groups: GLOBAL_REFERENCE.groups.filter((g) => g.title === 'Scratch structures'),
     },
     {
@@ -398,7 +398,7 @@ export class App {
       color: 'oklch(0.62 0.1 160)',
       description:
         'Data structures that stay off the canvas but still appear in the run data panel — ' +
-        'created with panel.map(), panel.queue(), and friends. Use them to watch an ' +
+        'created with panel.createMap(), panel.createQueue(), and friends. Use them to watch an ' +
         'algorithm\'s bookkeeping step by step without cluttering the drawing.',
       groups: GLOBAL_REFERENCE.groups.filter((g) => g.title === 'Panel structures'),
     },

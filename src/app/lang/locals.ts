@@ -29,17 +29,6 @@ const CREATE_KIND: Record<string, DataStructureKind> = {
   createMatrix: 'MATRIX',
 };
 
-/** Short method names on the `scratch` / `panel` namespaces (e.g. `scratch.map`). */
-const OFF_CANVAS_KIND: Record<string, DataStructureKind> = {
-  list: 'LIST',
-  stack: 'STACK',
-  queue: 'QUEUE',
-  set: 'SET',
-  map: 'MAP',
-  pqueue: 'PQUEUE',
-  matrix: 'MATRIX',
-};
-
 /** The called function's name, for both `f(…)` and `canvas.f(…)`. */
 function callName(callee: Expr): string | null {
   if (callee.kind === 'name') return callee.name;
@@ -50,24 +39,22 @@ function callName(callee: Expr): string | null {
 /**
  * A data-structure constructor call → its kind and the index of its optional
  * `name` argument. Recognises `createMap(x, y, name)` (bare or `canvas.`-prefixed,
- * name at arg 2 / 4 for a matrix) as well as the coordinate-free off-canvas forms
- * `scratch.map(name)` / `panel.map(name)` (name at arg 0 / 2 for a matrix).
+ * name at arg 2 / 4 for a matrix) and the coordinate-free off-canvas forms
+ * `scratch.createMap(name)` / `panel.createMap(name)` (name at arg 0 / 2 for a matrix).
  */
 function constructorInfo(expr: Expr): { kind: DataStructureKind; nameArg: number } | null {
   if (expr.kind !== 'call') return null;
   const callee = expr.callee;
   if (callee.kind !== 'name' && callee.kind !== 'member') return null;
-  const created = CREATE_KIND[callee.name];
-  if (created) return { kind: created, nameArg: created === 'MATRIX' ? 4 : 2 };
-  if (
+  const kind = CREATE_KIND[callee.name];
+  if (!kind) return null;
+  // scratch.* / panel.* are coordinate-free (name first); create* / canvas.create* take x, y first.
+  const offCanvas =
     callee.kind === 'member' &&
     callee.object.kind === 'name' &&
-    (callee.object.name === 'scratch' || callee.object.name === 'panel')
-  ) {
-    const off = OFF_CANVAS_KIND[callee.name];
-    if (off) return { kind: off, nameArg: off === 'MATRIX' ? 2 : 0 };
-  }
-  return null;
+    (callee.object.name === 'scratch' || callee.object.name === 'panel');
+  const matrix = kind === 'MATRIX';
+  return { kind, nameArg: offCanvas ? (matrix ? 2 : 0) : matrix ? 4 : 2 };
 }
 
 export function collectLocalStructures(entry: Module, functions: Map<string, FunctionDecl>): LocalStructure[] {
@@ -88,7 +75,7 @@ export function collectLocalStructures(entry: Module, functions: Map<string, Fun
   const visitStmt = (s: Stmt): void => {
     switch (s.kind) {
       case 'assign': {
-        // `x ← create*(…)` / `x ← scratch.map(…)` — the variable is that structure.
+        // `x ← create*(…)` / `x ← scratch.createMap(…)` — the variable is that structure.
         const info = constructorInfo(s.value);
         if (info && s.target.kind === 'name') add(s.target.name, info.kind);
         visitExpr(s.target);
