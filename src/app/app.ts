@@ -28,6 +28,7 @@ import { type EditorGlobal } from './editor/dsl';
 import { type EditorDiagnostic } from './editor/diagnostics';
 import { type LineNote } from './editor/line-notes';
 import { API_GROUP, buildEditorGlobals } from './editor/editor-globals';
+import { downloadJson, downloadText, readFileAsText } from './shared/file-transfer';
 import {
   ApiGroup,
   DATA_STRUCTURE_API,
@@ -1036,7 +1037,7 @@ export class App {
 
   /** Export the whole canvas (graph + data structures) as a JSON file. */
   exportCanvasFile(): void {
-    this.download('algoraph-canvas.json', JSON.stringify(this.canvas.snapshot(), null, 2), 'application/json');
+    downloadJson('algoraph-canvas.json', this.canvas.snapshot());
     this.closeExport();
   }
 
@@ -1049,7 +1050,7 @@ export class App {
 
   /** Download one algorithm file as `.algo`. */
   exportAlgoFile(file: AlgoFile): void {
-    this.download(file.name, file.content, 'text/plain;charset=utf-8');
+    downloadText(file.name, file.content, 'text/plain;charset=utf-8');
     this.closeExport();
   }
 
@@ -1059,44 +1060,28 @@ export class App {
     return file.id === 'main' ? `Entry file · ${lines} lines` : `${lines} lines`;
   }
 
-  /** Trigger a browser download of in-memory text. */
-  private download(name: string, text: string, type: string): void {
-    const blob = new Blob([text], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   triggerImport(): void {
     this.importInput()?.nativeElement.click();
   }
 
   /** Open a file from the computer: a `.algo` becomes a new editor file, a `.json` loads the canvas. */
-  onImportFile(event: Event): void {
+  async onImportFile(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = ''; // let the same file be re-imported later
     if (!file) return;
-    const isAlgo = /\.algo$/i.test(file.name);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = reader.result as string;
-      if (isAlgo) {
-        this.fileStore.addFile(file.name, text);
-        this.setView('algorithm');
-      } else {
-        try {
-          this.canvas.load(JSON.parse(text));
-          this.setView('canvas');
-        } catch {
-          // Invalid JSON — ignored for now (a toast can surface this later).
-        }
+    const text = await readFileAsText(file);
+    if (/\.algo$/i.test(file.name)) {
+      this.fileStore.addFile(file.name, text);
+      this.setView('algorithm');
+    } else {
+      try {
+        this.canvas.load(JSON.parse(text));
+        this.setView('canvas');
+      } catch {
+        // Invalid JSON — ignored for now (a toast can surface this later).
       }
-    };
-    reader.readAsText(file);
+    }
   }
 
   // ── Import modal ──────────────────────────────────────────
