@@ -1,0 +1,10 @@
+<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+  <title>Logo icon - light theme</title>
+  <desc>Stacked bars logo for light backgrounds</desc>
+
+  <g transform="translate(40, 40)">
+    <rect x="-30" y="-22" width="40" height="13" rx="3" fill="#FAC775"/>
+    <rect x="-30" y="-6" width="60" height="13" rx="3" fill="#EF9F27"/>
+    <rect x="-30" y="10" width="50" height="13" rx="3" fill="#BA7517"/>
+  </g>
+</svg>

@@ -8,19 +8,27 @@
 
 /* ── Brand ────────────────────────────────────────────────── */
 .ag-brand-mark {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  color: #fff;
-  background: var(--accent);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    0 1px 2px rgba(0, 0, 0, 0.12);
   flex-shrink: 0;
 
-  app-icon { width: 17px; height: 17px; }
+  .ag-logo {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+  }
+
+  /* Light theme shows the light-background variant; dark theme swaps to the
+     dark-background one. */
+  .ag-logo-dark { display: none; }
+}
+
+:host-context([data-theme='dark']) .ag-brand-mark {
+  .ag-logo-light { display: none; }
+  .ag-logo-dark { display: block; }
 }
 
 .ag-wordmark {
