@@ -1,0 +1,64 @@
+{
+  "files": [
+    {
+      "name": "fw.algo",
+      "content": "buildTable()\n\nfor each a in nodes() do\n  seedRow(a)\nend\n\nfor each k in nodes() do\n  relaxThrough(k)\nend\n\nreport()\n",
+      "notes": [
+        {
+          "line": 1,
+          "text": "**Build the empty table.** `buildTable` numbers the vertices `0…n−1` and creates an `n × n` grid of zeros — nothing seeded yet. The matrix is the whole story of Floyd–Warshall, so watch it in the panel."
+        },
+        {
+          "line": 3,
+          "text": "**Seed the base case, one row per step.** For each vertex `a` we fill its row with the *direct* distances: `0` to itself, the edge weight to a neighbour, and `∞` to everyone else. Step through it and watch the table fill row by row."
+        },
+        {
+          "line": 7,
+          "text": "The one idea behind Floyd–Warshall: take each vertex `k` in turn as an allowed **intermediate**. After `k` vertices have been allowed, `dist[i][j]` is the shortest path that only detours through them; allow them all and every entry becomes a true shortest distance."
+        },
+        {
+          "line": 8,
+          "text": "`relaxThrough(k)` is the inner double loop, kept in a helper: for **every pair** `(i, j)`, check whether `i → k → j` beats the best path so far. The cells that improve blink in the panel — one DP wave per `k`."
+        },
+        {
+          "line": 11,
+          "text": "No path to trace — the filled **matrix** *is* the answer: `dist[i][j]` is the shortest distance from vertex `i` to vertex `j`, for **all** pairs at once."
+        }
+      ]
+    },
+    {
+      "name": "fw-helpers.algo",
+      "content": "export function buildTable() do\n  idx ← panel.createMap(\"idx\")              // vertex → its row / column\n  n ← 0\n  for each v in nodes() do\n    idx[v] ← n                              // number the vertices 0, 1, 2, …\n    n ← n + 1\n  end\n  dist ← panel.createMatrix(n, n, \"dist\")   // an empty n × n table\n  note(idx, \"row/col\")\n  note(dist, \"shortest so far\")\n  pin(dist)                                 // keep the table on top\n  spotlight(dist)                           // the matrix is the star of Floyd–Warshall\n  showMessage(\"Empty table — seed the base case next\", \"info\")\nend\n\nexport function seedRow(a) do\n  for each v in nodes() do unmark(v) end     // light only the row we are filling\n  mark(a, \"info\")\n  scrollTo(a)\n  for each b in nodes() do\n    if a = b then\n      dist[idx[a]][idx[b]] ← 0              // a vertex reaches itself in 0\n    else\n      dist[idx[a]][idx[b]] ← weight(a, b)   // a direct edge, or ∞ if there is none\n    end\n  end\n  showMessage(\"Row \" + a + \": direct edges out of \" + a + \", ∞ elsewhere\", \"info\")\nend\n\nexport function relaxThrough(k) do\n  for each v in nodes() do unmark(v) end     // highlight only the current intermediate\n  mark(k, \"info\")                            // paths may now hop through k\n  scrollTo(k)\n  showMessage(\"Allow paths through \" + k, \"info\")\n  for each i in nodes() do\n    for each j in nodes() do\n      detour ← dist[idx[i]][idx[k]] + dist[idx[k]][idx[j]]\n      if detour < dist[idx[i]][idx[j]] then\n        dist[idx[i]][idx[j]] ← detour        // i → k → j is shorter — take it\n      end\n    end\n  end\nend\n\nexport function report() do\n  for each v in nodes() do unmark(v) end      // clear the canvas — the table is the result\n  unspotlight(dist)\n  showMessage(\"All-pairs shortest distances complete — read dist[i][j]\", \"success\")\nend\n",
+      "notes": [
+        {
+          "line": 1,
+          "text": "A matrix is indexed by integers, so first we hand each vertex a number with the **idx** map (`A→0, B→1, …`) and count `n`. `idx` shows in the panel as a small **legend** for reading the matrix's rows and columns."
+        },
+        {
+          "line": 8,
+          "text": "`panel.createMatrix(n, n, …)` makes an `n × n` grid of zeros — off-canvas but watchable in the data panel. We `pin` and `spotlight` it because in Floyd–Warshall the table, not the canvas, is where the work happens."
+        },
+        {
+          "line": 16,
+          "text": "One step per row keeps the setup visible instead of filling the whole table at once. Vertex `a` is highlighted on the canvas so you can match the row to the vertex it belongs to."
+        },
+        {
+          "line": 22,
+          "text": "The base case: a vertex reaches **itself** in `0`, a **direct edge** costs its weight, and every other pair is **∞** — `weight` returns ∞ when there is no edge. Each cell blinks as it is written."
+        },
+        {
+          "line": 30,
+          "text": "The heart of the algorithm. With `k` fixed (highlighted on the canvas), we sweep **every** ordered pair `(i, j)` — that triple loop is why Floyd–Warshall is `O(V³)`."
+        },
+        {
+          "line": 37,
+          "text": "The relaxation: the best `i → j` path allowed to pass through `k` is either what we already had, or the detour `i → k` then `k → j`. Keep the smaller. ∞ arithmetic does the right thing — an unreachable leg leaves the detour at ∞."
+        },
+        {
+          "line": 45,
+          "text": "Nothing to highlight on the canvas at the end, so unmark every vertex and drop the spotlight — the completed matrix speaks for itself."
+        }
+      ]
+    }
+  ]
+}
