@@ -41,14 +41,14 @@
 <div class="ae-main">
   @if (activeView() !== 'run' && activeView() !== 'docs') {
   <!-- ── Tool library rail ─────────────────────────────────── -->
-  <aside class="ae-toolrail" [class.collapsed]="railCollapsed()">
+  <aside class="ae-toolrail" [class.collapsed]="ui.railCollapsed()">
     <div class="ae-toolrail-head">
       <span class="ae-toolrail-mark"><app-icon name="grid" /></span>
       <div class="ae-toolrail-titles">
         <span class="ae-toolrail-eyebrow">Library</span>
         <span class="ae-toolrail-title">Nodes</span>
       </div>
-      @if (activeView() === 'algorithm' && !railCollapsed()) {
+      @if (activeView() === 'algorithm' && !ui.railCollapsed()) {
         <button class="ae-toolrail-help" type="button" (click)="openSyntax($event)"
           aria-label="Pseudocode syntax guide">
           <app-icon name="help" />
@@ -59,13 +59,13 @@
       </button>
     </div>
 
-    @if (!railCollapsed()) {
+    @if (!ui.railCollapsed()) {
       <div class="ae-toolrail-search">
         <span class="ic"><app-icon name="search" /></span>
-        <input type="text" [value]="librarySearch()"
-          (input)="librarySearch.set($any($event.target).value)" placeholder="Search nodes" />
-        @if (librarySearch()) {
-          <button class="clr" (click)="librarySearch.set('')" aria-label="Clear">
+        <input type="text" [value]="ui.librarySearch()"
+          (input)="ui.librarySearch.set($any($event.target).value)" placeholder="Search nodes" />
+        @if (ui.librarySearch()) {
+          <button class="clr" (click)="ui.librarySearch.set('')" aria-label="Clear">
             <app-icon name="x" />
           </button>
         }
@@ -75,7 +75,7 @@
     <div class="ae-toolrail-scroll">
       @if (activeView() === 'algorithm') {
         <div class="ae-toolgroup">
-          @if (!railCollapsed()) {
+          @if (!ui.railCollapsed()) {
             <div class="ae-toolgroup-h">
               <span class="lbl">Built-ins</span>
               <span class="cnt">{{ builtinLibItems.length }}</span>
@@ -91,7 +91,7 @@
       }
 
       <div class="ae-toolgroup">
-        @if (!railCollapsed()) {
+        @if (!ui.railCollapsed()) {
           <div class="ae-toolgroup-h">
             <span class="lbl">Graph</span>
             <span class="cnt">{{ libraryItems().length + (activeView() === 'algorithm' && edgeVisible() ? 1 : 0) }}</span>
@@ -111,7 +111,7 @@
       </div>
 
       <div class="ae-toolgroup">
-        @if (!railCollapsed()) {
+        @if (!ui.railCollapsed()) {
           <div class="ae-toolgroup-h">
             <span class="lbl">Data structures</span>
             <span class="cnt">{{ dataLibraryItems().length }}</span>
@@ -126,7 +126,7 @@
       </div>
     </div>
 
-    @if (!railCollapsed()) {
+    @if (!ui.railCollapsed()) {
       <div class="ae-toolrail-foot">
         <app-icon name="grid" />
         <span>{{ palette.length + dataPalette.length }} block types</span>
@@ -229,11 +229,11 @@
 
     <!-- Tips overlay -->
     <div class="ae-tips-wrap f-drag-blocker">
-      <button class="ae-canvas-btn" (click)="tipsOpen.set(!tipsOpen())" title="Tips">
+      <button class="ae-canvas-btn" (click)="ui.tipsOpen.set(!ui.tipsOpen())" title="Tips">
         <app-icon name="help" />
       </button>
-      @if (tipsOpen()) {
-        <div class="ae-tips-backdrop" (click)="tipsOpen.set(false)"></div>
+      @if (ui.tipsOpen()) {
+        <app-backdrop variant="ae-tips-backdrop" (close)="ui.tipsOpen.set(false)" />
         <div class="ae-tips-panel">
           <div class="ae-tips-title">Tips</div>
           <div class="ae-tips-list">
@@ -271,11 +271,9 @@
     </div>
 
     <!-- Canvas context menu (right-click empty canvas) -->
-    @if (ctxMenuOpen()) {
-      <div class="ae-ctx-backdrop"
-        (click)="closeContextMenu()"
-        (contextmenu)="closeContextMenu(); $event.preventDefault()"></div>
-      <div class="ae-ctx-menu" [style.left.px]="ctxMenuPos().x" [style.top.px]="ctxMenuPos().y">
+    @if (ui.ctxMenuOpen()) {
+      <app-backdrop variant="ae-ctx-backdrop" [closeOnContextMenu]="true" (close)="closeContextMenu()" />
+      <div class="ae-ctx-menu" [style.left.px]="ui.ctxMenuPos().x" [style.top.px]="ui.ctxMenuPos().y">
         @for (item of palette; track item.kind) {
           <button class="ae-ctx-item" (click)="addNodeAt(item.kind)">
             <span class="ae-ctx-icon" [style.--pc]="item.color"><app-icon [name]="item.icon" /></span>
@@ -293,31 +291,27 @@
     }
 
     <!-- Node context menu (right-click a node) -->
-    @if (nodeCtxMenuOpen()) {
-      <div class="ae-ctx-backdrop"
-        (click)="closeNodeContextMenu()"
-        (contextmenu)="closeNodeContextMenu(); $event.preventDefault()"></div>
-      <div class="ae-ctx-menu" [style.left.px]="nodeCtxMenuPos().x" [style.top.px]="nodeCtxMenuPos().y">
+    @if (ui.nodeCtxMenuOpen()) {
+      <app-backdrop variant="ae-ctx-backdrop" [closeOnContextMenu]="true" (close)="closeNodeContextMenu()" />
+      <div class="ae-ctx-menu" [style.left.px]="ui.nodeCtxMenuPos().x" [style.top.px]="ui.nodeCtxMenuPos().y">
         <button class="ae-ctx-item" (click)="ctxEdit()">
           <span class="ae-ctx-icon" style="--pc: var(--fg-muted)"><app-icon name="edit" /></span>
-          <span>{{ nodeCtxKind() === 'data' ? 'Edit' : 'Rename' }}</span>
+          <span>{{ ui.nodeCtxKind() === 'data' ? 'Edit' : 'Rename' }}</span>
         </button>
         <button class="ae-ctx-item" (click)="ctxDuplicate()">
           <span class="ae-ctx-icon" style="--pc: var(--fg-muted)"><app-icon name="copy" /></span>
-          <span>Duplicate {{ nodeCtxKind() === 'data' ? 'structure' : 'node' }}</span>
+          <span>Duplicate {{ ui.nodeCtxKind() === 'data' ? 'structure' : 'node' }}</span>
         </button>
         <button class="ae-ctx-item ae-ctx-item-danger" (click)="ctxDelete()">
           <span class="ae-ctx-icon ae-ctx-icon-danger"><app-icon name="trash" /></span>
-          <span>Delete {{ nodeCtxKind() === 'data' ? 'structure' : 'node' }}</span>
+          <span>Delete {{ ui.nodeCtxKind() === 'data' ? 'structure' : 'node' }}</span>
         </button>
       </div>
     }
 
     <!-- Edge editor (weight + direction) -->
     @if (editEdgeId(); as eid) {
-      <div class="ae-ctx-backdrop"
-        (click)="closeEdgeEditor()"
-        (contextmenu)="closeEdgeEditor(); $event.preventDefault()"></div>
+      <app-backdrop variant="ae-ctx-backdrop" [closeOnContextMenu]="true" (close)="closeEdgeEditor()" />
       <div class="ag-edge-editor" [style.left.px]="editPos().x" [style.top.px]="editPos().y">
         <div class="ag-edit-row">
           <label>Weight</label>
@@ -341,9 +335,7 @@
 
     <!-- Node editor (rename for every node + contents for data-structure nodes) -->
     @if (editNodeId()) {
-      <div class="ae-ctx-backdrop"
-        (click)="closeNodeEditor()"
-        (contextmenu)="closeNodeEditor(); $event.preventDefault()"></div>
+      <app-backdrop variant="ae-ctx-backdrop" [closeOnContextMenu]="true" (close)="closeNodeEditor()" />
       <div class="ds-editor" [style.left.px]="editNodePos().x" [style.top.px]="editNodePos().y">
         <div class="ds-editor-row">
           <label>Name</label>
@@ -382,7 +374,7 @@
   </div>
 
   <!-- ── Canvas overview rail (right, collapsible) ─────────── -->
-  <aside class="ag-coderail ag-inspector" [class.collapsed]="codeRailCollapsed()">
+  <aside class="ag-coderail ag-inspector" [class.collapsed]="ui.codeRailCollapsed()">
     <ng-container [ngTemplateOutlet]="railHead"
       [ngTemplateOutletContext]="{ eyebrow: 'Canvas', title: 'Overview', vlabel: 'Overview', noun: 'overview', key: 'code', side: 'right', help: true }" />
 
@@ -498,28 +490,28 @@
         (notesChange)="onNotesChange($event)" />
 
       <!-- ── Debug panel (printDebug output) — opens upward, collapsible & resizable ── -->
-      <div class="ag-debug" [class.is-open]="debugOpen()" [class.is-resizing]="resizing()"
-        [style.--debug-h.px]="debugHeight()">
-        @if (debugOpen()) {
+      <div class="ag-debug" [class.is-open]="ui.debugOpen()" [class.is-resizing]="ui.resizing()"
+        [style.--debug-h.px]="ui.debugHeight()">
+        @if (ui.debugOpen()) {
           <div class="ag-debug-resize" (mousedown)="startDebugResize($event)"
             role="separator" aria-orientation="horizontal" aria-label="Resize debug panel"></div>
         }
         <div class="ag-debug-head">
-          <button class="ag-debug-toggle" type="button" (click)="debugOpen.set(!debugOpen())"
-            [attr.aria-expanded]="debugOpen()">
+          <button class="ag-debug-toggle" type="button" (click)="ui.debugOpen.set(!ui.debugOpen())"
+            [attr.aria-expanded]="ui.debugOpen()">
             <span class="ag-debug-mark"><app-icon name="code" /></span>
             <span class="ag-debug-title">Debug</span>
             @if (run.debug().length) {
               <span class="ag-debug-count">{{ run.debug().length }}</span>
             }
-            <app-icon class="ag-debug-chev" [name]="debugOpen() ? 'chevronDown' : 'chevronUp'" />
+            <app-icon class="ag-debug-chev" [name]="ui.debugOpen() ? 'chevronDown' : 'chevronUp'" />
           </button>
           <span class="grow"></span>
           <button class="ag-debug-run" type="button" (click)="runActive()" title="Run this file">
             <app-icon name="play" /> Run
           </button>
         </div>
-        @if (debugOpen()) {
+        @if (ui.debugOpen()) {
           <div class="ag-debug-body">
             @for (d of run.debug(); track $index) {
               <div class="ag-debug-line">
@@ -546,7 +538,7 @@
     </div>
 
     <!-- ── Algorithm overview rail (right, collapsible) ─────── -->
-    <aside class="ag-coderail ag-inspector" [class.collapsed]="codeRailCollapsed()">
+    <aside class="ag-coderail ag-inspector" [class.collapsed]="ui.codeRailCollapsed()">
       <ng-container [ngTemplateOutlet]="railHead"
         [ngTemplateOutletContext]="{ eyebrow: 'Algorithm', title: 'Overview', vlabel: 'Overview', noun: 'overview', key: 'code', side: 'right', help: true }" />
 
@@ -633,7 +625,7 @@
 
   @if (activeView() === 'run') {
     <!-- ── Run: data structures (left, collapsible) ──────────── -->
-    <aside class="ag-coderail ag-coderail-left ag-inspector" [class.collapsed]="runDataCollapsed()"
+    <aside class="ag-coderail ag-coderail-left ag-inspector" [class.collapsed]="ui.runDataCollapsed()"
       [style.--flash-ms]="run.animMs() + 'ms'">
       <ng-container [ngTemplateOutlet]="railHead"
         [ngTemplateOutletContext]="{ eyebrow: 'State', title: 'Data', vlabel: 'Data', noun: 'data', key: 'data', side: 'left', help: false }" />
@@ -863,17 +855,17 @@
     </div>
 
     <!-- ── Run: entry file (right, collapsible + resizable, read-only) ── -->
-    <aside class="ag-coderail ag-runcode-rail" [class.collapsed]="runCodeCollapsed()"
-      [class.is-resizing]="resizing()"
-      [style.width.px]="runCodeCollapsed() ? null : runCodeWidth()">
-      @if (!runCodeCollapsed()) {
+    <aside class="ag-coderail ag-runcode-rail" [class.collapsed]="ui.runCodeCollapsed()"
+      [class.is-resizing]="ui.resizing()"
+      [style.width.px]="ui.runCodeCollapsed() ? null : ui.runCodeWidth()">
+      @if (!ui.runCodeCollapsed()) {
         <div class="ag-coderail-resize ag-coderail-resize-left" (mousedown)="startRunCodeResize($event)"
           role="separator" aria-orientation="vertical" aria-label="Resize panel"></div>
       }
       <ng-container [ngTemplateOutlet]="railHead"
         [ngTemplateOutletContext]="{ eyebrow: 'Run', title: run.entryFile()?.name ?? 'main.algo', vlabel: 'Code', noun: 'code', key: 'runcode', side: 'right', help: false }" />
 
-      @if (!runCodeCollapsed() && files().length > 1) {
+      @if (!ui.runCodeCollapsed() && files().length > 1) {
         <div class="ag-run-entry">
           <span class="ag-run-entry-label">Run file</span>
           <select class="ag-run-entry-select" (change)="run.setEntry($any($event.target).value)">
@@ -924,7 +916,7 @@
 }
 
 <!-- ── Pseudocode syntax guide (opened from the library rail "?") ── -->
-@if (syntaxOpen()) {
+@if (ui.syntaxOpen()) {
   <div class="ds-modal-backdrop" (click)="closeSyntax()">
     <div class="ag-syntax-modal" (click)="$event.stopPropagation()">
       <div class="ag-syntax-head">
@@ -965,7 +957,7 @@
 }
 
 <!-- ── Import: choose the library or your own file ── -->
-@if (importOpen()) {
+@if (ui.importOpen()) {
   <div class="ds-modal-backdrop" (click)="closeImport()">
     <div class="ds-modal ag-import-modal" style="--nc: var(--accent)" (click)="$event.stopPropagation()">
       <div class="ds-modal-head">
@@ -1036,7 +1028,7 @@
 }
 
 <!-- ── Export: canvas (.json) or an algorithm (.algo) ── -->
-@if (exportOpen()) {
+@if (ui.exportOpen()) {
   <div class="ds-modal-backdrop" (click)="closeExport()">
     <div class="ds-modal ag-import-modal" style="--nc: var(--accent)" (click)="$event.stopPropagation()">
       <div class="ds-modal-head">
@@ -1258,19 +1250,19 @@
        addable  — whether a builder-mode click drops it on the canvas -->
 <ng-template #libItem let-item let-key="key" let-groups="groups" let-addable="addable">
   <div class="ae-toolitem" role="button" tabindex="0" [style.--nc]="item.color"
-    [class.expanded]="expandedLib() === key"
+    [class.expanded]="ui.expandedLib() === key"
     (click)="onLibItemClick($event, key)"
     (keydown.enter)="onLibItemClick($event, key)"
     (keydown.space)="$event.preventDefault(); onLibItemClick($event, key)">
     <span class="ae-toolitem-rail"></span>
     <span class="ae-glyph"><app-icon [name]="item.icon" /></span>
-    @if (!railCollapsed()) {
+    @if (!ui.railCollapsed()) {
       <span class="ae-toolitem-text">
         <span class="n">{{ item.label }}</span>
         <span class="s">{{ item.sub }}</span>
       </span>
       @if (activeView() === 'algorithm') {
-        <span class="ae-toolitem-caret" [class.open]="expandedLib() === key">
+        <span class="ae-toolitem-caret" [class.open]="ui.expandedLib() === key">
           <app-icon name="chevronDown" />
         </span>
       } @else if (addable) {
@@ -1281,7 +1273,7 @@
       }
     }
   </div>
-  @if (activeView() === 'algorithm' && !railCollapsed() && expandedLib() === key) {
+  @if (activeView() === 'algorithm' && !ui.railCollapsed() && ui.expandedLib() === key) {
     <div class="ae-libcard" [style.--nc]="item.color">
       <p class="ae-libcard-desc">{{ item.description }}</p>
       <ng-container [ngTemplateOutlet]="apiGroups" [ngTemplateOutletContext]="{ $implicit: groups }" />

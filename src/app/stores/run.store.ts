@@ -5,56 +5,36 @@ import { compileAndRun, type RunInput } from '../lang/run';
 import { emptyEffects, type DataSnapshot, type GraphInput, type RunResult, type SavedCanvas } from '../lang/trace';
 import type { GEdge, GNode, NodeKind } from '../models/graph.model';
 import { makeDataNode, type DataNode, type HeapEntry } from '../models/data-structure.model';
+import { makeInputPort, makeOutputPort, sourceNodeId, targetNodeId } from '../models/port.util';
+import { diffData, heapKey, type DataDiff } from './run-diff';
 
 /** Playback speeds, cycled by the transport's speed button. */
 const SPEEDS = [0.5, 1, 2, 4] as const;
 /** Dwell at 1× — one step roughly every two-thirds of a second. */
 const BASE_DWELL_MS = 700;
 
-/** What a single data structure changed between two steps — drives the panel flash. */
-interface DataDiff {
-  /** Display values newly present vs the previous step (sequence/set items; pqueue `value priority`). */
-  values: Set<string>;
-  /** Map keys added, or whose value changed. */
-  keys: Set<string>;
-  /** Matrix row indices whose contents changed. */
-  rows: Set<number>;
-  /** Whether anything at all changed (including a pure removal) — drives the header pulse. */
-  changed: boolean;
+/** A graph-snapshot vertex (or a saved-canvas vertex) as the canvas/run view model. */
+function snapshotNodeToGNode(n: { id: string; type: string; label: string; x: number; y: number }): GNode {
+  return { id: n.id, kind: n.type as NodeKind, label: n.label, position: { x: n.x, y: n.y } };
 }
 
-/** Stable key for a priority-queue entry, so equal values at different priorities are distinct. */
-const heapKey = (e: HeapEntry): string => `${e.value} ${e.priority}`;
+/** A graph-snapshot edge (or a saved-canvas edge) as the canvas/run view model. */
+function snapshotEdgeToGEdge(e: { id: string; src: string; tgt: string; weight: number; directed: boolean }): GEdge {
+  return { id: e.id, outputId: makeOutputPort(e.src), inputId: makeInputPort(e.tgt), weight: e.weight, directed: e.directed };
+}
 
-/**
- * Diff one structure against its previous-step snapshot (a missing `prev` means it
- * was just created). Items/heap use a multiset compare so a value is flagged only
- * when a *new* occurrence appears; maps compare per key; matrices compare per row.
- */
-function diffData(prev: DataSnapshot | undefined, cur: DataSnapshot): DataDiff {
-  const values = new Set<string>();
-  const keys = new Set<string>();
-  const rows = new Set<number>();
-
-  const curVals = cur.kind === 'PQUEUE' ? cur.heap.map(heapKey) : cur.items.map(String);
-  const prevVals = !prev ? [] : prev.kind === 'PQUEUE' ? prev.heap.map(heapKey) : prev.items.map(String);
-  const prevCount = new Map<string, number>();
-  for (const v of prevVals) prevCount.set(v, (prevCount.get(v) ?? 0) + 1);
-  const curCount = new Map<string, number>();
-  for (const v of curVals) curCount.set(v, (curCount.get(v) ?? 0) + 1);
-  for (const [v, n] of curCount) if (n > (prevCount.get(v) ?? 0)) values.add(v);
-
-  const prevMap = new Map((prev?.entries ?? []).map((e) => [e.key, String(e.value)]));
-  for (const e of cur.entries) if (prevMap.get(e.key) !== String(e.value)) keys.add(e.key);
-
-  for (let r = 0; r < cur.matrix.length; r++) {
-    if ((prev?.matrix[r] ?? []).join(' ') !== cur.matrix[r].join(' ')) rows.add(r);
-  }
-
-  const sizeChanged =
-    !prev || curVals.length !== prevVals.length || cur.entries.length !== (prev.entries?.length ?? 0);
-  const changed = !prev || values.size > 0 || keys.size > 0 || rows.size > 0 || sizeChanged;
-  return { values, keys, rows, changed };
+/** A data-structure snapshot (with its current contents) as a renderable DataNode. */
+function snapshotToDataNode(d: DataSnapshot): DataNode {
+  return {
+    id: d.id,
+    kind: d.kind,
+    label: d.label,
+    position: { x: d.x, y: d.y },
+    items: d.items,
+    entries: d.entries,
+    heap: d.heap,
+    matrix: d.matrix,
+  };
 }
 
 /**
@@ -120,8 +100,8 @@ export class RunStore {
   }
   /** The mark type on an edge at the current step, or null when unmarked. */
   edgeMarkOf(edge: GEdge): string | null {
-    const src = edge.outputId.replace(/-out$/, '');
-    const tgt = edge.inputId.replace(/-in$/, '');
+    const src = sourceNodeId(edge.outputId);
+    const tgt = targetNodeId(edge.inputId);
     return this.edgeMarks()[`${src}->${tgt}`] ?? null;
   }
   /** The innermost active `for each` loop's progress, for the iteration popup. */
@@ -141,36 +121,19 @@ export class RunStore {
   readonly graphNodes = computed<GNode[]>(() => {
     const g = this.currentStep()?.graph;
     if (!g) return this.canvas.nodes();
-    return g.nodes.map((n) => ({ id: n.id, kind: n.type as NodeKind, label: n.label, position: { x: n.x, y: n.y } }));
+    return g.nodes.map(snapshotNodeToGNode);
   });
   /** Graph edges as of the current step. */
   readonly graphEdges = computed<GEdge[]>(() => {
     const g = this.currentStep()?.graph;
     if (!g) return this.canvas.edges();
-    return g.edges.map((e) => ({
-      id: e.id,
-      outputId: `${e.src}-out`,
-      inputId: `${e.tgt}-in`,
-      weight: e.weight,
-      directed: e.directed,
-    }));
+    return g.edges.map(snapshotEdgeToGEdge);
   });
   /** Data-structure nodes drawn on the run canvas — only the rendered ones (panel-only structures are skipped). */
   readonly runDataNodes = computed<DataNode[]>(() => {
     const step = this.currentStep();
     if (!step) return this.canvas.dataNodes();
-    return step.data
-      .filter((d) => d.rendered)
-      .map((d) => ({
-      id: d.id,
-      kind: d.kind,
-      label: d.label,
-      position: { x: d.x, y: d.y },
-      items: d.items,
-      entries: d.entries,
-      heap: d.heap,
-      matrix: d.matrix,
-    }));
+    return step.data.filter((d) => d.rendered).map(snapshotToDataNode);
   });
   /** Effect transition duration (ms), shortened as the playback speeds up. */
   readonly animMs = computed(() => Math.round(450 / this.speed()));
@@ -302,19 +265,8 @@ export class RunStore {
   /** Persist a saved graph back onto the canvas (replacing it). */
   private commit(saved: SavedCanvas): void {
     this.canvas.load({
-      nodes: saved.nodes.map((n) => ({
-        id: n.id,
-        kind: n.type as NodeKind,
-        label: n.label,
-        position: { x: n.x, y: n.y },
-      })),
-      edges: saved.edges.map((e) => ({
-        id: e.id,
-        outputId: `${e.src}-out`,
-        inputId: `${e.tgt}-in`,
-        weight: e.weight,
-        directed: e.directed,
-      })),
+      nodes: saved.nodes.map(snapshotNodeToGNode),
+      edges: saved.edges.map(snapshotEdgeToGEdge),
       dataNodes: saved.data.map((d) => makeDataNode(d.kind, d.id, { x: d.x, y: d.y }, d.label)),
     });
   }
@@ -389,8 +341,8 @@ export class RunStore {
       y: n.position.y,
     }));
     const edges = this.canvas.edges().map((e) => ({
-      src: e.outputId.replace(/-out$/, ''),
-      tgt: e.inputId.replace(/-in$/, ''),
+      src: sourceNodeId(e.outputId),
+      tgt: targetNodeId(e.inputId),
       weight: e.weight,
       directed: e.directed,
     }));

@@ -25,6 +25,7 @@ import {
 import { IconComponent } from './shared/icon.component';
 import { FlashDirective } from './shared/flash.directive';
 import { FlipDirective } from './shared/flip.directive';
+import { BackdropComponent } from './shared/backdrop.component';
 import { CodeEditorComponent } from './editor/code-editor.component';
 import { DocsComponent } from './docs/docs.component';
 import { type DocAction } from './docs/docs-content';
@@ -50,6 +51,7 @@ import { SYNTAX_GUIDE } from './models/syntax-guide';
 import { FilesStore } from './stores/files.store';
 import { CanvasStore } from './stores/canvas.store';
 import { RunStore } from './stores/run.store';
+import { UIStateStore } from './stores/ui-state.store';
 import { LibraryStore, type LibraryEntry, type LibraryIndex } from './stores/library.store';
 import {
   DATA_PALETTE,
@@ -70,6 +72,7 @@ import {
   type NodeKind,
   type PaletteItem,
 } from './models/graph.model';
+import { makeInputPort, makeOutputPort } from './models/port.util';
 
 /** View model for the info modal — shared by graph nodes and data structures. */
 interface NodeInfo {
@@ -88,7 +91,7 @@ type InspectorRail = 'code' | 'data' | 'runcode';
   selector: 'app-root',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FFlowModule, IconComponent, FlashDirective, FlipDirective, CodeEditorComponent, DocsComponent, NgTemplateOutlet],
+  imports: [FFlowModule, IconComponent, FlashDirective, FlipDirective, BackdropComponent, CodeEditorComponent, DocsComponent, NgTemplateOutlet],
   templateUrl: './app.html',
   styleUrls: ['./app.scss', './editor-chrome.scss', './editor-nodes.scss', './data-nodes.scss'],
 })
@@ -100,6 +103,8 @@ export class App {
   protected readonly fileStore = inject(FilesStore);
   /** Step-by-step execution state for the Run workspace. */
   protected readonly run = inject(RunStore);
+  /** Transient workspace chrome (rails, panels, context menus, modals). */
+  protected readonly ui = inject(UIStateStore);
   /** The bundled library of ready-made algorithms and canvases. */
   private readonly library = inject(LibraryStore);
   private readonly fCanvas = viewChild(FCanvasComponent);
@@ -194,7 +199,6 @@ export class App {
   });
 
   /** In algorithm mode, which library item's inline reference card is open (`graph:KIND` / `data:KIND`). */
-  protected readonly expandedLib = signal<string | null>(null);
 
   // ── Algorithm source files (owned by FilesStore; re-exposed for the template) ──
   protected readonly files = this.fileStore.files;
@@ -234,7 +238,7 @@ export class App {
     this.run.entryId.set(this.activeFileId());
     this.run.build(); // compile + run now
     this.runError.set(this.run.error()); // null when clean, message on failure
-    if (this.run.debug().length) this.debugOpen.set(true); // surface fresh printDebug output
+    if (this.run.debug().length) this.ui.debugOpen.set(true); // surface fresh printDebug output
   }
 
   /** Estimated Big-O of the entry algorithm, shown in the overview's Complexity card. */
@@ -344,7 +348,7 @@ export class App {
   };
   /** Whether the Edge reference shows under the current library search. */
   protected readonly edgeVisible = computed(() => {
-    const q = this.librarySearch().trim().toLowerCase();
+    const q = this.ui.librarySearch().trim().toLowerCase();
     return !q || 'edge'.includes(q);
   });
 
@@ -356,31 +360,7 @@ export class App {
   // Zoom % + pan-in-progress flag are owned by the viewport controller (facade).
   protected readonly zoomLevel = this.viewport.zoomLevel;
   protected readonly panning = this.viewport.panning;
-  protected readonly railCollapsed = signal(false);
-  protected readonly codeRailCollapsed = signal(false);
-  protected readonly runDataCollapsed = signal(false);
-  protected readonly runCodeCollapsed = signal(false);
-  /** Width of the Run code rail (px), adjustable by dragging its left edge. */
-  protected readonly runCodeWidth = signal(320);
-  /** True while the user is dragging a panel's resize handle. */
-  protected readonly resizing = signal(false);
-
-  /** Whether the Algorithm view's bottom debug panel (printDebug output) is expanded. */
-  protected readonly debugOpen = signal(false);
-  /** Height (px) of the expanded debug panel — drag its top edge to resize. */
-  protected readonly debugHeight = signal(180);
-  protected readonly librarySearch = signal('');
-  protected readonly tipsOpen = signal(false);
   private readonly selectedConnectionIds = signal<string[]>([]);
-
-  // Context menus
-  protected readonly ctxMenuOpen = signal(false);
-  protected readonly ctxMenuPos = signal<{ x: number; y: number }>({ x: 0, y: 0 });
-  protected readonly nodeCtxMenuOpen = signal(false);
-  protected readonly nodeCtxMenuPos = signal<{ x: number; y: number }>({ x: 0, y: 0 });
-  protected readonly nodeCtxTarget = signal<string | null>(null);
-  /** Whether the open node context menu targets a graph vertex or a data-structure node. */
-  protected readonly nodeCtxKind = signal<'graph' | 'data'>('graph');
 
   // Edge editor (weight + direction)
   protected readonly editEdgeId = signal<string | null>(null);
@@ -415,7 +395,6 @@ export class App {
 
   // Syntax-guide modal — DSL reference with worked examples, opened from the library rail.
   protected readonly syntaxGuide = SYNTAX_GUIDE;
-  protected readonly syntaxOpen = signal(false);
 
   private ctxCanvasPos = { x: 0, y: 0 };
 
@@ -428,23 +407,23 @@ export class App {
 
   // ── Derived ───────────────────────────────────────────────
   protected readonly libraryItems = computed(() => {
-    const q = this.librarySearch().trim().toLowerCase();
+    const q = this.ui.librarySearch().trim().toLowerCase();
     if (!q) return this.palette;
     return this.palette.filter((i) => i.label.toLowerCase().includes(q) || i.sub.toLowerCase().includes(q));
   });
 
   protected readonly dataLibraryItems = computed(() => {
-    const q = this.librarySearch().trim().toLowerCase();
+    const q = this.ui.librarySearch().trim().toLowerCase();
     if (!q) return this.dataPalette;
     return this.dataPalette.filter((i) => i.label.toLowerCase().includes(q) || i.sub.toLowerCase().includes(q));
   });
 
   // ── Node helpers ──────────────────────────────────────────
   outputId(node: GNode): string {
-    return `${node.id}-out`;
+    return makeOutputPort(node.id);
   }
   inputId(node: GNode): string {
-    return `${node.id}-in`;
+    return makeInputPort(node.id);
   }
   /** Template hooks for the per-kind vertex appearance (defined in the model). */
   protected readonly nodeIcon = nodeIcon;
@@ -491,7 +470,7 @@ export class App {
   }
 
   addDataNodeAt(kind: DataStructureKind): void {
-    this.ctxMenuOpen.set(false);
+    this.ui.ctxMenuOpen.set(false);
     this.canvas.addDataNodeAt(kind, this.ctxCanvasPos);
   }
 
@@ -506,8 +485,8 @@ export class App {
 
   // ── Node editor (rename + data-structure contents) ────────
   private openNodeEditorAt(id: string, kind: 'graph' | 'data', pos: { x: number; y: number }): void {
-    this.ctxMenuOpen.set(false);
-    this.nodeCtxMenuOpen.set(false);
+    this.ui.ctxMenuOpen.set(false);
+    this.ui.nodeCtxMenuOpen.set(false);
     this.closeEdgeEditor();
     const node =
       kind === 'data' ? this.dataNodes().find((n) => n.id === id) : this.nodes().find((n) => n.id === id);
@@ -526,9 +505,9 @@ export class App {
 
   /** Open the editor from the node context menu's Edit / Rename item. */
   ctxEdit(): void {
-    const id = this.nodeCtxTarget();
+    const id = this.ui.nodeCtxTarget();
     if (!id) return;
-    this.openNodeEditorAt(id, this.nodeCtxKind(), this.nodeCtxMenuPos());
+    this.openNodeEditorAt(id, this.ui.nodeCtxKind(), this.ui.nodeCtxMenuPos());
   }
 
   closeNodeEditor(): void {
@@ -577,8 +556,8 @@ export class App {
   private showInfo(event: Event, info: NodeInfo): void {
     event.preventDefault();
     event.stopPropagation();
-    this.ctxMenuOpen.set(false);
-    this.nodeCtxMenuOpen.set(false);
+    this.ui.ctxMenuOpen.set(false);
+    this.ui.nodeCtxMenuOpen.set(false);
     this.closeNodeEditor();
     this.infoCard.set(info);
   }
@@ -591,10 +570,10 @@ export class App {
   openSyntax(event: Event): void {
     event.preventDefault();
     event.stopPropagation();
-    this.syntaxOpen.set(true);
+    this.ui.syntaxOpen.set(true);
   }
   closeSyntax(): void {
-    this.syntaxOpen.set(false);
+    this.ui.syntaxOpen.set(false);
   }
 
   /** Rename live; an empty or duplicate draft surfaces an error and leaves the model untouched. */
@@ -640,8 +619,8 @@ export class App {
   openEdgeEditor(event: MouseEvent, edgeId: string): void {
     event.preventDefault();
     event.stopPropagation();
-    this.ctxMenuOpen.set(false);
-    this.nodeCtxMenuOpen.set(false);
+    this.ui.ctxMenuOpen.set(false);
+    this.ui.nodeCtxMenuOpen.set(false);
     this.editPos.set({ x: event.clientX, y: event.clientY });
     this.editEdgeId.set(edgeId);
   }
@@ -695,59 +674,59 @@ export class App {
     const target = event.target as HTMLElement;
     if (target.closest('.ae-node, .ds-node')) return;
     event.preventDefault();
-    this.ctxMenuPos.set({ x: event.clientX, y: event.clientY });
+    this.ui.ctxMenuPos.set({ x: event.clientX, y: event.clientY });
     const wrap = (event.currentTarget as HTMLElement).getBoundingClientRect();
     this.ctxCanvasPos = this.viewport.toCanvasCoords(event.clientX, event.clientY, wrap);
-    this.nodeCtxMenuOpen.set(false);
-    this.ctxMenuOpen.set(true);
+    this.ui.nodeCtxMenuOpen.set(false);
+    this.ui.ctxMenuOpen.set(true);
   }
 
   addNodeAt(kind: NodeKind): void {
-    this.ctxMenuOpen.set(false);
+    this.ui.ctxMenuOpen.set(false);
     this.canvas.addNodeAt(kind, this.ctxCanvasPos);
   }
 
   closeContextMenu(): void {
-    this.ctxMenuOpen.set(false);
+    this.ui.ctxMenuOpen.set(false);
   }
 
   onNodeContextMenu(event: MouseEvent, nodeId: string): void {
     event.preventDefault();
     event.stopPropagation();
-    this.ctxMenuOpen.set(false);
-    this.nodeCtxMenuPos.set({ x: event.clientX, y: event.clientY });
-    this.nodeCtxTarget.set(nodeId);
-    this.nodeCtxKind.set('graph');
-    this.nodeCtxMenuOpen.set(true);
+    this.ui.ctxMenuOpen.set(false);
+    this.ui.nodeCtxMenuPos.set({ x: event.clientX, y: event.clientY });
+    this.ui.nodeCtxTarget.set(nodeId);
+    this.ui.nodeCtxKind.set('graph');
+    this.ui.nodeCtxMenuOpen.set(true);
   }
 
   onDataNodeContextMenu(event: MouseEvent, nodeId: string): void {
     event.preventDefault();
     event.stopPropagation();
-    this.ctxMenuOpen.set(false);
-    this.nodeCtxMenuPos.set({ x: event.clientX, y: event.clientY });
-    this.nodeCtxTarget.set(nodeId);
-    this.nodeCtxKind.set('data');
-    this.nodeCtxMenuOpen.set(true);
+    this.ui.ctxMenuOpen.set(false);
+    this.ui.nodeCtxMenuPos.set({ x: event.clientX, y: event.clientY });
+    this.ui.nodeCtxTarget.set(nodeId);
+    this.ui.nodeCtxKind.set('data');
+    this.ui.nodeCtxMenuOpen.set(true);
   }
 
   closeNodeContextMenu(): void {
-    this.nodeCtxMenuOpen.set(false);
-    this.nodeCtxTarget.set(null);
+    this.ui.nodeCtxMenuOpen.set(false);
+    this.ui.nodeCtxTarget.set(null);
   }
 
   /** Duplicate / delete from the node context menu, routed to the right collection. */
   ctxDuplicate(): void {
-    const id = this.nodeCtxTarget();
+    const id = this.ui.nodeCtxTarget();
     if (!id) return;
-    if (this.nodeCtxKind() === 'data') this.copyDataNode(id);
+    if (this.ui.nodeCtxKind() === 'data') this.copyDataNode(id);
     else this.copyNode(id);
   }
 
   ctxDelete(): void {
-    const id = this.nodeCtxTarget();
+    const id = this.ui.nodeCtxTarget();
     if (!id) return;
-    if (this.nodeCtxKind() === 'data') this.deleteDataNode(id);
+    if (this.ui.nodeCtxKind() === 'data') this.deleteDataNode(id);
     else this.deleteNode(id);
     this.closeNodeContextMenu();
   }
@@ -761,13 +740,13 @@ export class App {
   @HostListener('window:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
-      this.ctxMenuOpen.set(false);
+      this.ui.ctxMenuOpen.set(false);
       this.closeNodeContextMenu();
       this.closeEdgeEditor();
       this.closeNodeEditor();
       this.closeNodeInfo();
       this.closeSyntax();
-      this.tipsOpen.set(false);
+      this.ui.tipsOpen.set(false);
       return;
     }
     if (event.key !== 'Delete' && event.key !== 'Backspace') return;
@@ -794,7 +773,7 @@ export class App {
   // ── Rails ─────────────────────────────────────────────────
   /** The library rail on the far left — collapsed independently of the inspectors. */
   toggleRail(): void {
-    this.railCollapsed.update((v) => !v);
+    this.ui.railCollapsed.update((v) => !v);
   }
 
   /**
@@ -802,9 +781,9 @@ export class App {
    * `code` is shared by the Canvas and Algorithm overviews (only one shows at a time).
    */
   private readonly inspectorRails: Record<InspectorRail, WritableSignal<boolean>> = {
-    code: this.codeRailCollapsed,
-    data: this.runDataCollapsed,
-    runcode: this.runCodeCollapsed,
+    code: this.ui.codeRailCollapsed,
+    data: this.ui.runDataCollapsed,
+    runcode: this.ui.runCodeCollapsed,
   };
 
   /** Toggle one inspector rail by its key — drives the shared rail chrome. */
@@ -817,15 +796,15 @@ export class App {
   startRunCodeResize(event: MouseEvent): void {
     event.preventDefault();
     const startX = event.clientX;
-    const startW = this.runCodeWidth();
+    const startW = this.ui.runCodeWidth();
     const move = (e: MouseEvent) =>
-      this.runCodeWidth.set(Math.max(240, Math.min(640, startW + (startX - e.clientX))));
+      this.ui.runCodeWidth.set(Math.max(240, Math.min(640, startW + (startX - e.clientX))));
     const up = () => {
       window.removeEventListener('mousemove', move);
       window.removeEventListener('mouseup', up);
-      this.resizing.set(false);
+      this.ui.resizing.set(false);
     };
-    this.resizing.set(true);
+    this.ui.resizing.set(true);
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
   }
@@ -835,15 +814,15 @@ export class App {
   startDebugResize(event: MouseEvent): void {
     event.preventDefault();
     const startY = event.clientY;
-    const startH = this.debugHeight();
+    const startH = this.ui.debugHeight();
     const move = (e: MouseEvent) =>
-      this.debugHeight.set(Math.max(80, Math.min(500, startH + (startY - e.clientY))));
+      this.ui.debugHeight.set(Math.max(80, Math.min(500, startH + (startY - e.clientY))));
     const up = () => {
       window.removeEventListener('mousemove', move);
       window.removeEventListener('mouseup', up);
-      this.resizing.set(false);
+      this.ui.resizing.set(false);
     };
-    this.resizing.set(true);
+    this.ui.resizing.set(true);
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
   }
@@ -851,12 +830,12 @@ export class App {
   // ── View switch (graph builder ↔ algorithm editor) ────────
   setView(view: 'canvas' | 'algorithm' | 'run' | 'docs'): void {
     this.activeView.set(view);
-    this.expandedLib.set(null);
+    this.ui.expandedLib.set(null);
   }
 
   /** Toggle the inline reference card under a library item (algorithm mode). */
   toggleLibCard(key: string): void {
-    this.expandedLib.update((cur) => (cur === key ? null : key));
+    this.ui.expandedLib.update((cur) => (cur === key ? null : key));
   }
   graphGroups(kind: NodeKind): ApiGroup[] {
     return GRAPH_NODE_API[kind];
@@ -926,18 +905,17 @@ export class App {
   protected readonly canvasSummary = this.canvas.summary;
 
   // ── Export modal ──────────────────────────────────────────
-  protected readonly exportOpen = signal(false);
   /** Which pane of the export modal is showing: the two choices, or the file picker. */
   protected readonly exportMode = signal<'choose' | 'algorithm'>('choose');
 
   /** Open the export modal at its choice screen (canvas vs. algorithm). */
   openExport(): void {
     this.exportMode.set('choose');
-    this.exportOpen.set(true);
+    this.ui.exportOpen.set(true);
   }
 
   closeExport(): void {
-    this.exportOpen.set(false);
+    this.ui.exportOpen.set(false);
   }
 
   /** Export the whole canvas (graph + data structures) as a JSON file. */
@@ -990,7 +968,6 @@ export class App {
   }
 
   // ── Import modal ──────────────────────────────────────────
-  protected readonly importOpen = signal(false);
   /** Which pane of the import modal is showing: the two choices, or the library browser. */
   protected readonly importMode = signal<'choose' | 'library'>('choose');
   protected readonly libraryIndex = signal<LibraryIndex | null>(null);
@@ -998,11 +975,11 @@ export class App {
   /** Open the import modal at its choice screen (library vs. own file). */
   openImport(): void {
     this.importMode.set('choose');
-    this.importOpen.set(true);
+    this.ui.importOpen.set(true);
   }
 
   closeImport(): void {
-    this.importOpen.set(false);
+    this.ui.importOpen.set(false);
   }
 
   /** Switch to the library browser, lazily fetching the manifest the first time. */
@@ -1058,7 +1035,7 @@ export class App {
         break;
       case 'syntax':
         this.setView('algorithm');
-        this.syntaxOpen.set(true);
+        this.ui.syntaxOpen.set(true);
         break;
       case 'import':
         this.openImport();
