@@ -23,6 +23,8 @@ import {
   FSelectionChangeEvent,
 } from '@foblex/flow';
 import { IconComponent } from './shared/icon.component';
+import { FlashDirective } from './shared/flash.directive';
+import { FlipDirective } from './shared/flip.directive';
 import { CodeEditorComponent } from './editor/code-editor.component';
 import { DocsComponent } from './docs/docs.component';
 import { type DocAction } from './docs/docs-content';
@@ -86,7 +88,7 @@ type InspectorRail = 'code' | 'data' | 'runcode';
   selector: 'app-root',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FFlowModule, IconComponent, CodeEditorComponent, DocsComponent, NgTemplateOutlet],
+  imports: [FFlowModule, IconComponent, FlashDirective, FlipDirective, CodeEditorComponent, DocsComponent, NgTemplateOutlet],
   templateUrl: './app.html',
   styleUrls: ['./app.scss', './editor-chrome.scss', './editor-nodes.scss', './data-nodes.scss'],
 })

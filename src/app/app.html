@@ -633,7 +633,8 @@
 
   @if (activeView() === 'run') {
     <!-- ── Run: data structures (left, collapsible) ──────────── -->
-    <aside class="ag-coderail ag-coderail-left ag-inspector" [class.collapsed]="runDataCollapsed()">
+    <aside class="ag-coderail ag-coderail-left ag-inspector" [class.collapsed]="runDataCollapsed()"
+      [style.--flash-ms]="run.animMs() + 'ms'">
       <ng-container [ngTemplateOutlet]="railHead"
         [ngTemplateOutletContext]="{ eyebrow: 'State', title: 'Data', vlabel: 'Data', noun: 'data', key: 'data', side: 'left', help: false }" />
 
@@ -642,21 +643,32 @@
         @if (run.vars().length) {
           <div class="ag-watch-group">
             <div class="ag-watch-cap">Variables</div>
-            @for (v of run.vars(); track v.name) {
-              <div class="ag-watch-row">
+            @for (v of run.varsView(); track v.name) {
+              <div class="ag-watch-row" [class.is-spotlit]="run.isSpotlit(v.name)"
+                [class.is-pinned]="run.isPinned(v.name)"
+                [agFlip]="$index"
+                [agFlash]="run.varChanged(v.name) ? run.stepNumber() : null">
                 <span class="ag-watch-name">{{ v.name }}</span>
                 <span class="ag-watch-eq">←</span>
                 <span class="ag-watch-val" [attr.data-kind]="v.kind">{{ v.value }}</span>
+                @if (run.isPinned(v.name)) { <app-icon class="ag-pin" name="pin" /> }
+                @if (run.noteOf(v.name); as n) { <span class="ag-note">{{ n }}</span> }
               </div>
             }
           </div>
         }
         @if (run.dataState().length) { <div class="ag-watch-cap">Data structures</div> }
-        @for (dn of run.dataState(); track dn.id) {
-          <div class="ag-statevar" [style.--nc]="dataColor(dn.kind)">
+        @for (dn of run.dataView(); track dn.id) {
+          <div class="ag-statevar" [style.--nc]="dataColor(dn.kind)"
+            [class.is-spotlit]="run.isSpotlit(dn.id) || run.isSpotlit(dn.label)"
+            [class.is-pinned]="run.isPinned(dn.id) || run.isPinned(dn.label)"
+            [agFlip]="$index">
             <div class="ag-statevar-head">
-              <span class="ag-statevar-dot"></span>
+              <span class="ag-statevar-dot"
+                [agFlash]="run.dataChanged(dn.id) ? run.stepNumber() : null"></span>
               <span class="ag-statevar-name">{{ dn.label }}</span>
+              @if (run.isPinned(dn.id) || run.isPinned(dn.label)) { <app-icon class="ag-pin" name="pin" /> }
+              @if (run.noteOf(dn.id) ?? run.noteOf(dn.label); as n) { <span class="ag-note">{{ n }}</span> }
               <span class="ag-statevar-type">{{ dataTypeLabel(dn.kind) }}</span>
             </div>
             <div class="ag-statevar-body">
@@ -664,7 +676,8 @@
                 @case ('MAP') {
                   @for (e of dn.entries; track $index) {
                     <div class="ag-kv"
-                      [class.is-loop-item]="run.loop()?.dsId === dn.id && run.loop()?.index === $index">
+                      [class.is-loop-item]="run.loop()?.dsId === dn.id && run.loop()?.index === $index"
+                      [agFlash]="run.entryChanged(dn.id, e.key) ? run.stepNumber() : null">
                       <span class="ag-k">{{ e.key }}</span>
                       <span class="ag-kv-arrow">→</span>
                       <span class="ag-v">{{ e.value }}</span>
@@ -675,7 +688,7 @@
                 }
                 @case ('PQUEUE') {
                   @for (h of sortedHeap(dn); track $index) {
-                    <div class="ag-kv">
+                    <div class="ag-kv" [agFlash]="run.heapChanged(dn.id, h) ? run.stepNumber() : null">
                       <span class="ag-prio">{{ h.priority }}</span>
                       <span class="ag-v">{{ h.value }}</span>
                     </div>
@@ -685,7 +698,8 @@
                 }
                 @case ('MATRIX') {
                   @for (row of dn.matrix; track $index) {
-                    <code class="ag-statevar-code">[{{ row.join(', ') }}]</code>
+                    <code class="ag-statevar-code"
+                      [agFlash]="run.rowChanged(dn.id, $index) ? run.stepNumber() : null">[{{ row.join(', ') }}]</code>
                   }
                 }
                 @default {
@@ -695,7 +709,8 @@
                       @for (it of dn.items; track $index) {
                         @if (!$first) { <span class="ag-seq-sep">, </span> }
                         <span class="ag-seq-item"
-                          [class.is-loop-item]="run.loop()?.dsId === dn.id && run.loop()?.index === $index">{{ it }}</span>
+                          [class.is-loop-item]="run.loop()?.dsId === dn.id && run.loop()?.index === $index"
+                          [agFlash]="run.itemChanged(dn.id, it) ? run.stepNumber() : null">{{ it }}</span>
                       }
                       <span class="ag-seq-br">{{ dn.kind === 'SET' ? '}' : ']' }}</span>
                     </code>

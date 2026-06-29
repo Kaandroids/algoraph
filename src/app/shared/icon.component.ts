@@ -86,6 +86,10 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       @case ('flag') {
         <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" />
       }
+      @case ('pin') {
+        <path d="M12 17v5" />
+        <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+      }
       @case ('code') {
         <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
       }

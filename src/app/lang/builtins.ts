@@ -58,6 +58,11 @@ export const BUILTINS: readonly BuiltinSpec[] = [
   { name: 'clearMarks' },
   { name: 'showMessage' },
   { name: 'hideMessage' },
+  { name: 'spotlight' },
+  { name: 'unspotlight' },
+  { name: 'note' },
+  { name: 'pin' },
+  { name: 'unpin' },
   { name: 'printDebug' },
   // ── Canvas editing ──
   { name: 'createNode' },

@@ -13,6 +13,9 @@ export class EffectsState {
   private readonly marks = new Map<string, string>(); // vertex id → mark type
   private readonly markedEdges = new Map<string, string>(); // edge key (`src->tgt`) → mark type
   private readonly labels = new Map<string, string>(); // vertex id → badge text
+  private readonly spotlit = new Set<string>(); // panel entries (var name / DS id|label) to emphasise
+  private readonly notes = new Map<string, string>(); // panel entry → transient author note
+  private readonly pinned = new Set<string>(); // panel entries pinned to the top, in pin order
   private message: CanvasMessage | null = null; // snackbar for the current step (cleared as each stepped statement begins)
   private scrollTo: ScrollTarget | null = null; // pending pan, consumed by the next step
 
@@ -31,6 +34,23 @@ export class EffectsState {
   setLabel(id: string, text: string): void {
     this.labels.set(id, text);
   }
+  spotlight(token: string): void {
+    this.spotlit.add(token);
+  }
+  unspotlight(token: string): void {
+    this.spotlit.delete(token);
+  }
+  setNote(token: string, text: string): void {
+    if (text) this.notes.set(token, text);
+    else this.notes.delete(token);
+  }
+  pin(token: string): void {
+    this.pinned.delete(token); // re-add so the most recently pinned entry sorts to the top
+    this.pinned.add(token);
+  }
+  unpin(token: string): void {
+    this.pinned.delete(token);
+  }
   setMessage(message: CanvasMessage | null): void {
     this.message = message;
   }
@@ -42,6 +62,8 @@ export class EffectsState {
     this.marks.clear();
     this.markedEdges.clear();
     this.labels.clear();
+    this.spotlit.clear();
+    this.notes.clear();
   }
 
   /** A snapshot for the current step; `cursors` are the active loop cursors. */
@@ -53,6 +75,9 @@ export class EffectsState {
     effects.cursors = cursors;
     effects.message = this.message;
     effects.scrollTo = this.scrollTo;
+    effects.spotlight = [...this.spotlit];
+    effects.notes = Object.fromEntries(this.notes);
+    effects.pins = [...this.pinned];
     return effects;
   }
 

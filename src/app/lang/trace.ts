@@ -96,6 +96,12 @@ export interface CanvasEffects {
   message: CanvasMessage | null;
   /** A vertex or edge the canvas should pan to and centre (consumed once). */
   scrollTo: ScrollTarget | null;
+  /** Panel entries the author asked to spotlight — variable names or structure ids/labels. */
+  spotlight: string[];
+  /** Transient author notes, keyed by variable name or structure id/label. */
+  notes: Record<string, string>;
+  /** Panel entries pinned to the top of their section, in pin order. */
+  pins: string[];
 }
 
 /** The innermost active `for each` loop's progress, shown in the iteration popup. */
@@ -159,5 +165,5 @@ export interface RunResult {
 }
 
 export function emptyEffects(): CanvasEffects {
-  return { marks: {}, markedEdges: {}, labels: {}, cursors: [], message: null, scrollTo: null };
+  return { marks: {}, markedEdges: {}, labels: {}, cursors: [], message: null, scrollTo: null, spotlight: [], notes: {}, pins: [] };
 }

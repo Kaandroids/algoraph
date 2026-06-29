@@ -231,6 +231,47 @@ describe('interpreter (Dijkstra seed)', () => {
     expect(last.effects.labels).toEqual({});
   });
 
+  it('spotlight() and note() emphasise panel entries (a structure by value, a variable by name)', () => {
+    const result = runSrc(
+      'total ← 5\n' +
+        'spotlight("total")\n' +
+        'spotlight(pq)\n' +
+        'note(pq, "extract-min")\n',
+      [makeDataNode('PQUEUE', 'ds-pq', { x: 0, y: 0 }, 'pq')],
+    );
+    expect(result.error).toBeNull();
+    const last = result.steps.at(-1)!;
+    expect([...last.effects.spotlight].sort()).toEqual(['ds-pq', 'total']); // structure → id, variable → name
+    expect(last.effects.notes).toEqual({ 'ds-pq': 'extract-min' });
+  });
+
+  it('unspotlight() drops one spotlight; clearMarks() wipes spotlights and notes', () => {
+    const partial = runSrc('spotlight("a")\nspotlight("b")\nunspotlight("a")\nnote("b", "seen")\n');
+    expect(partial.error).toBeNull();
+    const last = partial.steps.at(-1)!;
+    expect(last.effects.spotlight).toEqual(['b']);
+    expect(last.effects.notes).toEqual({ b: 'seen' });
+
+    const cleared = runSrc('spotlight("a")\nnote("a", "x")\nclearMarks()\n');
+    const lastCleared = cleared.steps.at(-1)!;
+    expect(lastCleared.effects.spotlight).toEqual([]);
+    expect(lastCleared.effects.notes).toEqual({});
+  });
+
+  it('pin() records entries in pin order and survives clearMarks(); unpin() removes one', () => {
+    const result = runSrc(
+      'pin(pq)\n' + // structure → id
+        'pin("dist")\n' + // variable → name
+        'clearMarks()\n' + // pins must survive a highlight reset
+        'unpin("dist")\n',
+      [makeDataNode('PQUEUE', 'ds-pq', { x: 0, y: 0 }, 'pq')],
+    );
+    expect(result.error).toBeNull();
+    expect(result.steps.find((s) => s.line === 3)!.effects.pins).toEqual(['ds-pq', 'dist']); // before clearMarks
+    const last = result.steps.at(-1)!;
+    expect(last.effects.pins).toEqual(['ds-pq']); // clearMarks kept pins; unpin dropped "dist"
+  });
+
   it('createNode adds vertices (auto-named) and createEdge connects them', () => {
     const result = runSrc(
       'clearGraph()\n' +

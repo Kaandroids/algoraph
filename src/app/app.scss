@@ -1185,6 +1185,110 @@
   font-weight: 600;
 }
 
+/* Step-to-step change highlight — a value/entry the current step just touched.
+   The `agFlash` directive holds `.is-flashing` on the element for as long as we
+   stay on the step and removes it on the next step, so the blink *runs* the whole
+   time we're here and stops the moment we move on. A steady, speed-independent
+   pulse reads clearly as "this just changed". */
+@keyframes ag-flash-pulse {
+  0% {
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+  }
+  100% {
+    background: color-mix(in srgb, var(--accent) 42%, transparent);
+  }
+}
+.is-flashing {
+  border-radius: 5px;
+  /* A little breathing room so the blink doesn't sit on the text. The matching
+     negative margin keeps neighbours from shifting as the class toggles. */
+  padding: 2px 6px;
+  margin: -2px -6px;
+  animation: ag-flash-pulse 0.8s ease-in-out infinite alternate;
+}
+/* Inline sequence items don't get border-box width, so compensate horizontally. */
+.ag-seq-item.is-flashing {
+  padding: 1px 4px;
+  margin: 0 -4px;
+}
+/* The structure-head dot blinks its ring (instead of sweeping its own fill). */
+@keyframes ag-flash-ring-pulse {
+  0% {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--nc) 25%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--nc) 60%, transparent);
+  }
+}
+.ag-statevar-dot.is-flashing {
+  padding: 0; /* the dot is a fixed 7px circle — opt out of the row padding above */
+  margin: 0;
+  background: var(--nc); /* keep its own fill; the blinking ring is the change cue */
+  animation: ag-flash-ring-pulse 0.8s ease-in-out infinite alternate;
+}
+
+/* Author-driven emphasis: spotlight() pulses an entry like a heartbeat (two quick
+   beats, then a rest) until cleared — set apart from the smooth automatic
+   change-blink; note() pins a tag. The accent border/bar stays on through the
+   rest so the spotlight reads even between beats. */
+@keyframes ag-spotlight-beat {
+  0%, 60%, 100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  15%, 45% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 32%, transparent);
+  }
+  30% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+@keyframes ag-spotlight-beat-row {
+  0%, 60%, 100% {
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+  15%, 45% {
+    box-shadow: inset 2px 0 0 var(--accent), 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
+  }
+  30% {
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+}
+.ag-statevar.is-spotlit {
+  border-color: var(--accent);
+  animation: ag-spotlight-beat 1.8s ease-in-out infinite;
+}
+.ag-watch-row.is-spotlit {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: 5px;
+  animation: ag-spotlight-beat-row 1.8s ease-in-out infinite;
+}
+.ag-watch-row.is-spotlit .ag-watch-name {
+  color: var(--accent);
+}
+.ag-note {
+  padding: 1px 7px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-radius: 999px;
+}
+.ag-watch-row .ag-note {
+  margin-left: auto;
+}
+/* pin() marker — a small thumbtack on entries floated to the top of the panel. */
+.ag-pin {
+  flex-shrink: 0;
+  align-self: center;
+  font-size: 11px;
+  color: var(--accent);
+}
+.ag-watch-row.is-pinned .ag-watch-name,
+.ag-statevar.is-pinned .ag-statevar-name {
+  color: var(--accent);
+}
+
 /* Right-side code panel mirrors the left rail's border. */
 /* Run code panel — a wide collapsible coderail holding the read-only editor. */
 .ag-runcode-rail {

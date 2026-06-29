@@ -64,6 +64,16 @@ function markType(value: Value | undefined): string {
   return typeof value === 'string' ? value : '';
 }
 
+/**
+ * The panel key a `spotlight`/`note` call targets: a data structure resolves to
+ * its id, anything else (typically a variable name passed as a string) to its
+ * display text. The Run panel matches this against variable names and structure
+ * ids/labels.
+ */
+function panelToken(value: Value | undefined): string {
+  return value instanceof RDataStructure ? value.id : String(display(value as Value));
+}
+
 /** Coarse value category for a watched variable, so the panel can tint it. */
 function varKind(value: Value): string {
   if (value instanceof Vertex) return 'vertex';
@@ -544,6 +554,35 @@ export class Interpreter {
       setLabel: ({ v0, args }) => {
         this.charge(1);
         this.effects.setLabel(v0().id, String(display(args[1])));
+        return null;
+      },
+      spotlight: ({ args }) => {
+        // Emphasise a variable or data structure in the Run panel — pass the structure
+        // itself, or a variable's name as a string. Persists like a mark until cleared.
+        this.charge(1);
+        this.effects.spotlight(panelToken(args[0]));
+        return null;
+      },
+      unspotlight: ({ args }) => {
+        this.charge(1);
+        this.effects.unspotlight(panelToken(args[0]));
+        return null;
+      },
+      note: ({ args }) => {
+        // Pin a short note onto a panel entry (a structure, or a variable by name).
+        this.charge(1);
+        this.effects.setNote(panelToken(args[0]), String(display(args[1])));
+        return null;
+      },
+      pin: ({ args }) => {
+        // Float a panel entry to the top of its section; survives clearMarks(), unpin() removes it.
+        this.charge(1);
+        this.effects.pin(panelToken(args[0]));
+        return null;
+      },
+      unpin: ({ args }) => {
+        this.charge(1);
+        this.effects.unpin(panelToken(args[0]));
         return null;
       },
       showMessage: ({ args }) => {

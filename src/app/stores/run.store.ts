@@ -2,14 +2,60 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { CanvasStore } from './canvas.store';
 import { FilesStore } from './files.store';
 import { compileAndRun, type RunInput } from '../lang/run';
-import { emptyEffects, type GraphInput, type RunResult, type SavedCanvas } from '../lang/trace';
+import { emptyEffects, type DataSnapshot, type GraphInput, type RunResult, type SavedCanvas } from '../lang/trace';
 import type { GEdge, GNode, NodeKind } from '../models/graph.model';
-import { makeDataNode, type DataNode } from '../models/data-structure.model';
+import { makeDataNode, type DataNode, type HeapEntry } from '../models/data-structure.model';
 
 /** Playback speeds, cycled by the transport's speed button. */
 const SPEEDS = [0.5, 1, 2, 4] as const;
 /** Dwell at 1× — one step roughly every two-thirds of a second. */
 const BASE_DWELL_MS = 700;
+
+/** What a single data structure changed between two steps — drives the panel flash. */
+interface DataDiff {
+  /** Display values newly present vs the previous step (sequence/set items; pqueue `value priority`). */
+  values: Set<string>;
+  /** Map keys added, or whose value changed. */
+  keys: Set<string>;
+  /** Matrix row indices whose contents changed. */
+  rows: Set<number>;
+  /** Whether anything at all changed (including a pure removal) — drives the header pulse. */
+  changed: boolean;
+}
+
+/** Stable key for a priority-queue entry, so equal values at different priorities are distinct. */
+const heapKey = (e: HeapEntry): string => `${e.value} ${e.priority}`;
+
+/**
+ * Diff one structure against its previous-step snapshot (a missing `prev` means it
+ * was just created). Items/heap use a multiset compare so a value is flagged only
+ * when a *new* occurrence appears; maps compare per key; matrices compare per row.
+ */
+function diffData(prev: DataSnapshot | undefined, cur: DataSnapshot): DataDiff {
+  const values = new Set<string>();
+  const keys = new Set<string>();
+  const rows = new Set<number>();
+
+  const curVals = cur.kind === 'PQUEUE' ? cur.heap.map(heapKey) : cur.items.map(String);
+  const prevVals = !prev ? [] : prev.kind === 'PQUEUE' ? prev.heap.map(heapKey) : prev.items.map(String);
+  const prevCount = new Map<string, number>();
+  for (const v of prevVals) prevCount.set(v, (prevCount.get(v) ?? 0) + 1);
+  const curCount = new Map<string, number>();
+  for (const v of curVals) curCount.set(v, (curCount.get(v) ?? 0) + 1);
+  for (const [v, n] of curCount) if (n > (prevCount.get(v) ?? 0)) values.add(v);
+
+  const prevMap = new Map((prev?.entries ?? []).map((e) => [e.key, String(e.value)]));
+  for (const e of cur.entries) if (prevMap.get(e.key) !== String(e.value)) keys.add(e.key);
+
+  for (let r = 0; r < cur.matrix.length; r++) {
+    if ((prev?.matrix[r] ?? []).join(' ') !== cur.matrix[r].join(' ')) rows.add(r);
+  }
+
+  const sizeChanged =
+    !prev || curVals.length !== prevVals.length || cur.entries.length !== (prev.entries?.length ?? 0);
+  const changed = !prev || values.size > 0 || keys.size > 0 || rows.size > 0 || sizeChanged;
+  return { values, keys, rows, changed };
+}
 
 /**
  * Owns step-by-step execution of the entry file. It compiles + runs the
@@ -132,6 +178,101 @@ export class RunStore {
   /** Lines the algorithm wrote with printDebug during the last run (for the Algorithm debug panel). */
   readonly debug = computed(() => this.result()?.debug ?? []);
   readonly note = computed(() => this.currentStep()?.note ?? '');
+
+  // ── Step-to-step change highlighting (panel flash) ─────────
+  /** The step before the current one — the baseline for "what changed". Null at the very start. */
+  private readonly prevStep = computed(() => (this.index() > 0 ? this.steps()[this.index() - 1] ?? null : null));
+
+  /** Variable names whose displayed value differs from the previous step (newly-declared ones included). */
+  readonly changedVars = computed<Set<string>>(() => {
+    const before = this.prevStep();
+    if (!before) return new Set();
+    const prev = new Map(before.vars.map((v) => [v.name, v.value]));
+    const out = new Set<string>();
+    for (const v of this.vars()) if (prev.get(v.name) !== v.value) out.add(v.name);
+    return out;
+  });
+
+  /** Per-structure diff vs the previous step, computed once and read by the cheap lookups below. */
+  private readonly dataDiff = computed<Map<string, DataDiff>>(() => {
+    const before = this.prevStep();
+    const out = new Map<string, DataDiff>();
+    if (!before) return out; // nothing has "changed" on the first step
+    const prev = new Map(before.data.map((d) => [d.id, d]));
+    for (const d of this.dataState()) out.set(d.id, diffData(prev.get(d.id), d));
+    return out;
+  });
+
+  /** Whether a variable's value changed at the current step. */
+  varChanged(name: string): boolean {
+    return this.changedVars().has(name);
+  }
+  /** Whether a sequence/set item value was newly added at the current step. */
+  itemChanged(dsId: string, value: string | number): boolean {
+    return this.dataDiff().get(dsId)?.values.has(String(value)) ?? false;
+  }
+  /** Whether a priority-queue entry was newly added at the current step. */
+  heapChanged(dsId: string, entry: HeapEntry): boolean {
+    return this.dataDiff().get(dsId)?.values.has(heapKey(entry)) ?? false;
+  }
+  /** Whether a map key was added, or its value changed, at the current step. */
+  entryChanged(dsId: string, key: string): boolean {
+    return this.dataDiff().get(dsId)?.keys.has(key) ?? false;
+  }
+  /** Whether a matrix row's contents changed at the current step. */
+  rowChanged(dsId: string, row: number): boolean {
+    return this.dataDiff().get(dsId)?.rows.has(row) ?? false;
+  }
+  /** Whether a structure changed in any way (add / update / removal) — drives its header pulse. */
+  dataChanged(dsId: string): boolean {
+    return this.dataDiff().get(dsId)?.changed ?? false;
+  }
+
+  // ── Author-driven panel emphasis (spotlight / note built-ins) ─────────
+  /** Panel entries the algorithm asked to spotlight at the current step. */
+  private readonly spotlit = computed(() => new Set(this.effects().spotlight));
+  /** Author notes pinned to panel entries at the current step. */
+  private readonly panelNotes = computed(() => this.effects().notes);
+
+  /** Whether a panel entry (variable name, or structure id/label) is spotlighted now. */
+  isSpotlit(token: string): boolean {
+    return this.spotlit().has(token);
+  }
+  /** The author note pinned to a panel entry at the current step, or null. */
+  noteOf(token: string): string | null {
+    return this.panelNotes()[token] ?? null;
+  }
+
+  // ── Pinning (pin / unpin built-ins) — float entries to the top of the panel ──
+  /** Panel entries pinned at the current step, in pin order. */
+  private readonly pins = computed(() => this.effects().pins);
+
+  /** Whether a panel entry (variable name, or structure id/label) is pinned now. */
+  isPinned(token: string): boolean {
+    return this.pins().includes(token);
+  }
+
+  /** Variables with pinned ones floated to the top (pin order), the rest left as-is. */
+  readonly varsView = computed(() => {
+    const pins = this.pins();
+    if (!pins.length) return this.vars();
+    const rank = (name: string) => {
+      const i = pins.indexOf(name);
+      return i < 0 ? Infinity : -i; // most recently pinned (highest index) floats to the top
+    };
+    return [...this.vars()].sort((a, b) => rank(a.name) - rank(b.name)); // Array.sort is stable
+  });
+
+  /** Data structures with pinned ones floated to the top (matched by id or label). */
+  readonly dataView = computed(() => {
+    const pins = this.pins();
+    if (!pins.length) return this.dataState();
+    const rank = (d: { id: string; label: string }) => {
+      const i = Math.max(pins.indexOf(d.id), pins.indexOf(d.label)); // one side is -1; take the match
+      return i < 0 ? Infinity : -i; // most recently pinned floats to the top
+    };
+    return [...this.dataState()].sort((a, b) => rank(a) - rank(b));
+  });
 
   // ── Transport state for the template ──────────────────────
   readonly stepNumber = computed(() => this.index());
