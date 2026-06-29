@@ -11,6 +11,7 @@
 import { signal } from '@angular/core';
 import type { FCanvasComponent } from '@foblex/flow';
 import type { GEdge } from './models/graph.model';
+import { sourceNodeId, targetNodeId } from './models/port.util';
 import type { ScrollTarget } from './lang/trace';
 
 export class CanvasViewport {
@@ -142,8 +143,8 @@ export class CanvasViewport {
    */
   private panToEdge(canvas: FCanvasComponent, from: string, to: string, edges: readonly GEdge[]): void {
     const edge = edges.find((e) => {
-      const s = e.outputId.replace(/-out$/, '');
-      const t = e.inputId.replace(/-in$/, '');
+      const s = sourceNodeId(e.outputId);
+      const t = targetNodeId(e.inputId);
       return (s === from && t === to) || (s === to && t === from);
     });
     const flow = this.host.querySelector('.ag-runcanvas f-flow') as HTMLElement | null;
