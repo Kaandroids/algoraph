@@ -454,6 +454,10 @@ export class App {
   range(n: number): number[] {
     return Array.from({ length: n }, (_, i) => i);
   }
+  /** A matrix row for the panel — unreachable cells read as ∞ rather than a raw "Infinity". */
+  fmtMatrixRow(row: number[]): string {
+    return row.map((v) => (v === Infinity ? '∞' : v === -Infinity ? '-∞' : String(v))).join(', ');
+  }
 
   // ── Node operations — delegated to CanvasStore ────────────
   addNode(kind: NodeKind): void {

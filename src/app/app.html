@@ -691,7 +691,7 @@
                 @case ('MATRIX') {
                   @for (row of dn.matrix; track $index) {
                     <code class="ag-statevar-code"
-                      [agFlash]="run.rowChanged(dn.id, $index) ? run.stepNumber() : null">[{{ row.join(', ') }}]</code>
+                      [agFlash]="run.rowChanged(dn.id, $index) ? run.stepNumber() : null">[{{ fmtMatrixRow(row) }}]</code>
                   }
                 }
                 @default {
