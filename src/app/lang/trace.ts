@@ -54,6 +54,9 @@ export interface DataSnapshot {
   entries: MapEntry[];
   heap: HeapEntry[];
   matrix: number[][];
+  /** Optional header labels for MATRIX rows / columns (default: the numeric indices). */
+  rowLabels?: string[];
+  colLabels?: string[];
 }
 
 /**

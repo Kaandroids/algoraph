@@ -34,6 +34,8 @@ function snapshotToDataNode(d: DataSnapshot): DataNode {
     entries: d.entries,
     heap: d.heap,
     matrix: d.matrix,
+    rowLabels: d.rowLabels,
+    colLabels: d.colLabels,
   };
 }
 

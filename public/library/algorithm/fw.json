@@ -6,7 +6,7 @@
       "notes": [
         {
           "line": 1,
-          "text": "**Build the empty table.** `buildTable` numbers the vertices `0…n−1` and creates an `n × n` grid of zeros — nothing seeded yet. The matrix is the whole story of Floyd–Warshall, so watch it in the panel."
+          "text": "**Build the empty table.** `buildTable` numbers the vertices `0…n−1`, creates an `n × n` grid of zeros, and names its rows and columns after the vertices — nothing seeded yet. The matrix is the whole story of Floyd–Warshall, so watch it in the panel."
         },
         {
           "line": 3,
@@ -28,15 +28,19 @@
     },
     {
       "name": "fw-helpers.algo",
-      "content": "export function buildTable() do\n  idx ← panel.createMap(\"idx\")              // vertex → its row / column\n  n ← 0\n  for each v in nodes() do\n    idx[v] ← n                              // number the vertices 0, 1, 2, …\n    n ← n + 1\n  end\n  dist ← panel.createMatrix(n, n, \"dist\")   // an empty n × n table\n  note(idx, \"row/col\")\n  note(dist, \"shortest so far\")\n  pin(dist)                                 // keep the table on top\n  spotlight(dist)                           // the matrix is the star of Floyd–Warshall\n  showMessage(\"Empty table — seed the base case next\", \"info\")\nend\n\nexport function seedRow(a) do\n  for each v in nodes() do unmark(v) end     // light only the row we are filling\n  mark(a, \"info\")\n  scrollTo(a)\n  for each b in nodes() do\n    if a = b then\n      dist[idx[a]][idx[b]] ← 0              // a vertex reaches itself in 0\n    else\n      dist[idx[a]][idx[b]] ← weight(a, b)   // a direct edge, or ∞ if there is none\n    end\n  end\n  showMessage(\"Row \" + a + \": direct edges out of \" + a + \", ∞ elsewhere\", \"info\")\nend\n\nexport function relaxThrough(k) do\n  for each v in nodes() do unmark(v) end     // highlight only the current intermediate\n  mark(k, \"info\")                            // paths may now hop through k\n  scrollTo(k)\n  showMessage(\"Allow paths through \" + k, \"info\")\n  for each i in nodes() do\n    for each j in nodes() do\n      detour ← dist[idx[i]][idx[k]] + dist[idx[k]][idx[j]]\n      if detour < dist[idx[i]][idx[j]] then\n        dist[idx[i]][idx[j]] ← detour        // i → k → j is shorter — take it\n      end\n    end\n  end\nend\n\nexport function report() do\n  for each v in nodes() do unmark(v) end      // clear the canvas — the table is the result\n  unspotlight(dist)\n  showMessage(\"All-pairs shortest distances complete — read dist[i][j]\", \"success\")\nend\n",
+      "content": "export function buildTable() do\n  idx ← scratch.createMap(\"idx\")            // vertex → row/col (hidden bookkeeping)\n  n ← 0\n  for each v in nodes() do\n    idx[v] ← n                              // number the vertices 0, 1, 2, …\n    n ← n + 1\n  end\n  dist ← panel.createMatrix(n, n, \"dist\")   // an empty n × n table\n  dist.setLabels(nodes())                   // name rows & columns by vertex (A, B, …)\n  note(dist, \"shortest so far\")\n  pin(dist)                                 // keep the table on top\n  spotlight(dist)                           // the matrix is the star of Floyd–Warshall\n  showMessage(\"Empty table — seed the base case next\", \"info\")\nend\n\nexport function seedRow(a) do\n  for each v in nodes() do unmark(v) end     // light only the row we are filling\n  mark(a, \"info\")\n  scrollTo(a)\n  for each b in nodes() do\n    if a = b then\n      dist[idx[a]][idx[b]] ← 0              // a vertex reaches itself in 0\n    else\n      dist[idx[a]][idx[b]] ← weight(a, b)   // a direct edge, or ∞ if there is none\n    end\n  end\n  showMessage(\"Row \" + a + \": direct edges out of \" + a + \", ∞ elsewhere\", \"info\")\nend\n\nexport function relaxThrough(k) do\n  for each v in nodes() do unmark(v) end     // highlight only the current intermediate\n  mark(k, \"info\")                            // paths may now hop through k\n  scrollTo(k)\n  showMessage(\"Allow paths through \" + k, \"info\")\n  for each i in nodes() do\n    for each j in nodes() do\n      detour ← dist[idx[i]][idx[k]] + dist[idx[k]][idx[j]]\n      if detour < dist[idx[i]][idx[j]] then\n        dist[idx[i]][idx[j]] ← detour        // i → k → j is shorter — take it\n      end\n    end\n  end\nend\n\nexport function report() do\n  for each v in nodes() do unmark(v) end      // clear the canvas — the table is the result\n  unspotlight(dist)\n  showMessage(\"All-pairs shortest distances complete — read dist[i][j]\", \"success\")\nend\n",
       "notes": [
         {
           "line": 1,
-          "text": "A matrix is indexed by integers, so first we hand each vertex a number with the **idx** map (`A→0, B→1, …`) and count `n`. `idx` shows in the panel as a small **legend** for reading the matrix's rows and columns."
+          "text": "A matrix is indexed by integers, so each vertex gets a number in the **idx** map (`A→0, B→1, …`). It's a `scratch` structure — pure bookkeeping, hidden from the panel — because the next line gives the matrix readable headers instead."
         },
         {
           "line": 8,
-          "text": "`panel.createMatrix(n, n, …)` makes an `n × n` grid of zeros — off-canvas but watchable in the data panel. We `pin` and `spotlight` it because in Floyd–Warshall the table, not the canvas, is where the work happens."
+          "text": "`panel.createMatrix(n, n, …)` makes an `n × n` grid of zeros, off-canvas but watchable in the data panel. We `pin` and `spotlight` it because in Floyd–Warshall the table, not the canvas, is where the work happens."
+        },
+        {
+          "line": 9,
+          "text": "`setLabels(nodes())` names the rows and columns by vertex, so the panel shows **A, B, C…** along both edges instead of `0, 1, 2…` — the table reads like a distance chart, no separate legend needed."
         },
         {
           "line": 16,

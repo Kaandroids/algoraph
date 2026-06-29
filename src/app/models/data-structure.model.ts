@@ -42,6 +42,9 @@ export interface DataNode {
   heap: HeapEntry[];
   /** MATRIX — row-major numeric grid. */
   matrix: number[][];
+  /** MATRIX — optional row / column header labels (default: numeric indices). */
+  rowLabels?: string[];
+  colLabels?: string[];
 }
 
 /** A data-structure entry in the tool library (its kind plus display metadata). */

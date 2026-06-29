@@ -1576,6 +1576,41 @@
   word-break: break-word;
 }
 
+/* MATRIX in the data panel — a compact grid with row / column headers
+   (labels when set, otherwise indices). Scrolls sideways for wide matrices. */
+.ag-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+.ag-matrix-row {
+  display: flex;
+  gap: 2px;
+  width: max-content;
+}
+.ag-matrix-h,
+.ag-matrix-c {
+  flex: 0 0 26px;
+  padding: 1px 2px;
+  text-align: center;
+}
+.ag-matrix-h {
+  color: var(--nc); /* the structure's accent, set on .ag-statevar */
+  font-weight: 600;
+  font-size: 10px;
+}
+.ag-matrix-c {
+  color: var(--fg);
+}
+/* The blink marks a whole changed row — drop the generic flash inset so cells stay aligned. */
+.ag-matrix-row.is-flashing {
+  margin: 0;
+  padding: 0;
+}
+
 .ag-statevar-empty {
   color: var(--fg-subtle);
   font-style: italic;

@@ -493,10 +493,19 @@ export class RPQueue extends RDataStructure {
   }
 }
 
+/** Coerce a list / array argument into display strings — used to label matrix axes. */
+function labelList(v: Value): string[] {
+  const arr = Array.isArray(v) ? v : v instanceof RDataStructure ? v.elements() : [];
+  return arr.map((x) => String(display(x)));
+}
+
 export class RMatrix extends RDataStructure {
   constructor(id: string, label: string, charge: Charge, x: number, y: number, private grid: number[][], rendered = true, tracked = true) {
     super(id, label, 'MATRIX', charge, x, y, rendered, tracked);
   }
+  /** Optional row / column header labels (default: the numeric indices). */
+  private rowLabels: string[] = [];
+  private colLabels: string[] = [];
   call(method: string, args: Value[], line: number): Value {
     switch (method) {
       case 'rows': this.charge(1); return this.grid.length;
@@ -507,6 +516,24 @@ export class RMatrix extends RDataStructure {
         this.grid = this.grid.map((row) => row.map(() => x));
         return null;
       }
+      case 'setLabels': {
+        // Name the rows (and columns) from a list. One argument labels both axes.
+        this.charge(1);
+        this.rowLabels = labelList(args[0]);
+        this.colLabels = args.length > 1 ? labelList(args[1]) : [...this.rowLabels];
+        return null;
+      }
+      case 'setLabel': {
+        // Name a single row & column header i — pass a vertex to use its name.
+        this.charge(1);
+        const i = Number(args[0]);
+        const name = String(display(args[1]));
+        this.rowLabels[i] = name;
+        this.colLabels[i] = name;
+        return null;
+      }
+      case 'setRowLabel': this.charge(1); this.rowLabels[Number(args[0])] = String(display(args[1])); return null;
+      case 'setColLabel': this.charge(1); this.colLabels[Number(args[0])] = String(display(args[1])); return null;
       default: this.unknown(method, line);
     }
   }
@@ -531,7 +558,15 @@ export class RMatrix extends RDataStructure {
     return false;
   }
   snapshot(): DataSnapshot {
-    return { ...this.base(), items: [], entries: [], heap: [], matrix: this.grid.map((r) => [...r]) };
+    return {
+      ...this.base(),
+      items: [],
+      entries: [],
+      heap: [],
+      matrix: this.grid.map((r) => [...r]),
+      rowLabels: [...this.rowLabels],
+      colLabels: [...this.colLabels],
+    };
   }
 }
 

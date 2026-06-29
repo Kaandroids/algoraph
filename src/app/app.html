@@ -354,10 +354,10 @@
             <div class="ds-editor-row">
               <label>Size</label>
               <div class="ds-dim">
-                <input class="ds-num-input" type="number" min="1" max="8" [value]="dn.matrix.length"
+                <input class="ds-num-input" type="number" min="1" max="16" [value]="dn.matrix.length"
                   (input)="setMatrixRows($any($event.target).valueAsNumber)" />
                 <span class="ds-dim-x">×</span>
-                <input class="ds-num-input" type="number" min="1" max="8" [value]="dn.matrix[0].length"
+                <input class="ds-num-input" type="number" min="1" max="16" [value]="dn.matrix[0].length"
                   (input)="setMatrixCols($any($event.target).valueAsNumber)" />
               </div>
             </div>
@@ -689,9 +689,26 @@
                   }
                 }
                 @case ('MATRIX') {
-                  @for (row of dn.matrix; track $index) {
-                    <code class="ag-statevar-code"
-                      [agFlash]="run.rowChanged(dn.id, $index) ? run.stepNumber() : null">[{{ fmtMatrixRow(row) }}]</code>
+                  @if (dn.matrix.length) {
+                    <div class="ag-matrix">
+                      <div class="ag-matrix-row ag-matrix-head">
+                        <span class="ag-matrix-h ag-matrix-corner"></span>
+                        @for (c of range(dn.matrix[0].length); track c) {
+                          <span class="ag-matrix-h">{{ matrixCol(dn, c) }}</span>
+                        }
+                      </div>
+                      @for (row of dn.matrix; track $index; let r = $index) {
+                        <div class="ag-matrix-row"
+                          [agFlash]="run.rowChanged(dn.id, r) ? run.stepNumber() : null">
+                          <span class="ag-matrix-h">{{ matrixRow(dn, r) }}</span>
+                          @for (cell of row; track $index) {
+                            <span class="ag-matrix-c">{{ fmtCell(cell) }}</span>
+                          }
+                        </div>
+                      }
+                    </div>
+                  } @else {
+                    <span class="ag-statevar-empty">empty</span>
                   }
                 }
                 @default {
@@ -1204,12 +1221,12 @@
           [style.grid-template-columns]="'auto repeat(' + dn.matrix[0].length + ', minmax(22px, 1fr))'">
           <span class="ds-mcorner"></span>
           @for (c of range(dn.matrix[0].length); track c) {
-            <span class="ds-mindex">{{ c }}</span>
+            <span class="ds-mindex">{{ matrixCol(dn, c) }}</span>
           }
           @for (row of dn.matrix; track $index; let r = $index) {
-            <span class="ds-mindex">{{ r }}</span>
+            <span class="ds-mindex">{{ matrixRow(dn, r) }}</span>
             @for (cell of row; track $index) {
-              <span class="ds-cell">{{ cell }}</span>
+              <span class="ds-cell">{{ fmtCell(cell) }}</span>
             }
           }
         </div>

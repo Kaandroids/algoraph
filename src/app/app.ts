@@ -454,9 +454,17 @@ export class App {
   range(n: number): number[] {
     return Array.from({ length: n }, (_, i) => i);
   }
-  /** A matrix row for the panel — unreachable cells read as ∞ rather than a raw "Infinity". */
-  fmtMatrixRow(row: number[]): string {
-    return row.map((v) => (v === Infinity ? '∞' : v === -Infinity ? '-∞' : String(v))).join(', ');
+  /** A single matrix cell — unreachable cells read as ∞ rather than a raw "Infinity". */
+  fmtCell(v: number): string {
+    return v === Infinity ? '∞' : v === -Infinity ? '-∞' : String(v);
+  }
+  /** A matrix column header — the custom label if one was set, else the index. */
+  matrixCol(node: { colLabels?: string[] }, c: number): string {
+    return node.colLabels?.[c] ?? String(c);
+  }
+  /** A matrix row header — the custom label if one was set, else the index. */
+  matrixRow(node: { rowLabels?: string[] }, r: number): string {
+    return node.rowLabels?.[r] ?? String(r);
   }
 
   // ── Node operations — delegated to CanvasStore ────────────
@@ -598,8 +606,8 @@ export class App {
   // Matrix size — the one structural input; contents start empty and the
   // algorithm fills every structure at runtime, so there is no manual data entry.
   private resizeMatrix(rows: number, cols: number): void {
-    const R = Math.max(1, Math.min(8, Math.round(rows || 1)));
-    const C = Math.max(1, Math.min(8, Math.round(cols || 1)));
+    const R = Math.max(1, Math.min(16, Math.round(rows || 1)));
+    const C = Math.max(1, Math.min(16, Math.round(cols || 1)));
     this.updateEditingData((n) => ({
       ...n,
       matrix: Array.from({ length: R }, (_, r) => Array.from({ length: C }, (_, c) => n.matrix[r]?.[c] ?? 0)),
