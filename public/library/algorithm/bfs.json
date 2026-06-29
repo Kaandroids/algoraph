@@ -6,79 +6,83 @@
       "notes": [
         {
           "line": 1,
-          "text": "Set up the search in one step — create the **queue**, the **dist** and **prev** maps and the **visited** set, then seed them from the Start vertex. Keeping setup in a helper lets the main loop read like the algorithm itself."
+          "text": "**Setup in one step.** `bfsInit` builds the **queue**, the **dist**/**prev** maps and the **visited** set, then seeds them from the Start vertex. Keeping the bookkeeping in a helper lets this file read like the textbook algorithm — nothing here but the idea of BFS."
         },
         {
           "line": 3,
-          "text": "BFS explores the graph in waves. The **queue** holds the *frontier*: vertices found but not yet expanded. We loop until it drains."
+          "text": "BFS explores in **waves**. The **queue** is the *frontier*: vertices we've found but not yet expanded. Watch its card pulse in the panel — it drives the whole search. We loop until it drains."
         },
         {
           "line": 4,
-          "text": "Take the next vertex from the **front** of the queue. First-in, first-out order is what makes the search breadth-first — nearer vertices are always expanded before farther ones."
+          "text": "Take the vertex at the **front** of the queue. First-in-first-out order is the whole trick: nearer vertices are always expanded before farther ones, so the first time we reach a vertex is along a shortest path."
         },
         {
           "line": 5,
-          "text": "Settle `u`. Thanks to the FIFO order, the first time BFS reaches a vertex it has already found its shortest distance, so `visit` can label it as final."
+          "text": "**Settle** `u` (turns green). Because of FIFO order its distance is already final, so `visit` can label it for good."
         },
         {
           "line": 6,
-          "text": "Fan out to every neighbour of `u` — the candidates for the next wave of the search."
+          "text": "Fan out to every neighbour of `u` — the candidates for the next wave."
         },
         {
           "line": 7,
-          "text": "`discover` adds `v` to the frontier the first time it is seen, recording `dist[u] + 1` and remembering `u` as its predecessor. Already-seen vertices are skipped."
+          "text": "`discover` adds an unseen neighbour to the frontier (recording its distance and parent) and skips ones already seen. Step through it to watch the panel fill."
         },
         {
           "line": 11,
-          "text": "Walk the **prev** map backward from the Goal to the Start to light up the shortest path. `reconstructPath` lives in the shared **helpers** file — any search that records predecessors can reuse it."
+          "text": "Walk the **prev** map backward from the Goal to light up the shortest path. `reconstructPath` is a **shared** helper — any search that records predecessors (BFS, Dijkstra, A*) can reuse it."
         }
       ]
     },
     {
       "name": "bfs-helpers.algo",
-      "content": "export function bfsInit() do\n  queue ← panel.createQueue(\"queue\")\n  dist ← panel.createMap(\"dist\")\n  prev ← panel.createMap(\"prev\")\n  visited ← panel.createSet(\"visited\")\n  s ← source()\n  dist[s] ← 0\n  visited.add(s)\n  queue.enqueue(s)\n  mark(s, \"info\")\n  scrollTo(s)\n  setLabel(s, 0)\n  showMessage(\"Start BFS from \" + s)\nend\n\nexport function visit(u) do\n  mark(u, \"success\")\n  scrollTo(u)\n  setLabel(u, dist[u])\n  showMessage(\"Visiting \" + u + \" (distance \" + dist[u] + \")\")\nend\n\nexport function discover(u, v) do\n  if v in visited then return end\n  dist[v] ← dist[u] + 1\n  prev[v] ← u\n  visited.add(v)\n  queue.enqueue(v)\n  mark(u, v, \"info\")\n  setLabel(v, dist[v])\n  showMessage(\"Found \" + v + \" from \" + u)\nend\n",
+      "content": "export function bfsInit() do\n  queue ← panel.createQueue(\"queue\")      // frontier: first in, first out\n  visited ← panel.createSet(\"visited\")    // never expand a vertex twice\n  dist ← panel.createMap(\"dist\")          // hops from the Start\n  prev ← panel.createMap(\"prev\")          // how we reached each vertex\n  note(queue, \"frontier\")\n  note(visited, \"seen\")\n  note(dist, \"distance\")\n  note(prev, \"parent\")\n  spotlight(queue)                        // keep the frontier pulsing\n  s ← source()\n  dist[s] ← 0                             // the Start is zero hops away\n  visited.add(s)\n  queue.enqueue(s)\n  mark(s, \"info\")\n  setLabel(s, 0)\n  scrollTo(s)\n  showMessage(\"Start BFS from \" + s, \"info\")\nend\n\nexport function visit(u) do\n  mark(u, \"success\")                      // settled: its distance is final\n  setLabel(u, dist[u])\n  scrollTo(u)\n  showMessage(\"Settle \" + u + \" — distance \" + dist[u] + \" is now final\", \"success\")\nend\n\nexport function discover(u, v) do\n  if v in visited then                    // the guard that keeps BFS linear\n    showMessage(v + \" already seen — skip\", \"warn\")\n    return\n  end\n  dist[v] ← dist[u] + 1                    // one more hop than u\n  prev[v] ← u                              // remember the parent\n  visited.add(v)\n  queue.enqueue(v)                         // push to the back of the frontier\n  mark(v, \"info\")\n  mark(u, v, \"info\")                       // a tree edge (blue)\n  setLabel(v, dist[v])\n  scrollTo(u, v)\n  showMessage(\"Discover \" + v + \" from \" + u + \" — distance \" + dist[v], \"info\")\nend\n",
       "notes": [
         {
           "line": 1,
-          "text": "Algorithm-specific setup. The four structures are created off-canvas with `panel.*`, so they stay out of the drawing but still appear in the Run data panel, where you can watch them fill."
+          "text": "Algorithm-specific setup. The four structures are created off-canvas with `panel.*`, so they stay out of the drawing but appear in the **Run data panel**, where you can watch them fill as the search runs."
         },
         {
-          "line": 2,
-          "text": "The frontier. BFS pushes to the back and pulls from the front, so vertices leave in the order they were discovered."
+          "line": 6,
+          "text": "`note(...)` pins a tiny label on each structure so a newcomer can read the panel at a glance: **frontier** (queue), **seen** (visited), **distance** (dist), **parent** (prev)."
         },
         {
-          "line": 16,
-          "text": "Highlight the vertex BFS is expanding and pin its final distance on the canvas. Pure visualization — the result is the same without it, but the run is far easier to follow."
+          "line": 10,
+          "text": "`spotlight(...)` makes the **queue** pulse for the whole search — a constant reminder that the frontier is the engine of BFS. When the search ends, `reconstructPath` moves the pulse to **prev**."
         },
         {
-          "line": 23,
-          "text": "The heart of BFS: each vertex is discovered exactly once, from the first vertex that reaches it."
+          "line": 22,
+          "text": "`visit` is pure visualization — colour `u` green, write its final distance, scroll it into view. The result is identical without it, but the run is far easier to follow."
         },
         {
-          "line": 24,
-          "text": "The guard that keeps BFS linear — skip any vertex already seen so none is ever enqueued twice."
+          "line": 29,
+          "text": "The guard that keeps BFS **linear**: a vertex already in `visited` has its shortest distance, so we just flash a note and skip it — no mark is left behind, and it is never enqueued twice."
         },
         {
-          "line": 25,
-          "text": "A BFS distance is just a hop count: one more than the vertex we arrived from."
+          "line": 33,
+          "text": "A BFS distance is just a **hop count**: one more than the vertex we arrived from. The new entries blink in the panel as they are written."
         }
       ]
     },
     {
       "name": "helpers.algo",
-      "content": "export function reconstructPath(t) do\n  showMessage(\"Tracing the path back to the Start\", \"success\")\n  mark(t, \"warn\")\n  cur ← t\n  while cur in prev do\n    p ← prev[cur]\n    mark(p, cur, \"warn\")\n    mark(p, \"warn\")\n    scrollTo(p, cur)\n    cur ← p\n  end\n  showMessage(\"Shortest path highlighted\", \"success\")\nend\n",
+      "content": "export function reconstructPath(t) do\n  unspotlight(queue)                       // search over — drop the frontier focus\n  spotlight(prev)                          // now we read the parent map\n  showMessage(\"BFS done — trace back from \" + t + \" through prev\", \"success\")\n  for each n in nodes() do unmark(n) end   // clear the search tree...\n  for each e in edges() do unmark(e.startVertex, e.endVertex) end\n  cur ← t\n  mark(cur, \"warn\")                        // ...and light up only the path\n  scrollTo(cur)\n  while cur in prev do\n    p ← prev[cur]                          // one hop back toward the Start\n    mark(p, cur, \"warn\")\n    mark(p, \"warn\")\n    scrollTo(p, cur)\n    cur ← p\n  end\n  unspotlight(prev)\n  showMessage(\"Shortest path from \" + source() + \" to \" + t + \" lit up\", \"success\")\nend\n",
       "notes": [
         {
           "line": 1,
-          "text": "A **general** helper, not tied to BFS. It reads the global **prev** map — the predecessor each vertex was reached from — so any search that records predecessors (BFS, Dijkstra, A*) can call it to draw a path. This is also where shared utilities like `isDAG` would live."
+          "text": "A **general** helper, not tied to BFS. It reads the global **prev** map — the predecessor each vertex was reached from — so any search that records predecessors can call it to draw a path. Shared utilities like `isDAG` would live here too."
+        },
+        {
+          "line": 3,
+          "text": "The search is done, so the spotlight moves off the (now-empty) **queue** and onto **prev** — the map we are about to read backward."
         },
         {
           "line": 5,
-          "text": "Follow predecessors from the target back toward the Start. The Start has no predecessor, so `cur in prev` turns false there and the loop stops."
+          "text": "**Clean up before the reveal.** Every vertex and edge from the search tree is unmarked (distance labels stay), so the next few lines can light up *only* the shortest path with nothing competing for attention."
         },
         {
-          "line": 7,
-          "text": "Re-colour each edge along the route so the shortest path stands out from the rest of the BFS tree."
+          "line": 10,
+          "text": "Follow parents from the target back toward the Start, recolouring each step **warn**. The Start has no parent, so `cur in prev` turns false there and the loop stops."
         }
       ]
     }
