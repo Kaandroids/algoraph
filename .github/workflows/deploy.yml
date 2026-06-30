@@ -1,9 +1,9 @@
-name: Deploy to GitHub Pages
+name: CI & Deploy
 
-# Build the static SPA and publish it to GitHub Pages on every push to master.
-# Algoraph is a project site at https://kaandroids.github.io/algoraph/, so the
-# build needs a matching base href — set here, not in index.html, so local dev
-# keeps serving from "/".
+# On every push to master: run the unit tests (which gate the deploy), then
+# build the static SPA and publish it to GitHub Pages. Algoraph is a project
+# site at https://kaandroids.github.io/algoraph/, so the build needs a matching
+# base href — set here, not in index.html, so local dev keeps serving from "/".
 
 on:
   push:
@@ -21,7 +21,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        # npm install, not ci: the committed lockfile omits some cross-platform
+        # optional deps (@emnapi/*) that Linux pulls in, which makes `npm ci` fail.
+        run: npm install
+
+      - name: Unit tests (with coverage)
+        run: npx ng test --no-watch --coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          # Don't fail the pipeline (or block the deploy) on a coverage-upload hiccup.
+          fail_ci_if_error: false
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
