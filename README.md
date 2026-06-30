@@ -17,7 +17,7 @@ can *see* rather than just read about.
 [![CodeMirror](https://img.shields.io/badge/CodeMirror-6-1C1C1C?logo=codemirror&logoColor=white)](https://codemirror.net)
 [![Foblex Flow](https://img.shields.io/badge/Foblex%20Flow-canvas-6c5ce7)](https://flow.foblex.com)
 [![Vitest](https://img.shields.io/badge/tested%20with-Vitest-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev)
-[![codecov](https://codecov.io/gh/Kaandroids/algoraph/graph/badge.svg)](https://codecov.io/gh/Kaandroids/algoraph)
+[![codecov](https://codecov.io/gh/Kaandroids/algoraph/branch/master/graph/badge.svg)](https://codecov.io/gh/Kaandroids/algoraph)
 [![100% client-side](https://img.shields.io/badge/backend-none-555)](#tech-stack)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
