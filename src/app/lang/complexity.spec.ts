@@ -46,4 +46,55 @@ describe('estimateComplexity', () => {
       'O(1)',
     );
   });
+
+  it('reads a triple-nested vertex scan as O(V^3) (power ≥ 3 spells out the exponent)', () => {
+    const src =
+      'for each u in nodes() do\n' +
+      '  for each v in nodes() do\n' +
+      '    for each w in nodes() do\n' +
+      '      visit(w)\n' +
+      '    end\n' +
+      '  end\n' +
+      'end\n';
+    expect(estimate([{ id: 'main', name: 'main.algo', content: src }], new Map()).time).toBe('O(V^3)');
+  });
+
+  it('costs a range whose bound is a graph query by the bound (range used as a value)', () => {
+    // `1 .. nodes()` is evaluated as an expression, so its cost is the dominant
+    // endpoint factor (nodes() ⇒ V) rather than a loop's per-iteration factor.
+    const src = 'x ← 1 .. nodes()\n';
+    expect(estimate([{ id: 'main', name: 'main.algo', content: src }], new Map()).time).toBe('O(V)');
+  });
+
+  it('inlines a helper used as a value, taking its dominant non-loop op factor', () => {
+    // `cost` exercises every statement kind funcFactor walks (assign, exprStmt,
+    // if/else, while, for-each, return). Its dominant op is nodes() ⇒ V, so a
+    // single straight-line call to it reads as O(V).
+    const src =
+      'function cost(u) do\n' +
+      '  a ← nodes()\n' +
+      '  edges()\n' +
+      '  if a then\n' +
+      '    b ← 1\n' +
+      '  else\n' +
+      '    c ← 2\n' +
+      '  end\n' +
+      '  while a do\n' +
+      '    a ← 0\n' +
+      '  end\n' +
+      '  for each x in a do\n' +
+      '    mark(x)\n' +
+      '  end\n' +
+      '  return nodes()\n' +
+      'end\n' +
+      'total ← cost(source())\n';
+    expect(estimate([{ id: 'main', name: 'main.algo', content: src }], new Map()).time).toBe('O(V)');
+  });
+
+  it('guards against recursion when inlining a helper used as a value', () => {
+    // A self-recursive helper would otherwise loop forever; the inlining guard
+    // returns null on re-entry, so the estimate terminates as O(1).
+    const src = 'function rec(n) do\n  return rec(n)\nend\nr ← rec(5)\n';
+    expect(estimate([{ id: 'main', name: 'main.algo', content: src }], new Map()).time).toBe('O(1)');
+  });
 });

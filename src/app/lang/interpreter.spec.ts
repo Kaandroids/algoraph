@@ -588,3 +588,97 @@ describe('printDebug', () => {
     expect(withDebug.steps.at(-1)!.ops).toBe(without.steps.at(-1)!.ops);
   });
 });
+
+describe('atoms and operators', () => {
+  it('evaluates the literal atoms true, false, nil and INFINITY', () => {
+    const result = runSrc('t ← true\nf ← false\nn ← nil\ninf ← INFINITY\n');
+    expect(result.error).toBeNull();
+    const vars = Object.fromEntries(result.steps.at(-1)!.vars.map((v) => [v.name, v]));
+    expect(vars['t']).toMatchObject({ value: 'true', kind: 'bool' });
+    expect(vars['f']).toMatchObject({ value: 'false', kind: 'bool' });
+    expect(vars['n']).toMatchObject({ value: 'nil', kind: 'nil' });
+    expect(vars['inf']).toMatchObject({ value: '∞', kind: 'number' });
+  });
+
+  it('evaluates arithmetic, comparison, unary and boolean operators', () => {
+    const result = runSrc(
+      'add ← 2 + 3\n' +
+        'sub ← 7 - 4\n' +
+        'mul ← 3 * 4\n' +
+        'div ← 12 / 4\n' +
+        'mod ← 7 % 3\n' +
+        'lt ← 1 < 2\n' +
+        'gt ← 5 > 9\n' +
+        'le ← 2 ≤ 2\n' +
+        'ge ← 3 ≥ 4\n' +
+        'eq ← 1 = 1\n' +
+        'ne ← 1 ≠ 2\n' +
+        'neg ← -5\n' +
+        'notF ← not false\n' +
+        'andV ← true and false\n' +
+        'orV ← false or true\n',
+    );
+    expect(result.error).toBeNull();
+    const v = Object.fromEntries(result.steps.at(-1)!.vars.map((x) => [x.name, x.value]));
+    expect(v).toMatchObject({
+      add: '5',
+      sub: '3',
+      mul: '12',
+      div: '3',
+      mod: '1',
+      lt: 'true',
+      gt: 'false',
+      le: 'true',
+      ge: 'false',
+      eq: 'true',
+      ne: 'true',
+      neg: '-5',
+      notF: 'true',
+      andV: 'false',
+      orV: 'true',
+    });
+  });
+
+  it('tests membership with `in` over arrays, and reads false against a non-container', () => {
+    const inArray = runSrc('a ← source()\nshowMessage("" + (a in nodes()))\n');
+    expect(inArray.steps.at(-1)!.effects.message!.text).toBe('true');
+    const inScalar = runSrc('showMessage("" + (5 in 3))\n');
+    expect(inScalar.steps.at(-1)!.effects.message!.text).toBe('false');
+  });
+});
+
+describe('runtime errors', () => {
+  it('errors when a graph builtin gets a non-vertex argument', () => {
+    expect(runSrc('mark(5)\n').error).toContain('Expected a vertex');
+  });
+
+  it('errors when iterating a value that is not a collection', () => {
+    expect(runSrc('for each x in 5 do\n  mark(x)\nend\n').error).toContain('not iterable');
+  });
+
+  it('errors when indexing a value that cannot be indexed', () => {
+    expect(runSrc('n ← 5\nx ← n[0]\n').error).toContain('Cannot index');
+  });
+
+  it('errors when assigning into a value that is not a structure', () => {
+    expect(runSrc('arr ← nodes()\narr[0] ← 5\n').error).toContain('Cannot assign into');
+  });
+
+  it('rejects unknown vertex / edge properties and method-only member access', () => {
+    expect(runSrc('a ← source()\nx ← a.foo\n').error).toContain("vertex has no property 'foo'");
+    expect(runSrc('e ← edges().get(0)\nx ← e.foo\n').error).toContain("edge has no property 'foo'");
+    expect(runSrc('n ← 5\nx ← n.foo\n').error).toContain('must be called as a method');
+  });
+
+  it('rejects calling an unknown method on a plain list', () => {
+    expect(runSrc('x ← nodes().frobnicate()\n').error).toContain('is not a method of a list');
+  });
+
+  it('points you at parenthesis-free edge field reads', () => {
+    expect(runSrc('e ← edges().get(0)\nx ← e.weight()\n').error).toContain('without parentheses');
+  });
+
+  it('rejects calling a method on a value that has none', () => {
+    expect(runSrc('n ← 5\nx ← n.foo()\n').error).toContain('is not a method of');
+  });
+});

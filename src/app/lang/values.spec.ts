@@ -468,6 +468,73 @@ describe('RMatrix', () => {
   it('is not a membership container', () => {
     expect(matrix([[1]]).contains()).toBe(false);
   });
+
+  it('setLabels names both axes from one list, or each axis from its own list', () => {
+    const m = matrix([
+      [1, 2],
+      [3, 4],
+    ]);
+    m.call('setLabels', [['r0', 'r1']], 1);
+    let snap = m.snapshot();
+    expect(snap.rowLabels).toEqual(['r0', 'r1']);
+    expect(snap.colLabels).toEqual(['r0', 'r1']); // one argument labels both axes
+    m.call('setLabels', [['a', 'b'], ['c', 'd']], 1);
+    snap = m.snapshot();
+    expect(snap.rowLabels).toEqual(['a', 'b']);
+    expect(snap.colLabels).toEqual(['c', 'd']); // two arguments label the axes independently
+  });
+
+  it('setLabels coerces a data-structure argument through its elements', () => {
+    const m = matrix([[0]]);
+    const list = new RList('l1', 'xs', 'LIST', noopCharge, 0, 0);
+    list.call('push', [A], 1); // a vertex displays as its label
+    list.call('push', [7], 1);
+    m.call('setLabels', [list], 1);
+    expect(m.snapshot().rowLabels).toEqual(['A', '7']);
+  });
+
+  it('setLabels with a non-list argument produces no labels', () => {
+    const m = matrix([[0]]);
+    m.call('setLabels', [42], 1);
+    expect(m.snapshot().rowLabels).toEqual([]);
+  });
+
+  it('setLabel names a single row & column header at once (a vertex by its name)', () => {
+    const m = matrix([
+      [1, 2],
+      [3, 4],
+    ]);
+    m.call('setLabel', [1, A], 1); // index 1 → label both axes 'A'
+    const snap = m.snapshot();
+    expect(snap.rowLabels![1]).toBe('A');
+    expect(snap.colLabels![1]).toBe('A');
+  });
+
+  it('setRowLabel and setColLabel name a single axis header independently', () => {
+    const m = matrix([
+      [1, 2],
+      [3, 4],
+    ]);
+    m.call('setRowLabel', [0, 'top'], 1);
+    m.call('setColLabel', [1, 'right'], 1);
+    const snap = m.snapshot();
+    expect(snap.rowLabels![0]).toBe('top');
+    expect(snap.colLabels![1]).toBe('right');
+    expect(snap.rowLabels![1]).toBeUndefined(); // only the named index is set
+  });
+
+  it('charges one unit per label-setter call', () => {
+    const c = makeCharge();
+    const m = new RMatrix('mx', 'M', c.charge, 0, 0, [
+      [1, 2],
+      [3, 4],
+    ]);
+    m.call('setLabels', [['a', 'b']], 1); // +1
+    m.call('setLabel', [0, 'x'], 1); // +1
+    m.call('setRowLabel', [1, 'y'], 1); // +1
+    m.call('setColLabel', [1, 'z'], 1); // +1
+    expect(c.total()).toBe(4);
+  });
 });
 
 describe('makeRuntimeDSByKind', () => {
