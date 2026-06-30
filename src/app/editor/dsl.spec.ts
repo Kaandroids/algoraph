@@ -114,6 +114,35 @@ describe('dslAutocomplete — top-level names', () => {
     expect(labels(result)).toEqual(expect.arrayContaining(['a', 'b']));
   });
 
+  it('completes a non-exported function declared in this file as a call', () => {
+    const result = complete('function tests() do\nend\n\nexport function fwInit() do\n  te', {
+      exports: [{ name: 'fwInit', params: '', file: 'main.algo' }],
+    });
+    const tests = result?.options.find((o) => o.label === 'tests');
+    expect(tests).toEqual({
+      label: 'tests',
+      type: 'function',
+      detail: '()',
+      info: 'Helper in this file',
+      apply: 'tests()',
+    });
+  });
+
+  it('inserts a local helper call with its parameter names', () => {
+    const result = complete('function relax(int u, vertex v) do\nend\nr');
+    const relax = result?.options.find((o) => o.label === 'relax');
+    expect(relax).toMatchObject({ type: 'function', detail: '(u, v)', apply: 'relax(u, v)' });
+  });
+
+  it('does not duplicate a current-file export already in the exports list', () => {
+    const result = complete('export function fwInit() do\nend\nfw', {
+      exports: [{ name: 'fwInit', params: '', file: 'main.algo' }],
+    });
+    const matches = (result?.options ?? []).filter((o) => o.label === 'fwInit');
+    expect(matches).toHaveLength(1);
+    expect(matches[0].info).toBe('Exported helper · main.algo'); // the exported entry is kept
+  });
+
   it('returns null when there is nothing before the cursor and completion is implicit', () => {
     expect(complete('', { pos: 0, explicit: false })).toBeNull();
   });

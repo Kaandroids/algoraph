@@ -109,6 +109,31 @@ function localNames(doc: string): string[] {
   return [...names];
 }
 
+/** The parameter names of a `(type a, b)` list, joined like an `ExportRef` (e.g. `a, b`). */
+function paramNames(raw: string): string {
+  return raw
+    .split(',')
+    .map((p) => p.trim().match(/[A-Za-z_]\w*/g))
+    .filter((w): w is RegExpMatchArray => !!w?.length)
+    .map((w) => w[w.length - 1])
+    .join(', ');
+}
+
+/**
+ * Functions declared in this file, with their parameter names. The cross-file
+ * `exports` list only carries `export function`s, so a plain (non-exported)
+ * helper is otherwise invisible to completion even within its own file — this
+ * scan makes it callable like any exported one. Exported names are deduped
+ * against `exports` at the call site.
+ */
+function localFunctions(doc: string): { name: string; params: string }[] {
+  const out: { name: string; params: string }[] = [];
+  for (const m of doc.matchAll(/\bfunction\s+([A-Za-z_]\w*)\s*\(([^)]*)\)/g)) {
+    out.push({ name: m[1], params: paramNames(m[2]) });
+  }
+  return out;
+}
+
 /** A name in scope, fed in from the canvas (the graph + the placed data structures). */
 export interface EditorGlobal {
   name: string;
@@ -257,12 +282,23 @@ function dslAutocomplete(context: CompletionContext): CompletionResult | null {
     apply: `${e.name}(${e.params})`, // insert the call with its parameter names
   }));
   const taken = new Set([...names, ...exported, ...ALL_COMPLETIONS].map((c) => c.label));
+  // Functions declared in this file (non-exported ones aren't in `exports`).
+  const localFns: Completion[] = localFunctions(context.state.doc.toString())
+    .filter((f) => !taken.has(f.name))
+    .map((f) => ({
+      label: f.name,
+      type: 'function',
+      detail: `(${f.params})`,
+      info: 'Helper in this file',
+      apply: `${f.name}(${f.params})`,
+    }));
+  for (const f of localFns) taken.add(f.label);
   const locals: Completion[] = localNames(context.state.doc.toString())
     .filter((n) => !taken.has(n))
     .map((label) => ({ label, type: 'variable' }));
   return {
     from: word.from,
-    options: [...names, ...exported, ...locals, ...ALL_COMPLETIONS],
+    options: [...names, ...exported, ...localFns, ...locals, ...ALL_COMPLETIONS],
     validFor: /^[\w]*$/,
   };
 }
