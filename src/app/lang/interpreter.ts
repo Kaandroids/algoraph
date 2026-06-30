@@ -537,6 +537,8 @@ export class Interpreter {
       outDegree: degree,
       source: () => this.graph.source(),
       goal: () => this.graph.goal(),
+      sources: () => this.graph.sources(),
+      goals: () => this.graph.goals(),
       // ── Visualization ──
       mark: ({ isEdge, edgeKey, v0, args }) => {
         // mark(u, type?) highlights a vertex; mark(u, v, type?) highlights an edge.

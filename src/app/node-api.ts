@@ -226,8 +226,10 @@ export const GLOBAL_REFERENCE: {
         { sig: 'weight(vertex u, vertex v)', desc: 'Weight of edge u → v.', returns: 'number', cost: 'O(1)' },
         { sig: 'hasEdge(vertex u, vertex v)', desc: 'Whether edge u → v exists.', returns: 'bool', cost: 'O(1)' },
         { sig: 'degree(vertex u)', desc: 'Edges incident to u (also inDegree / outDegree).', returns: 'int', cost: 'O(1)' },
-        { sig: 'source()', desc: 'The Start vertex.', returns: 'vertex', cost: 'O(1)' },
-        { sig: 'goal()', desc: 'The Goal vertex.', returns: 'vertex', cost: 'O(1)' },
+        { sig: 'source()', desc: 'The Start vertex (the first, if several).', returns: 'vertex', cost: 'O(1)' },
+        { sig: 'goal()', desc: 'The Goal vertex (the first, if several).', returns: 'vertex', cost: 'O(1)' },
+        { sig: 'sources()', desc: 'All Start vertices — for multi-source searches (seed the frontier with every one).', returns: 'list<vertex>', cost: 'O(V)' },
+        { sig: 'goals()', desc: 'All Goal vertices — for multi-target searches.', returns: 'list<vertex>', cost: 'O(V)' },
       ],
     },
     {

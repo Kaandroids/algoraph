@@ -161,6 +161,16 @@ export class GraphValue {
     this.charge(1);
     return [...this.byId.values()].find((v) => v.type === 'GOAL') ?? null;
   }
+  /** Every START vertex (for multi-source searches); `source()` is just the first. */
+  sources(): Vertex[] {
+    this.charge(1);
+    return [...this.byId.values()].filter((v) => v.type === 'START');
+  }
+  /** Every GOAL vertex (for multi-target searches); `goal()` is just the first. */
+  goals(): Vertex[] {
+    this.charge(1);
+    return [...this.byId.values()].filter((v) => v.type === 'GOAL');
+  }
 
   // ── Mutations (createNode / createEdge / delete / clear) ─────
   createNode(x: number, y: number, name?: string): Vertex {

@@ -50,6 +50,8 @@ export const BUILTINS: readonly BuiltinSpec[] = [
   { name: 'outDegree' },
   { name: 'source' },
   { name: 'goal' },
+  { name: 'sources' },
+  { name: 'goals' },
   // ── Visualization ──
   { name: 'mark' },
   { name: 'unmark' },

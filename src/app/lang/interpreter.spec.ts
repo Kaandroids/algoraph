@@ -272,6 +272,36 @@ describe('interpreter (Dijkstra seed)', () => {
     expect(last.effects.pins).toEqual(['ds-pq']); // clearMarks kept pins; unpin dropped "dist"
   });
 
+  it('sources() / goals() return every Start / Goal; source() / goal() the first', () => {
+    const multi = {
+      vertices: [
+        { id: 'A', label: 'A', type: 'START', x: 0, y: 0 },
+        { id: 'B', label: 'B', type: 'START', x: 1, y: 0 },
+        { id: 'C', label: 'C', type: 'NODE', x: 2, y: 0 },
+        { id: 'D', label: 'D', type: 'GOAL', x: 3, y: 0 },
+        { id: 'E', label: 'E', type: 'GOAL', x: 4, y: 0 },
+      ],
+      edges: [],
+    };
+    const src =
+      'allStarts ← sources()\n' +
+      'allGoals ← goals()\n' +
+      'firstStart ← source()\n' +
+      'ns ← 0\n' +
+      'for each s in sources() do\n  ns ← ns + 1\nend\n';
+    const result = compileAndRun([{ id: 'main', name: 'main.algo', content: src }], {
+      entryId: 'main',
+      graph: multi,
+      data: [],
+    });
+    expect(result.error).toBeNull();
+    const vars = Object.fromEntries(result.steps.at(-1)!.vars.map((v) => [v.name, v.value]));
+    expect(vars['firstStart']).toBe('A'); // source() = the first START
+    expect(vars['ns']).toBe('2'); // two STARTs iterated
+    expect(vars['allStarts']).toBe('[A, B]'); // sources() lists every START
+    expect(vars['allGoals']).toBe('[D, E]'); // goals() lists every GOAL
+  });
+
   it('createNode adds vertices (auto-named) and createEdge connects them', () => {
     const result = runSrc(
       'clearGraph()\n' +
