@@ -109,6 +109,11 @@ describe('dslAutocomplete — top-level names', () => {
     expect(labels(result)).toContain('node');
   });
 
+  it('completes every comma-separated loop variable of a nested for', () => {
+    const result = complete('for i, j in 0 .. n do\n  i');
+    expect(labels(result)).toEqual(expect.arrayContaining(['i', 'j']));
+  });
+
   it('completes function parameters (the last word of each `type name` pair)', () => {
     const result = complete('function f(vertex a, b)\nx');
     expect(labels(result)).toEqual(expect.arrayContaining(['a', 'b']));

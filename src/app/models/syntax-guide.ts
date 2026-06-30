@@ -54,13 +54,15 @@ export const SYNTAX_GUIDE: SyntaxSection[] = [
   {
     title: 'Loops',
     intro:
-      'Three loop forms. Use continue to skip to the next iteration and break to leave the loop. ' +
-      'In the Run workspace, the vertex a for-each loop is currently on is ringed automatically — ' +
-      'nested loops ring each level — so the iteration is visible without marking anything yourself.',
+      'Three loop forms, plus a nested shorthand. Use continue to skip to the next iteration and ' +
+      'break to leave the loop. In the Run workspace, the vertex a for-each loop is currently on is ' +
+      'ringed automatically — nested loops ring each level — so the iteration is visible without ' +
+      'marking anything yourself.',
     items: [
       { syntax: 'while cond do … end', desc: 'Repeat while a condition holds.' },
       { syntax: 'for each x in C do … end', desc: 'Iterate the elements of a collection.' },
       { syntax: 'for i in a..b do … end', desc: 'Counted loop over an inclusive range.' },
+      { syntax: 'for i, j in a..b do … end', desc: 'Nested shorthand — each extra comma-separated variable opens another loop over the same range or collection.' },
       { syntax: 'continue · break', desc: 'Skip to the next iteration · leave the loop early.' },
     ],
     example:

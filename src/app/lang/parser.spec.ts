@@ -116,3 +116,44 @@ describe('parser grammar paths', () => {
     expect(returnValue('return -x\n')).toMatchObject({ kind: 'unary', op: '-' });
   });
 });
+
+describe('parser — for loop variables', () => {
+  /** The first statement, asserted to be a `forIn`. */
+  const forStmt = (src: string) => {
+    const s = parse(src).module.items[0] as Extract<Stmt, { kind: 'forIn' }>;
+    expect(s.kind).toBe('forIn');
+    return s;
+  };
+
+  it('parses a single-variable for as one loop (body sits directly inside)', () => {
+    const stmt = forStmt('for i in 0 .. 3 do\n  x ← i\nend\n');
+    expect(stmt.varName).toBe('i');
+    expect(stmt.iterable.kind).toBe('range');
+    expect(stmt.body[0].kind).toBe('assign');
+  });
+
+  it('still accepts the optional leading type in the single-variable form', () => {
+    const stmt = forStmt('for int i in 0 .. 3 do\n  x ← i\nend\n');
+    expect(stmt.varName).toBe('i');
+    expect(stmt.body[0].kind).toBe('assign');
+  });
+
+  it('desugars `for i, j in …` into perfectly nested loops over one iterable', () => {
+    const outer = forStmt('for i, j in 0 .. 3 do\n  x ← i\nend\n');
+    expect(outer.varName).toBe('i');
+    const inner = outer.body[0] as Extract<Stmt, { kind: 'forIn' }>;
+    expect(inner.kind).toBe('forIn');
+    expect(inner.varName).toBe('j');
+    expect(outer.body.length).toBe(1); // the outer holds only the inner loop
+    expect(inner.body[0].kind).toBe('assign'); // the user's body sits innermost
+    expect(outer.iterable).toBe(inner.iterable); // the same range is shared by every level
+  });
+
+  it('nests three variables outermost-first', () => {
+    const a = forStmt('for k, i, j in nodes() do\n  visit(j)\nend\n');
+    const b = a.body[0] as Extract<Stmt, { kind: 'forIn' }>;
+    const c = b.body[0] as Extract<Stmt, { kind: 'forIn' }>;
+    expect([a.varName, b.varName, c.varName]).toEqual(['k', 'i', 'j']);
+    expect(c.body[0].kind).toBe('exprStmt');
+  });
+});

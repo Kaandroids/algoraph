@@ -91,9 +91,12 @@ const ALL_COMPLETIONS = [...KEYWORD_COMPLETIONS];
  */
 function localNames(doc: string): string[] {
   const names = new Set<string>();
-  // `for [each] [type] name in …` — the captured group is the loop variable.
-  for (const m of doc.matchAll(/\bfor\s+(?:each\s+)?(?:[A-Za-z_]\w*\s+)?([A-Za-z_]\w*)\s+in\b/g)) {
-    names.add(m[1]);
+  // `for [each] [type] i in …` or the nested `for i, j, … in …` — every loop
+  // variable. A comma-less declaration is `name` or `type name` (var = last word).
+  for (const m of doc.matchAll(/\bfor\s+(?:each\s+)?([A-Za-z_][\w\s,]*?)\s+in\b/g)) {
+    const decl = m[1].trim();
+    if (decl.includes(',')) for (const v of decl.split(',')) names.add(v.trim());
+    else names.add(decl.match(/[A-Za-z_]\w*/g)!.at(-1)!);
   }
   // `name ← …` / `name[i] ← …` at the start of a line — an assignment target.
   for (const m of doc.matchAll(/(?:^|\n)\s*([A-Za-z_]\w*)\s*(?:\[[^\]]*\])?\s*←/g)) {

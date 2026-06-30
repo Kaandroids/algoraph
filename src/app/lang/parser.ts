@@ -147,20 +147,40 @@ export class Parser {
     return { kind: 'while', cond, body, line };
   }
 
+  /**
+   * `for [each] [type] i in <iterable> do … end`, or the nested shorthand
+   * `for i, j, … in <iterable> do … end`. A single variable is one ordinary loop;
+   * several comma-separated variables desugar into perfectly nested loops over the
+   * same range or collection — pseudocode shorthand common in matrix algorithms
+   * (e.g. Floyd–Warshall's `for k, i, j in 0 .. n`). The nesting is built here, so
+   * every later pass (resolver, interpreter, complexity, trace) sees plain loops.
+   */
   private parseFor(): Stmt {
     const line = this.peek().line;
     this.expectKeyword('for');
     this.matchKeyword('each'); // optional sugar — `for each` and `for` both iterate `in`
+    const vars: string[] = [];
     const first = this.expect('name', 'loop variable');
-    let varName = first?.value ?? '_';
+    let firstVar = first?.value ?? '_';
     // `for [each] type name in …` — a leading type identifier is optional.
-    if (first && this.at('name')) varName = this.advance().value;
+    if (first && this.at('name')) firstVar = this.advance().value;
+    vars.push(firstVar);
+    // `for i, j, … in …` — each extra comma-separated variable nests another loop.
+    while (this.match('comma')) {
+      const v = this.expect('name', 'loop variable');
+      vars.push(v?.value ?? '_');
+    }
     this.expectKeyword('in');
     const iterable = this.parseExpression();
     this.expectKeyword('do');
     const body = this.parseBlock(['end']);
     this.expectKeyword('end');
-    return { kind: 'forIn', varName, iterable, body, line };
+    // One variable → a single loop; several → nested loops, innermost first.
+    let nested: Stmt[] = body;
+    for (let k = vars.length - 1; k >= 0; k--) {
+      nested = [{ kind: 'forIn', varName: vars[k], iterable, body: nested, line }];
+    }
+    return nested[0];
   }
 
   private parseReturn(): Stmt {

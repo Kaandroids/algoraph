@@ -51,6 +51,24 @@ function snapshotOf(steps: { data: DataSnapshot[] }, label: string): DataSnapsho
   return steps.data.find((d) => d.label === label)!;
 }
 
+describe('nested for shorthand', () => {
+  it('runs `for i, j in a..b` as perfectly nested loops over the range', () => {
+    const out = makeDataNode('LIST', 'ds-out', { x: 0, y: 0 }, 'out');
+    const result = runSrc('for i, j in 0 .. 2 do\n  out.push(i * 10 + j)\nend\n', [out]);
+    expect(result.error).toBeNull();
+    const items = snapshotOf(result.steps.at(-1)!, 'out').items;
+    // Inclusive 0..2 for both → every (i, j) pair, inner varying fastest.
+    expect(items.map(Number)).toEqual([0, 1, 2, 10, 11, 12, 20, 21, 22]);
+  });
+
+  it('exposes a loop frame per nesting level', () => {
+    const out = makeDataNode('LIST', 'ds-out', { x: 0, y: 0 }, 'out');
+    const result = runSrc('for i, j in 0 .. 1 do\n  out.push(i)\nend\n', [out]);
+    const vars = new Set(result.steps.map((s) => s.loop?.varName).filter(Boolean));
+    expect(vars).toEqual(new Set(['i', 'j']));
+  });
+});
+
 describe('interpreter (Dijkstra seed)', () => {
   it('runs without error and produces a trace', () => {
     const result = run();

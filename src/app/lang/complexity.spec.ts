@@ -36,6 +36,13 @@ describe('estimateComplexity', () => {
     expect(estimate([{ id: 'main', name: 'main.algo', content: src }], new Map()).time).toBe('O(V²)');
   });
 
+  it('reads a single counted loop as O(n) and the nested `for i, j` shorthand as O(n²)', () => {
+    const one = 'for i in 0 .. n do\n  x ← i\nend\n';
+    expect(estimate([{ id: 'main', name: 'main.algo', content: one }], new Map()).time).toBe('O(n)');
+    const two = 'for i, j in 0 .. n do\n  x ← i + j\nend\n';
+    expect(estimate([{ id: 'main', name: 'main.algo', content: two }], new Map()).time).toBe('O(n²)');
+  });
+
   it('reports O(V²) space when a matrix is on the canvas', () => {
     const kinds = new Map<string, DataStructureKind>([['adj', 'MATRIX']]);
     expect(estimate(seedFiles, kinds).space).toBe('O(V²)');
