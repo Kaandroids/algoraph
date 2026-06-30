@@ -4,8 +4,12 @@
  *
  * A file's locals are everything reachable from its top-level code: structures
  * created directly, plus those created inside any function it calls (transitively,
- * across files via the global function table). A function that is declared but
- * never called doesn't run, so its creations are not counted.
+ * across files via the global function table). Exported functions are entry points
+ * in their own right — callable from other files and runnable on their own — so
+ * each is scanned as a root even with no call site in this file (a helper module
+ * being edited has its `export function` bodies but no top-level run yet). A
+ * private function that is declared but never called doesn't run, so its creations
+ * are not counted.
  */
 import type { Expr, FunctionDecl, Module, Stmt } from './ast';
 import type { DataStructureKind } from '../models/data-structure.model';
@@ -86,6 +90,18 @@ export function collectLocalStructures(entry: Module, functions: Map<string, Fun
     },
   };
 
+  // The file's top-level run.
   walkStmts(entry.items.filter((i): i is Stmt => i.kind !== 'function'), visitor);
+
+  // Exported functions are entry points too, so scan each as its own root — this
+  // is what surfaces a helper module's structures while it's being edited, before
+  // any call site exists. Transitive calls from them are followed as usual, and
+  // `seenFns` keeps an export that the top-level already reached from re-walking.
+  for (const item of entry.items) {
+    if (item.kind === 'function' && item.exported && !seenFns.has(item.name)) {
+      seenFns.add(item.name);
+      walkStmts(item.body, visitor);
+    }
+  }
   return out;
 }

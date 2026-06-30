@@ -49,11 +49,29 @@ describe('local structure scan', () => {
     expect(locals([{ id: 'main', name: 'main.algo', content: src }])).toEqual(['n:SET']);
   });
 
-  it('ignores a function that is declared but never called', () => {
+  it('ignores a private function that is declared but never called', () => {
     const src =
       'function unused() do\n  createSet(0, 0, "never")\nend\n' +
       'createList(0, 0, "used")\n';
     expect(locals([{ id: 'main', name: 'main.algo', content: src }])).toEqual(['used:LIST']);
+  });
+
+  it('scans an exported function body even with no call site (helper module being edited)', () => {
+    // The reported case: structures created inside an `export function` must be
+    // offered while the file is being written, before anything calls it.
+    const src =
+      'export function fwInit() do\n' +
+      '  panel.createList("optList")\n' +
+      '  panel.createMatrix(3, 3, "opt")\n' +
+      'end\n';
+    expect(locals([{ id: 'main', name: 'main.algo', content: src }])).toEqual(['opt:MATRIX', 'optList:LIST']);
+  });
+
+  it('follows calls transitively from an exported root into private helpers', () => {
+    const src =
+      'export function run() do\n  prep()\nend\n' +
+      'function prep() do\n  scratch.createQueue("frontier")\nend\n';
+    expect(locals([{ id: 'main', name: 'main.algo', content: src }])).toEqual(['frontier:QUEUE']);
   });
 
   it('finds scratch.* and panel.* structures — label form and assigned variable', () => {
